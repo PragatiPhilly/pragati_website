@@ -1,0 +1,265 @@
+@import "tailwindcss";
+@import "./scenes.css";
+@import "./home.css";
+
+/* ── Pragati theme system ─────────────────────────────────────────
+   Three festival themes driven by data-theme on <html>.
+   Palette lifted from the approved prototype (pragati.html). */
+
+:root,
+[data-theme="durga"] {
+  --bg: #fbf3dd;
+  --bg-soft: #fef6d9;
+  --ink: #2a2438;
+  --ink-soft: #5a5468;
+  --line: rgba(42, 36, 56, 0.12);
+  --marigold: #e8a93c;
+  --marigold-bright: #f6c95e;
+  --marigold-pale: #f9dc8e;
+  --sindoor: #c8102e;
+  --sindoor-deep: #8e0a20;
+  --terracotta: #e85f2c;
+  --terracotta-deep: #b53d14;
+  --leaf-green: #9cc76c;
+  --leaf-deep: #5c8a3a;
+  --cream: #fbf6ec;
+  --card: #fffdf6;
+  --halo: rgba(232, 169, 60, 0.55);
+  --shadow: 0 30px 60px rgba(200, 150, 26, 0.25);
+  --accent: var(--sindoor);
+  --accent-soft: rgba(200, 16, 46, 0.08);
+}
+
+[data-theme="kali"] {
+  --bg: #0a1230;
+  --bg-soft: #1a0e3a;
+  --ink: #fbf6ec;
+  --ink-soft: rgba(251, 246, 236, 0.7);
+  --line: rgba(232, 169, 60, 0.18);
+  --marigold: #e8a93c;
+  --marigold-bright: #f6c95e;
+  --marigold-pale: #f9dc8e;
+  --sindoor: #c8102e;
+  --sindoor-deep: #4a0510;
+  --terracotta: #8e0a20;
+  --terracotta-deep: #4a0510;
+  --leaf-green: #1b5e3a;
+  --leaf-deep: #0d3220;
+  --cream: #fbf6ec;
+  --card: #141c40;
+  --halo: rgba(232, 169, 60, 0.55);
+  --shadow: 0 30px 60px rgba(0, 0, 0, 0.55);
+  --accent: var(--marigold);
+  --accent-soft: rgba(232, 169, 60, 0.12);
+}
+
+[data-theme="saraswati"] {
+  --bg: #fbe9a8;
+  --bg-soft: #f5e8c4;
+  --ink: #3b5876;
+  --ink-soft: #6a8094;
+  --line: rgba(59, 88, 118, 0.18);
+  --marigold: #e8a93c;
+  --marigold-bright: #f6c95e;
+  --marigold-pale: #f9dc8e;
+  --sindoor: #c8102e;
+  --sindoor-deep: #8e0a20;
+  --terracotta: #c2542b;
+  --terracotta-deep: #8e3a1c;
+  --leaf-green: #7ba05b;
+  --leaf-deep: #4d7340;
+  --cream: #fbf6ec;
+  --card: #fffdf4;
+  --halo: rgba(255, 255, 255, 0.65);
+  --shadow: 0 30px 60px rgba(168, 117, 74, 0.25);
+  --accent: #3b5876;
+  --accent-soft: rgba(59, 88, 118, 0.1);
+}
+
+@theme inline {
+  --color-bg: var(--bg);
+  --color-bg-soft: var(--bg-soft);
+  --color-ink: var(--ink);
+  --color-ink-soft: var(--ink-soft);
+  --color-card: var(--card);
+  --color-cream: var(--cream);
+  --color-marigold: var(--marigold);
+  --color-marigold-bright: var(--marigold-bright);
+  --color-marigold-pale: var(--marigold-pale);
+  --color-sindoor: var(--sindoor);
+  --color-sindoor-deep: var(--sindoor-deep);
+  --color-terracotta: var(--terracotta);
+  --color-terracotta-deep: var(--terracotta-deep);
+  --color-leaf: var(--leaf-green);
+  --color-leaf-deep: var(--leaf-deep);
+  --color-accent: var(--accent);
+  --color-accent-soft: var(--accent-soft);
+  --font-display: "Fraunces", Georgia, serif;
+  --font-serif: "Cormorant Garamond", Georgia, serif;
+  --font-sans: "Inter", system-ui, sans-serif;
+  --font-bangla: "Tiro Bangla", serif;
+}
+
+html {
+  scroll-behavior: smooth;
+}
+
+body {
+  background: var(--bg);
+  color: var(--ink);
+  font-family: var(--font-sans);
+  transition: background 0.6s ease, color 0.6s ease;
+  -webkit-font-smoothing: antialiased;
+}
+
+::selection {
+  background: var(--marigold-pale);
+  color: var(--ink);
+}
+
+/* hairline borders */
+.hairline {
+  border: 1px solid var(--line);
+}
+
+/* soft festive card */
+.festive-card {
+  background: var(--card);
+  border: 1px solid var(--line);
+  border-radius: 1.25rem;
+  box-shadow: 0 4px 24px rgba(0, 0, 0, 0.05);
+}
+
+/* marigold garland divider */
+.garland {
+  height: 8px;
+  background-image: radial-gradient(circle at 4px 4px, var(--marigold) 3px, transparent 3.5px);
+  background-size: 14px 8px;
+  background-repeat: repeat-x;
+  opacity: 0.7;
+}
+
+/* buttons */
+.btn-primary {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+  background: var(--sindoor);
+  color: var(--cream);
+  font-weight: 600;
+  border-radius: 999px;
+  padding: 0.8rem 1.75rem;
+  transition: transform 0.15s ease, box-shadow 0.15s ease, background 0.2s ease;
+  box-shadow: 0 6px 18px rgba(200, 16, 46, 0.25);
+}
+.btn-primary:hover {
+  background: var(--sindoor-deep);
+  transform: translateY(-1px);
+  box-shadow: 0 10px 24px rgba(200, 16, 46, 0.3);
+}
+.btn-primary:active {
+  transform: translateY(0);
+}
+.btn-secondary {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+  background: transparent;
+  color: var(--ink);
+  border: 1.5px solid var(--line);
+  font-weight: 600;
+  border-radius: 999px;
+  padding: 0.8rem 1.75rem;
+  transition: border-color 0.2s ease, background 0.2s ease, transform 0.15s ease;
+}
+.btn-secondary:hover {
+  border-color: var(--marigold);
+  background: var(--accent-soft);
+  transform: translateY(-1px);
+}
+
+/* choice chip used across the registration flow */
+.choice-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  border: 1.5px solid var(--line);
+  background: var(--card);
+  color: var(--ink);
+  border-radius: 1rem;
+  padding: 1rem 1.25rem;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.18s ease;
+  text-align: left;
+}
+.choice-chip:hover {
+  border-color: var(--marigold);
+  transform: translateY(-2px);
+  box-shadow: 0 8px 20px rgba(0, 0, 0, 0.07);
+}
+.choice-chip[data-selected="true"] {
+  border-color: var(--sindoor);
+  background: var(--accent-soft);
+  box-shadow: inset 0 0 0 1px var(--sindoor);
+}
+
+/* form inputs */
+.input {
+  width: 100%;
+  background: var(--card);
+  border: 1.5px solid var(--line);
+  border-radius: 0.9rem;
+  padding: 0.85rem 1.1rem;
+  color: var(--ink);
+  font-size: 1rem;
+  transition: border-color 0.2s ease, box-shadow 0.2s ease;
+}
+.input:focus {
+  outline: none;
+  border-color: var(--marigold);
+  box-shadow: 0 0 0 4px rgba(232, 169, 60, 0.15);
+}
+.input::placeholder {
+  color: var(--ink-soft);
+  opacity: 0.6;
+}
+
+/* diya flicker for hero */
+@keyframes flicker {
+  0%, 100% { opacity: 1; transform: scale(1); }
+  50% { opacity: 0.85; transform: scale(0.96); }
+}
+.diya-flame {
+  animation: flicker 2.4s ease-in-out infinite;
+  transform-origin: bottom center;
+}
+
+@keyframes float-slow {
+  0%, 100% { transform: translateY(0); }
+  50% { transform: translateY(-10px); }
+}
+.float-slow {
+  animation: float-slow 6s ease-in-out infinite;
+}
+
+/* page enter */
+@keyframes pageIn {
+  from { opacity: 0; transform: translateY(10px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+.page-in { animation: pageIn 0.45s cubic-bezier(0.21, 0.9, 0.35, 1); }
+
+/* petal progress dots */
+.petal {
+  width: 10px;
+  height: 10px;
+  border-radius: 50% 0 50% 50%;
+  transform: rotate(45deg);
+  background: var(--line);
+  transition: background 0.3s ease, transform 0.3s ease;
+}
+.petal[data-state="done"] { background: var(--marigold); }
+.petal[data-state="active"] { background: var(--sindoor); transform: rotate(45deg) scale(1.35); }

@@ -1,0 +1,46 @@
+{
+  "name": "pragati",
+  "version": "0.1.0",
+  "private": true,
+  "scripts": {
+    "dev": "next dev",
+    "build": "next build",
+    "start": "next start",
+    "db:push": "node -e \"require('fs').mkdirSync(process.env.PGLITE_DIR||'./.data/pglite',{recursive:true})\" && drizzle-kit push",
+    "seed": "tsx src/db/seed.ts",
+    "test": "vitest run",
+    "reset:test-data": "tsx scripts/reset-test-data.ts"
+  },
+  "dependencies": {
+    "@electric-sql/pglite": "^0.5.3",
+    "@vercel/blob": "^2.6.0",
+    "drizzle-orm": "^0.45.2",
+    "framer-motion": "^12.42.2",
+    "jose": "^6.2.3",
+    "next": "^16.2.10",
+    "postgres": "^3.4.9",
+    "qrcode": "^1.5.4",
+    "react": "^19.2.7",
+    "react-dom": "^19.2.7",
+    "sharp": "^0.34.5",
+    "zod": "^4.4.3"
+  },
+  "devDependencies": {
+    "@tailwindcss/postcss": "^4.3.2",
+    "@types/node": "^24.10.4",
+    "@types/qrcode": "^1.5.5",
+    "@types/react": "^19.2.7",
+    "@types/react-dom": "^19.2.3",
+    "drizzle-kit": "^0.31.10",
+    "tailwindcss": "^4.3.2",
+    "tsx": "^4.22.4",
+    "typescript": "^5.9.3",
+    "vitest": "^4.1.9"
+  },
+  "overrides": {
+    "next": {
+      "postcss": "^8.5.10"
+    },
+    "esbuild": "^0.25.0"
+  }
+}

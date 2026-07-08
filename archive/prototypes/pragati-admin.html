@@ -1,0 +1,634 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Pragati Admin — Theme Picker</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,400;0,600;0,700&family=Inter:wght@300;400;500;600;700&family=Tiro+Bangla&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bg:#f5efe2;
+    --ink:#1a1a24;
+    --muted:#6a6a78;
+    --line: rgba(26,26,36,0.1);
+    --indigo:#0E1A3A;
+    --sindoor:#C8102E;
+    --marigold:#E8A93C;
+    --terracotta:#a8552e;
+    --cream:#FBF6EC;
+    --emerald:#1B5E3A;
+    --shadow: 0 30px 60px rgba(26,26,36,0.15);
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body {
+    font-family: 'Inter', sans-serif;
+    background: var(--bg);
+    color: var(--ink);
+    min-height: 100vh;
+    line-height: 1.5;
+    background-image:
+      radial-gradient(ellipse at 10% 0%, rgba(232,169,60,0.15) 0%, transparent 50%),
+      radial-gradient(ellipse at 90% 100%, rgba(200,16,46,0.1) 0%, transparent 50%);
+  }
+  .serif { font-family: 'Cormorant Garamond', serif; }
+  .bangla { font-family: 'Tiro Bangla', serif; }
+
+  /* ============= HEADER ============= */
+  header {
+    padding: 32px 48px;
+    border-bottom: 1px solid var(--line);
+    display: flex; justify-content: space-between; align-items: center;
+    background: rgba(255,255,255,0.6);
+    backdrop-filter: blur(8px);
+    position: sticky; top: 0; z-index: 50;
+  }
+  .brand { display: flex; align-items: center; gap: 14px; }
+  .brand-mark {
+    width: 44px; height: 44px;
+    background: radial-gradient(circle at 50% 50%, #F6C95E, #E8A93C 40%, #C8102E 100%);
+    border-radius: 50%;
+    box-shadow: 0 0 20px rgba(232,169,60,0.5);
+    position: relative;
+  }
+  .brand-mark::before {
+    content:''; position:absolute; inset:5px;
+    border-radius:50%; border:2px dashed rgba(14,26,58,0.4);
+    animation: spin 30s linear infinite;
+  }
+  .brand-mark::after {
+    content:''; position:absolute; top:50%; left:50%; width:6px; height:6px;
+    background: var(--sindoor); border-radius: 50%; transform: translate(-50%,-50%);
+  }
+  @keyframes spin { to { transform: rotate(360deg); } }
+  .brand-text { line-height: 1.1; }
+  .brand-text h1 { font-family: 'Cormorant Garamond', serif; font-weight: 700; font-size: 22px; }
+  .brand-text h1 .bn { font-family: 'Tiro Bangla', serif; color: var(--sindoor); margin-left: 6px; font-weight: 400; }
+  .brand-text .sub { font-size: 11px; color: var(--muted); letter-spacing: 1.5px; text-transform: uppercase; margin-top: 2px; }
+  .header-right { display: flex; align-items: center; gap: 20px; font-size: 14px; }
+  .status-pill {
+    display: inline-flex; align-items: center; gap: 8px;
+    padding: 8px 16px; border-radius: 999px;
+    background: rgba(27,94,58,0.1);
+    color: var(--emerald);
+    font-weight: 600; font-size: 12px;
+    letter-spacing: 1px; text-transform: uppercase;
+  }
+  .status-pill .dot { width: 8px; height: 8px; border-radius: 50%; background: var(--emerald); box-shadow: 0 0 10px var(--emerald); animation: pulse 2s infinite; }
+  @keyframes pulse { 0%,100% {opacity:1;} 50% {opacity:0.4;} }
+
+  /* ============= MAIN ============= */
+  main { max-width: 1280px; margin: 0 auto; padding: 60px 48px 80px; }
+
+  .page-title {
+    font-family: 'Cormorant Garamond', serif;
+    font-size: 52px; font-weight: 600; line-height: 1.05;
+    letter-spacing: -1px;
+    margin-bottom: 12px;
+  }
+  .page-title .bn {
+    display: block;
+    font-family: 'Tiro Bangla', serif;
+    font-size: 0.4em;
+    color: var(--sindoor);
+    margin-bottom: 8px;
+  }
+  .page-lede { font-size: 17px; color: var(--muted); max-width: 640px; margin-bottom: 48px; }
+
+  /* current theme banner */
+  .current-banner {
+    display: flex; align-items: center; justify-content: space-between;
+    padding: 18px 24px; border-radius: 16px; margin-bottom: 48px;
+    background: var(--cream);
+    border: 1px solid var(--line);
+  }
+  .current-banner .left { display: flex; align-items: center; gap: 16px; }
+  .current-banner .label { font-size: 11px; letter-spacing: 2px; text-transform: uppercase; color: var(--muted); }
+  .current-banner .name { font-family: 'Cormorant Garamond', serif; font-size: 24px; font-weight: 600; line-height: 1.1; }
+  .current-banner .name .bn { font-family: 'Tiro Bangla', serif; color: var(--sindoor); margin-right: 6px; }
+  .current-banner a {
+    padding: 10px 20px; border-radius: 999px;
+    background: var(--indigo); color: white;
+    text-decoration: none; font-weight: 600; font-size: 13px;
+    display: inline-flex; align-items: center; gap: 8px;
+    transition: all 0.3s;
+  }
+  .current-banner a:hover { background: var(--sindoor); transform: translateY(-2px); }
+
+  /* ============= THEME CARDS ============= */
+  .theme-grid {
+    display: grid; grid-template-columns: repeat(3, 1fr); gap: 26px;
+  }
+
+  .theme-card {
+    border-radius: 24px; overflow: hidden;
+    background: white;
+    box-shadow: var(--shadow);
+    transition: all 0.4s cubic-bezier(.2,.8,.2,1);
+    border: 3px solid transparent;
+    position: relative;
+  }
+  .theme-card:hover { transform: translateY(-6px); box-shadow: 0 40px 70px rgba(26,26,36,0.22); }
+  .theme-card.active {
+    border-color: var(--marigold);
+    box-shadow: 0 30px 60px rgba(232,169,60,0.4), 0 0 0 1px var(--marigold);
+  }
+  .active-badge {
+    position: absolute; top: 16px; right: 16px;
+    background: var(--emerald); color: white;
+    padding: 6px 14px; border-radius: 999px;
+    font-size: 11px; font-weight: 700; letter-spacing: 1.5px; text-transform: uppercase;
+    display: none; z-index: 5;
+    box-shadow: 0 6px 18px rgba(27,94,58,0.4);
+  }
+  .theme-card.active .active-badge { display: inline-flex; align-items: center; gap: 6px; }
+
+  /* preview area */
+  .preview {
+    aspect-ratio: 16/10;
+    overflow: hidden;
+    position: relative;
+    border-bottom: 1px solid var(--line);
+  }
+
+  /* DURGA PREVIEW (bright, heritage cream + terracotta) */
+  .preview-durga {
+    background:
+      radial-gradient(ellipse at 25% 20%, rgba(232,169,60,0.45) 0%, transparent 50%),
+      radial-gradient(ellipse at 75% 80%, rgba(200,16,46,0.18) 0%, transparent 60%),
+      linear-gradient(180deg, #fbf2dd 0%, #f3e3c2 60%, #e8c98c 100%);
+  }
+  .preview-durga .sun {
+    position: absolute; top: 18%; right: 14%; width: 70px; height: 70px;
+    background: radial-gradient(circle, #fff 0%, #F6C95E 40%, transparent 70%);
+    border-radius: 50%;
+    box-shadow: 0 0 60px rgba(246,201,94,0.7);
+    animation: sun-pulse 6s ease-in-out infinite;
+  }
+  @keyframes sun-pulse { 0%,100% { transform: scale(1); } 50% { transform: scale(1.08); } }
+  .preview-durga .sun-ray {
+    position: absolute; top: calc(18% + 35px); right: calc(14% + 35px);
+    transform: translate(50%,-50%);
+    width: 200px; height: 200px;
+    background: conic-gradient(from 0deg, transparent 80deg, rgba(246,201,94,0.35) 90deg, transparent 100deg, transparent 170deg, rgba(246,201,94,0.35) 180deg, transparent 190deg, transparent 260deg, rgba(246,201,94,0.35) 270deg, transparent 280deg, transparent 350deg, rgba(246,201,94,0.35) 360deg);
+    border-radius: 50%;
+    animation: spin 40s linear infinite;
+  }
+  .preview-durga .pandal {
+    position: absolute; bottom: 0; left: 20%; right: 20%; height: 55%;
+  }
+  .preview-durga .toran {
+    position: absolute; top: 10%; left: 5%; right: 5%; height: 22px;
+    background-image: radial-gradient(circle, #E8A93C 4px, transparent 5px), radial-gradient(circle, #1B5E3A 3px, transparent 4px);
+    background-size: 14px 14px, 14px 14px;
+    background-position: 0 10px, 7px 0px;
+    opacity: 0.9;
+  }
+  .preview-durga .figure {
+    position: absolute; left: 50%; top: 38%; transform: translateX(-50%);
+    width: 18%; aspect-ratio: 1;
+    background: radial-gradient(circle, #C8102E 30%, #a8552e 60%, transparent 100%);
+    border-radius: 50% 50% 40% 40%;
+  }
+  .preview-durga .figure::after {
+    content:''; position:absolute; top: -20%; left:50%; transform:translateX(-50%);
+    width: 50%; aspect-ratio: 1; background: #f4c89e; border-radius:50%;
+  }
+  .preview-durga .text-bar {
+    position: absolute; bottom: 12%; left: 10%; right: 10%; height: 8px;
+    background: rgba(26,26,36,0.15);
+    border-radius: 4px;
+  }
+  .preview-durga .text-bar.bar-2 { bottom: 8%; width: 60%; height: 6px; }
+
+  /* KALI PREVIEW (deep night, fireworks) */
+  .preview-kali {
+    background:
+      radial-gradient(ellipse at 50% 60%, rgba(232,169,60,0.3) 0%, transparent 55%),
+      radial-gradient(ellipse at 20% 30%, rgba(200,16,46,0.25) 0%, transparent 55%),
+      linear-gradient(180deg, #050818 0%, #0a1230 60%, #1a0e3a 100%);
+  }
+  .preview-kali .star {
+    position: absolute; width: 2px; height: 2px; background: #fff;
+    border-radius: 50%; animation: twinkle 3s ease-in-out infinite;
+  }
+  @keyframes twinkle { 0%,100% { opacity: 0.4; } 50% { opacity: 1; } }
+  .preview-kali .firework {
+    position: absolute; width: 60px; height: 60px; pointer-events: none;
+  }
+  .preview-kali .firework::before, .preview-kali .firework::after {
+    content:''; position:absolute; inset:0;
+    border-radius:50%;
+    background:
+      radial-gradient(circle, transparent 30%, rgba(246,201,94,0.7) 35%, transparent 50%);
+    animation: firework 2.4s ease-out infinite;
+  }
+  .preview-kali .firework::after { animation-delay: 1.2s; }
+  .preview-kali .firework.fw-1 { top: 18%; left: 18%; }
+  .preview-kali .firework.fw-2 { top: 25%; right: 22%; animation-delay: 0.8s; }
+  .preview-kali .firework.fw-2::before { background: radial-gradient(circle, transparent 30%, rgba(200,16,46,0.7) 35%, transparent 50%); animation-delay: 0.8s; }
+  @keyframes firework {
+    0% { transform: scale(0); opacity: 1; }
+    70% { transform: scale(1); opacity: 0.6; }
+    100% { transform: scale(1.3); opacity: 0; }
+  }
+  .preview-kali .pandal {
+    position: absolute; bottom: 0; left: 25%; right: 25%; height: 50%;
+    background:
+      radial-gradient(ellipse at 50% 30%, rgba(232,169,60,0.5) 0%, transparent 50%),
+      linear-gradient(180deg, transparent 0%, #050818 100%);
+  }
+  .preview-kali .figure {
+    position: absolute; left: 50%; top: 40%; transform: translateX(-50%);
+    width: 18%; aspect-ratio: 1;
+    background: radial-gradient(circle, #C8102E 30%, #1a0e3a 60%, transparent 100%);
+    border-radius: 50% 50% 40% 40%;
+  }
+  .preview-kali .figure::after {
+    content:''; position:absolute; top: -20%; left:50%; transform:translateX(-50%);
+    width: 50%; aspect-ratio: 1;
+    background: #2a1a2a;
+    border-radius:50%;
+  }
+  .preview-kali .figure::before {
+    content:'🜂'; position: absolute; top: -10%; left: 50%; transform: translateX(-50%);
+    color: #C8102E; font-size: 12px; opacity: 0.8;
+  }
+  .preview-kali .lantern {
+    position: absolute; width: 6px; height: 8px;
+    background: radial-gradient(circle, #fff4c2 0%, #E8A93C 60%, transparent 100%);
+    border-radius: 30% 30% 50% 50%;
+    box-shadow: 0 0 10px #F6C95E;
+    animation: lantern-drift 8s linear infinite;
+  }
+  @keyframes lantern-drift {
+    0% { transform: translateX(-20px); opacity: 0; }
+    20% { opacity: 1; }
+    80% { opacity: 1; }
+    100% { transform: translateX(120%); opacity: 0; }
+  }
+  .preview-kali .text-bar {
+    position: absolute; bottom: 12%; left: 10%; right: 10%; height: 8px;
+    background: rgba(232,169,60,0.4);
+    border-radius: 4px;
+  }
+  .preview-kali .text-bar.bar-2 { bottom: 8%; width: 60%; height: 6px; }
+
+  /* SARASWATI PREVIEW (mustard yellow + white + palash) */
+  .preview-saraswati {
+    background:
+      radial-gradient(ellipse at 70% 18%, rgba(255,255,255,0.55) 0%, transparent 50%),
+      radial-gradient(ellipse at 20% 90%, rgba(156,199,108,0.2) 0%, transparent 55%),
+      linear-gradient(180deg, #FEF6D9 0%, #FBE9A8 60%, #F6D87A 100%);
+  }
+  .preview-saraswati .sun-s {
+    position: absolute; top: 18%; right: 16%; width: 60px; height: 60px;
+    background: radial-gradient(circle, #fff 0%, #FEF6D9 40%, #F6C95E 80%);
+    border-radius: 50%;
+    box-shadow: 0 0 40px rgba(254,246,217,0.85);
+    animation: sun-pulse 6s ease-in-out infinite;
+  }
+  .preview-saraswati .pond {
+    position: absolute; bottom: 0; left: 0; right: 0; height: 30%;
+    background: linear-gradient(180deg, transparent 0%, rgba(191,223,234,0.5) 50%, rgba(123,160,180,0.7) 100%);
+  }
+  .preview-saraswati .figure {
+    position: absolute; left: 50%; top: 36%; transform: translateX(-50%);
+    width: 18%; aspect-ratio: 1;
+    background: radial-gradient(circle, #FBF6EC 30%, #E8A4B8 70%, transparent 100%);
+    border-radius: 50% 50% 40% 40%;
+  }
+  .preview-saraswati .figure::after {
+    content:''; position:absolute; top: -20%; left:50%; transform:translateX(-50%);
+    width: 50%; aspect-ratio: 1; background: #f4c89e; border-radius:50%;
+  }
+  .preview-saraswati .swan {
+    position: absolute; bottom: 12%; width: 24px; height: 14px;
+    background: #FBF6EC; border-radius: 60% 40% 50% 50%;
+    animation: swan-glide-mini 8s linear infinite;
+  }
+  .preview-saraswati .swan.s1 { left: -20px; animation-delay: 0s; }
+  .preview-saraswati .swan.s2 { left: -50px; animation-delay: 3s; bottom: 18%; }
+  .preview-saraswati .swan::after {
+    content:''; position:absolute; top: -6px; right: 4px;
+    width: 8px; height: 10px; background: #FBF6EC;
+    border-radius: 50% 50% 30% 30%;
+  }
+  @keyframes swan-glide-mini {
+    0% { transform: translateX(0); }
+    100% { transform: translateX(calc(100% + 320px)); }
+  }
+  .preview-saraswati .book {
+    position: absolute; width: 18px; height: 12px;
+    border-radius: 1px;
+    animation: book-float-mini 5s ease-in-out infinite;
+  }
+  .preview-saraswati .book.b1 { top: 28%; left: 14%; background: #E85F2C; }
+  .preview-saraswati .book.b2 { top: 35%; right: 18%; background: #9CC76C; animation-delay: 2s; }
+  .preview-saraswati .book.b3 { top: 56%; left: 22%; background: #3B5876; animation-delay: 1s; }
+  @keyframes book-float-mini {
+    0%, 100% { transform: translateY(0) rotate(-3deg); }
+    50% { transform: translateY(-6px) rotate(3deg); }
+  }
+  .preview-saraswati .text-bar {
+    position: absolute; bottom: 12%; left: 10%; right: 10%; height: 8px;
+    background: rgba(59,88,118,0.25);
+    border-radius: 4px;
+  }
+  .preview-saraswati .text-bar.bar-2 { bottom: 8%; width: 60%; height: 6px; }
+
+  /* card body */
+  .theme-card-body { padding: 24px 22px 26px; }
+  .theme-card .tag {
+    display: inline-flex; align-items: center; gap: 8px;
+    font-size: 11px; letter-spacing: 2.5px; text-transform: uppercase;
+    color: var(--marigold); font-weight: 700;
+    margin-bottom: 10px;
+  }
+  .theme-card .tag.kali { color: var(--sindoor); }
+  .theme-card .tag.saraswati { color: #C8961A; }
+  .theme-card h2 {
+    font-family: 'Cormorant Garamond', serif;
+    font-size: 26px; font-weight: 600; line-height: 1.1;
+    margin-bottom: 6px;
+  }
+  .theme-card h2 .bn {
+    display: block;
+    font-family: 'Tiro Bangla', serif;
+    color: var(--sindoor);
+    font-size: 0.7em;
+    font-weight: 400;
+    margin-bottom: 4px;
+  }
+  .theme-card .desc { font-size: 14px; color: var(--muted); margin: 12px 0 22px; line-height: 1.6; }
+  .swatches { display: flex; gap: 8px; margin-bottom: 24px; }
+  .swatch { width: 28px; height: 28px; border-radius: 50%; border: 2px solid rgba(255,255,255,0.6); box-shadow: 0 4px 10px rgba(0,0,0,0.1); }
+
+  .activate-btn {
+    width: 100%; padding: 16px 24px;
+    border-radius: 999px;
+    border: none; cursor: pointer;
+    font-family: 'Inter', sans-serif; font-size: 14px; font-weight: 600;
+    letter-spacing: 1px; text-transform: uppercase;
+    display: inline-flex; align-items: center; justify-content: center; gap: 10px;
+    transition: all 0.4s cubic-bezier(.2,.8,.2,1);
+  }
+  .activate-btn.durga {
+    background: linear-gradient(135deg, var(--terracotta) 0%, var(--sindoor) 100%);
+    color: white;
+    box-shadow: 0 10px 30px rgba(168,85,46,0.35);
+  }
+  .activate-btn.durga:hover { transform: translateY(-3px); box-shadow: 0 15px 40px rgba(168,85,46,0.55); }
+  .activate-btn.kali {
+    background: linear-gradient(135deg, var(--indigo) 0%, #1a0e3a 100%);
+    color: var(--cream);
+    box-shadow: 0 10px 30px rgba(14,26,58,0.4);
+  }
+  .activate-btn.kali:hover { transform: translateY(-3px); box-shadow: 0 15px 40px rgba(200,16,46,0.5); background: linear-gradient(135deg, #8e0a20 0%, var(--indigo) 100%); }
+  .activate-btn.saraswati {
+    background: linear-gradient(135deg, #C8961A 0%, #E85F2C 100%);
+    color: white;
+    box-shadow: 0 10px 30px rgba(200,150,26,0.4);
+  }
+  .activate-btn.saraswati:hover { transform: translateY(-3px); box-shadow: 0 15px 40px rgba(232,95,44,0.55); }
+  .activate-btn.active-state {
+    background: rgba(27,94,58,0.12) !important;
+    color: var(--emerald) !important;
+    cursor: default !important;
+    box-shadow: none !important;
+  }
+  .activate-btn.active-state:hover { transform: none !important; }
+
+  /* hint footer */
+  .hint {
+    margin-top: 40px;
+    padding: 20px 24px;
+    background: rgba(232,169,60,0.08);
+    border-left: 3px solid var(--marigold);
+    border-radius: 0 12px 12px 0;
+    font-size: 13px; color: var(--muted);
+    line-height: 1.7;
+  }
+  .hint strong { color: var(--ink); }
+  .hint .bn { font-family:'Tiro Bangla',serif; color: var(--sindoor); }
+
+  @media (max-width: 880px) {
+    main { padding: 40px 24px 60px; }
+    header { padding: 24px; flex-wrap: wrap; gap: 16px; }
+    .theme-grid { grid-template-columns: 1fr; }
+    .page-title { font-size: 38px; }
+  }
+  @media (max-width: 1100px) and (min-width: 881px) {
+    .theme-grid { grid-template-columns: 1fr 1fr; }
+  }
+</style>
+</head>
+<body>
+
+<header>
+  <div class="brand">
+    <div class="brand-mark"></div>
+    <div class="brand-text">
+      <h1>Pragati <span class="bn">প্রগতি</span></h1>
+      <div class="sub">Admin Console · Theme Picker</div>
+    </div>
+  </div>
+  <div class="header-right">
+    <div class="status-pill"><span class="dot"></span> Connected</div>
+  </div>
+</header>
+
+<main>
+  <h2 class="page-title">
+    <span class="bn">থিম নিয়ন্ত্রণ</span>
+    Choose your festival mode.
+  </h2>
+  <p class="page-lede">
+    Switch the Pragati site between Durga Pujo and Kali Pujo themes. The change applies live —
+    every color, headline, animation, and section narrative updates instantly across all visitor pages.
+  </p>
+
+  <!-- Current active banner -->
+  <div class="current-banner">
+    <div class="left">
+      <span class="label">Currently active</span>
+      <span class="name" id="currentName"><span class="bn">দুর্গা পূজা</span>Durga Pujo</span>
+    </div>
+    <a href="pragati.html" target="_blank">Open live site ↗</a>
+  </div>
+
+  <div class="theme-grid">
+
+    <!-- ============= DURGA CARD ============= -->
+    <div class="theme-card" id="card-durga" data-theme="durga">
+      <span class="active-badge">✓ Active</span>
+      <div class="preview preview-durga">
+        <div class="sun-ray"></div>
+        <div class="sun"></div>
+        <div class="toran"></div>
+        <div class="pandal"></div>
+        <div class="figure"></div>
+        <div class="text-bar"></div>
+        <div class="text-bar bar-2"></div>
+      </div>
+      <div class="theme-card-body">
+        <div class="tag">✦ Daytime · Heritage Cream</div>
+        <h2><span class="bn">দুর্গা পূজা</span>Durga Pujo</h2>
+        <p class="desc">
+          Bright daytime palette — ivory and warm terracotta, sindoor accents, navy text. Sun-lit pandal,
+          marigold toran, the family deity scene with Maa Durga and her four children. Editorial,
+          elegant, festival-by-day.
+        </p>
+        <div class="swatches">
+          <div class="swatch" style="background:#FBF6EC" title="Cream"></div>
+          <div class="swatch" style="background:#a8552e" title="Terracotta"></div>
+          <div class="swatch" style="background:#C8102E" title="Sindoor"></div>
+          <div class="swatch" style="background:#E8A93C" title="Marigold"></div>
+          <div class="swatch" style="background:#1a2a4a" title="Navy ink"></div>
+        </div>
+        <button class="activate-btn durga" onclick="setTheme('durga')">
+          Activate Durga Pujo →
+        </button>
+      </div>
+    </div>
+
+    <!-- ============= KALI CARD ============= -->
+    <div class="theme-card" id="card-kali" data-theme="kali">
+      <span class="active-badge">✓ Active</span>
+      <div class="preview preview-kali">
+        <div class="star" style="top: 8%; left: 12%;"></div>
+        <div class="star" style="top: 14%; left: 28%; animation-delay: 1s;"></div>
+        <div class="star" style="top: 6%; left: 48%; animation-delay: 1.6s;"></div>
+        <div class="star" style="top: 12%; left: 65%; animation-delay: 0.4s;"></div>
+        <div class="star" style="top: 9%; left: 82%; animation-delay: 2.2s;"></div>
+        <div class="star" style="top: 22%; left: 5%; animation-delay: 0.8s;"></div>
+        <div class="star" style="top: 18%; left: 92%; animation-delay: 1.4s;"></div>
+        <div class="firework fw-1"></div>
+        <div class="firework fw-2"></div>
+        <div class="pandal"></div>
+        <div class="figure"></div>
+        <div class="lantern" style="top: 75%; animation-delay: 0s;"></div>
+        <div class="lantern" style="top: 82%; animation-delay: 3s;"></div>
+        <div class="lantern" style="top: 78%; animation-delay: 6s;"></div>
+        <div class="text-bar"></div>
+        <div class="text-bar bar-2"></div>
+      </div>
+      <div class="theme-card-body">
+        <div class="tag kali">✦ Nighttime · Midnight Sindoor</div>
+        <h2><span class="bn">কালী পূজা</span>Kali Pujo</h2>
+        <p class="desc">
+          Deep night palette — indigo midnight skies, sindoor red, marigold lamplight, Maa Kali silhouette
+          with kharga and stylized skull garland. Bursting fireworks on Amavasya night, twinkling stars,
+          river-lantern visarjan. Atmospheric and devotional.
+        </p>
+        <div class="swatches">
+          <div class="swatch" style="background:#0a1230" title="Indigo Night"></div>
+          <div class="swatch" style="background:#1a0e3a" title="Twilight"></div>
+          <div class="swatch" style="background:#C8102E" title="Sindoor"></div>
+          <div class="swatch" style="background:#E8A93C" title="Marigold"></div>
+          <div class="swatch" style="background:#FBF6EC" title="Cream"></div>
+        </div>
+        <button class="activate-btn kali" onclick="setTheme('kali')">
+          Activate Kali Pujo →
+        </button>
+      </div>
+    </div>
+
+    <!-- ============= SARASWATI CARD ============= -->
+    <div class="theme-card" id="card-saraswati" data-theme="saraswati">
+      <span class="active-badge">✓ Active</span>
+      <div class="preview preview-saraswati">
+        <div class="sun-s"></div>
+        <div class="book b1"></div>
+        <div class="book b2"></div>
+        <div class="book b3"></div>
+        <div class="pond"></div>
+        <div class="figure"></div>
+        <div class="swan s1"></div>
+        <div class="swan s2"></div>
+        <div class="text-bar"></div>
+        <div class="text-bar bar-2"></div>
+      </div>
+      <div class="theme-card-body">
+        <div class="tag saraswati">✦ Morning · Vasant Panchami</div>
+        <h2><span class="bn">সরস্বতী পূজা</span>Saraswati Pujo</h2>
+        <p class="desc">
+          Mustard-yellow spring morning palette — Maa Saraswati on a lotus with veena and swans,
+          floating books and pens, white shiuli and palash petals falling, Bengali calligraphy
+          drawing itself down the page. Calm, scholarly, gentle.
+        </p>
+        <div class="swatches">
+          <div class="swatch" style="background:#FBE9A8" title="Mustard yellow"></div>
+          <div class="swatch" style="background:#FBF6EC" title="White saree"></div>
+          <div class="swatch" style="background:#E85F2C" title="Palash orange"></div>
+          <div class="swatch" style="background:#9CC76C" title="Spring green"></div>
+          <div class="swatch" style="background:#3B5876" title="Ink blue"></div>
+        </div>
+        <button class="activate-btn saraswati" onclick="setTheme('saraswati')">
+          Activate Saraswati Pujo →
+        </button>
+      </div>
+    </div>
+
+  </div>
+
+  <div class="hint">
+    <strong>How this works.</strong> Selecting a theme writes to your browser's local storage. The Pragati visitor site
+    (<code>pragati.html</code>) reads this on every page load and applies the matching palette, fonts, illustrations,
+    and animations. <span class="bn">থিম পরিবর্তন তাৎক্ষণিক।</span>
+    If you have the live site open in another tab, it will refresh to the new theme within a second.
+  </div>
+</main>
+
+<script>
+  // Initial state — read current theme
+  const KEY = 'pragatiTheme';
+  function getTheme() {
+    return localStorage.getItem(KEY) || 'durga';
+  }
+  function setTheme(theme) {
+    localStorage.setItem(KEY, theme);
+    // also dispatch a custom event so other tabs notice
+    try {
+      const broadcastChannel = new BroadcastChannel('pragati-theme');
+      broadcastChannel.postMessage({ theme });
+      broadcastChannel.close();
+    } catch(e) {}
+    render();
+  }
+  function render() {
+    const theme = getTheme();
+    document.querySelectorAll('.theme-card').forEach(card => {
+      card.classList.toggle('active', card.dataset.theme === theme);
+      const btn = card.querySelector('.activate-btn');
+      if (card.dataset.theme === theme) {
+        btn.classList.add('active-state');
+        btn.textContent = '✓ Currently Active';
+      } else {
+        btn.classList.remove('active-state');
+        const labels = { durga: 'Activate Durga Pujo →', kali: 'Activate Kali Pujo →', saraswati: 'Activate Saraswati Pujo →' };
+        btn.textContent = labels[card.dataset.theme] || '';
+      }
+    });
+    const name = document.getElementById('currentName');
+    const nameMap = {
+      durga: '<span class="bn">দুর্গা পূজা</span>Durga Pujo',
+      kali: '<span class="bn">কালী পূজা</span>Kali Pujo',
+      saraswati: '<span class="bn">সরস্বতী পূজা</span>Saraswati Pujo'
+    };
+    name.innerHTML = nameMap[theme] || nameMap.durga;
+  }
+  // Listen for storage events from other tabs (admin synced live)
+  window.addEventListener('storage', (e) => {
+    if (e.key === KEY) render();
+  });
+  // Also listen on the broadcast channel for instant cross-tab sync
+  try {
+    const bc = new BroadcastChannel('pragati-theme');
+    bc.addEventListener('message', render);
+  } catch(e) {}
+  render();
+</script>
+</body>
+</html>

@@ -1,0 +1,89 @@
+/* ── Scene animations (deity art) ─────────────────────────────── */
+
+@keyframes lampBlink { 0%,100% { opacity: 1; } 50% { opacity: 0.45; } }
+.lamp-blink { animation: lampBlink 2.4s ease-in-out infinite; }
+
+@keyframes garlandSway { 0%,100% { transform: rotate(-1.2deg); } 50% { transform: rotate(1.2deg); } }
+.garland-sway { transform-origin: 50% 0; animation: garlandSway 5s ease-in-out infinite; }
+
+@keyframes smokeRise {
+  0% { transform: translateY(0) scale(1); opacity: 0.55; }
+  100% { transform: translateY(-34px) scale(2.1); opacity: 0; }
+}
+.smoke { animation: smokeRise 3.5s linear infinite; transform-origin: center bottom; }
+.smoke.d2 { animation-delay: 1.2s; }
+.smoke.d3 { animation-delay: 2.4s; }
+
+@keyframes dhakStickL { 0%,100% { transform: rotate(0deg); } 50% { transform: rotate(-22deg); } }
+@keyframes dhakStickR { 0%,100% { transform: rotate(0deg); } 50% { transform: rotate(22deg); } }
+.stick-l { transform-origin: 60% 100%; animation: dhakStickL 0.7s ease-in-out infinite; }
+.stick-r { transform-origin: 40% 100%; animation: dhakStickR 0.7s ease-in-out infinite; }
+
+/* new — painterly scene */
+@keyframes cloudDrift {
+  0% { transform: translateX(0); }
+  100% { transform: translateX(60px); }
+}
+.cloud-a { animation: cloudDrift 46s ease-in-out infinite alternate; }
+.cloud-b { animation: cloudDrift 64s ease-in-out infinite alternate-reverse; }
+
+@keyframes flameDance {
+  0%, 100% { transform: scaleY(1) scaleX(1); opacity: 1; }
+  30% { transform: scaleY(1.15) scaleX(0.92); opacity: 0.92; }
+  60% { transform: scaleY(0.9) scaleX(1.06); opacity: 1; }
+}
+.flame { animation: flameDance 1.8s ease-in-out infinite; transform-box: fill-box; transform-origin: 50% 100%; }
+.flame.f2 { animation-delay: 0.5s; animation-duration: 2.1s; }
+.flame.f3 { animation-delay: 1.1s; animation-duration: 1.6s; }
+
+@keyframes haloBreathe {
+  0%, 100% { opacity: 0.75; transform: scale(1); }
+  50% { opacity: 1; transform: scale(1.05); }
+}
+.halo-breathe { animation: haloBreathe 6s ease-in-out infinite; transform-box: fill-box; transform-origin: center; }
+
+@keyframes petalFall {
+  0% { transform: translate(0, -10px) rotate(0deg); opacity: 0; }
+  12% { opacity: 0.9; }
+  85% { opacity: 0.9; }
+  100% { transform: translate(-46px, 420px) rotate(300deg); opacity: 0; }
+}
+.petal-fall { animation: petalFall 11s linear infinite; transform-box: fill-box; }
+.petal-fall.p2 { animation-delay: 2.5s; animation-duration: 13s; }
+.petal-fall.p3 { animation-delay: 5s; animation-duration: 10s; }
+.petal-fall.p4 { animation-delay: 7.5s; animation-duration: 14s; }
+.petal-fall.p5 { animation-delay: 9s; animation-duration: 12s; }
+
+@keyframes fireflyPulse {
+  0%, 100% { opacity: 0.1; }
+  50% { opacity: 0.9; }
+}
+@keyframes fireflyWander {
+  0%, 100% { transform: translate(0, 0); }
+  25% { transform: translate(14px, -10px); }
+  50% { transform: translate(-6px, -22px); }
+  75% { transform: translate(-16px, -6px); }
+}
+.firefly { animation: fireflyPulse 3.2s ease-in-out infinite, fireflyWander 12s ease-in-out infinite; transform-box: fill-box; }
+.firefly.g2 { animation-delay: 1.1s, 3s; }
+.firefly.g3 { animation-delay: 2.2s, 6s; }
+.firefly.g4 { animation-delay: 0.6s, 9s; }
+
+@keyframes leafSway {
+  0%, 100% { transform: rotate(-1.6deg); }
+  50% { transform: rotate(1.8deg); }
+}
+.leaf-sway { animation: leafSway 7s ease-in-out infinite; transform-box: fill-box; transform-origin: 50% 100%; }
+.leaf-sway.l2 { animation-delay: 1.8s; animation-duration: 8.5s; }
+
+@keyframes sceneBreath {
+  0%, 100% { transform: translateY(0); }
+  50% { transform: translateY(-4px); }
+}
+.scene-breath { animation: sceneBreath 9s ease-in-out infinite; }
+
+/* parallax layers respond to pointer via CSS vars set by the wrapper */
+.parallax-wrap { --mx: 0; --my: 0; }
+.plx-1 { transform: translate(calc(var(--mx) * 5px), calc(var(--my) * 3px)); transition: transform 0.4s ease-out; }
+.plx-2 { transform: translate(calc(var(--mx) * 10px), calc(var(--my) * 6px)); transition: transform 0.3s ease-out; }
+.plx-3 { transform: translate(calc(var(--mx) * -8px), calc(var(--my) * -5px)); transition: transform 0.25s ease-out; }

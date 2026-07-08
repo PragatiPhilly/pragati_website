@@ -1,0 +1,25 @@
+# ── dependencies / build output ────────────────────────────────
+node_modules/
+.next/
+*.tsbuildinfo
+next-env.d.ts
+
+# ── local databases & env ──────────────────────────────────────
+.data/
+.env
+.env.local
+.env*.local
+
+# ── runtime user uploads (local dev only; prod uses Vercel Blob)
+app/public/media/
+app/public/magazines/
+
+# ── OS / editor junk ───────────────────────────────────────────
+.DS_Store
+Thumbs.db
+*.log
+.vscode/
+.idea/
+
+# ── vercel ─────────────────────────────────────────────────────
+.vercel/

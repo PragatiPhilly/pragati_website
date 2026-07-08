@@ -1,0 +1,8 @@
+node_modules/
+.next/
+.data/
+.env.local
+# admin-uploaded photos (runtime user content)
+/public/media/
+# admin-uploaded magazine PDFs (runtime user content, local dev only)
+/public/magazines/

@@ -1,0 +1,2898 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Pragati — পুজোর পাঁচ দিন · Shoshti to Doshomi</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,400;0,500;0,600;0,700;1,400;1,600&family=Fraunces:opsz,wght@9..144,400;9..144,600;9..144,700;9..144,900&family=Inter:wght@300;400;500;600;700&family=Tiro+Bangla:ital@0;1&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --indigo-night:#0a1230;
+    --indigo-deep:#1a0e3a;
+    --indigo:#0E1A3A;
+    --twilight:#3a1f5e;
+    --rose-dusk:#8e3a4a;
+    --sindoor:#C8102E;
+    --sindoor-deep:#8e0a20;
+    --marigold:#E8A93C;
+    --marigold-bright:#F6C95E;
+    --marigold-pale:#F9DC8E;
+    --cream:#FBF6EC;
+    --cream-2:#F2E9D4;
+    --emerald:#1B5E3A;
+    --skin:#f4c89e;
+    --skin-deep:#d99c6a;
+    --ink:#0a0a14;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  html { scroll-behavior: smooth; }
+  body {
+    font-family: 'Inter', sans-serif;
+    background: var(--indigo-night);
+    color: var(--cream);
+    line-height: 1.6;
+    overflow-x: hidden;
+  }
+  ::selection { background: var(--marigold); color: var(--indigo); }
+
+  /* ============================================================
+     SCROLL-DRIVEN SKY (smooth, no fixed overlays on content)
+     ============================================================ */
+  .sky-bg {
+    position: fixed; inset: 0; z-index: -3;
+    transition: background 2.5s cubic-bezier(.4,0,.2,1);
+  }
+  .sky-stars { position: fixed; inset:0; z-index:-2; pointer-events:none; opacity: 1; transition: opacity 2s ease; }
+  .sky-stars .star {
+    position: absolute; background: #fff;
+    border-radius: 50%; opacity: 0;
+    animation: twinkle 4s ease-in-out infinite;
+  }
+  @keyframes twinkle {
+    0%, 100% { opacity: 0.2; transform: scale(1); }
+    50% { opacity: 1; transform: scale(1.5); }
+  }
+
+  /* parallax background motifs (kept faint, far from content) */
+  .motif {
+    position: fixed; z-index: -2; pointer-events: none;
+    opacity: 0.08;
+    will-change: transform;
+  }
+  .motif svg { width:100%; height:100%; }
+
+  /* ============================================================
+     TOP BAR + NAV
+     ============================================================ */
+  .topbar {
+    background: rgba(10,18,48,0.7); backdrop-filter: blur(14px);
+    color: var(--marigold-pale);
+    font-size: 13px; padding: 8px 0;
+    border-bottom: 1px solid rgba(232,169,60,0.15);
+    position: relative; z-index: 50;
+  }
+  .topbar .wrap { display:flex; justify-content:space-between; max-width:1320px; margin:0 auto; padding:0 32px; flex-wrap:wrap; gap:8px; }
+  .topbar .marigold { color: var(--marigold); }
+  .topbar .bn { font-family:'Tiro Bangla',serif; color: var(--marigold-bright); }
+
+  nav.main {
+    position: sticky; top: 0; z-index: 100;
+    background: rgba(10,18,48,0.85);
+    backdrop-filter: blur(18px);
+    -webkit-backdrop-filter: blur(18px);
+    border-bottom: 1px solid rgba(232,169,60,0.18);
+  }
+  nav.main .wrap {
+    max-width: 1320px; margin: 0 auto;
+    padding: 16px 32px;
+    display: flex; align-items: center; justify-content: space-between;
+  }
+  .logo { display:flex; align-items:center; gap:14px; text-decoration:none; color: var(--cream); }
+  .logo-mark {
+    width: 52px; height: 52px;
+    background: radial-gradient(circle at 50% 50%, var(--marigold-bright) 0%, var(--marigold) 40%, var(--sindoor) 100%);
+    border-radius: 50%;
+    position: relative;
+    box-shadow: 0 0 28px rgba(232,169,60,0.55), inset 0 -8px 16px rgba(200,16,46,0.3);
+    animation: glow 4s ease-in-out infinite;
+  }
+  @keyframes glow {
+    0%,100% { box-shadow: 0 0 28px rgba(232,169,60,0.55), inset 0 -8px 16px rgba(200,16,46,0.3); }
+    50% { box-shadow: 0 0 44px rgba(232,169,60,0.9), 0 0 12px rgba(200,16,46,0.5), inset 0 -8px 16px rgba(200,16,46,0.4); }
+  }
+  .logo-mark::before {
+    content:''; position:absolute; inset:6px;
+    border-radius:50%; border:2px dashed rgba(10,18,48,0.55);
+    animation: spin 30s linear infinite;
+  }
+  /* small sindoor bindi in center (no ॐ) */
+  .logo-mark::after {
+    content:''; position:absolute; top: 50%; left: 50%;
+    width: 8px; height: 8px;
+    background: var(--sindoor);
+    border-radius: 50%;
+    transform: translate(-50%,-50%);
+    box-shadow: 0 0 8px rgba(200,16,46,0.7);
+  }
+  @keyframes spin { to { transform: rotate(360deg); } }
+  .logo-text { line-height: 1.1; }
+  .logo-text .name { font-family:'Fraunces',serif; font-weight:700; font-size:24px; letter-spacing:0.5px; color: var(--cream); }
+  .logo-text .name .bn { font-family:'Tiro Bangla',serif; color: var(--marigold); font-weight:400; margin-left:6px; }
+  .logo-text .sub { font-size:11px; color: var(--marigold-pale); letter-spacing:1.5px; text-transform: uppercase; opacity: 0.7; }
+
+  .nav-links { display:flex; gap:26px; list-style:none; align-items:center; flex-wrap: nowrap; }
+  .nav-links a {
+    color: var(--cream); text-decoration:none; font-weight:500; font-size:14px;
+    position: relative; padding: 6px 0; white-space: nowrap;
+    transition: color 0.4s;
+  }
+  .nav-links a .bn { font-family:'Tiro Bangla',serif; color: var(--marigold); font-size:12px; display:block; line-height:1; margin-bottom:2px; opacity: 0.8; }
+  .nav-links a::after {
+    content:''; position:absolute; bottom:-2px; left:0; height:2px; width:0;
+    background: linear-gradient(90deg, var(--sindoor), var(--marigold));
+    transition: width 0.45s ease;
+  }
+  .nav-links a:hover { color: var(--marigold-bright); }
+  .nav-links a:hover::after { width:100%; }
+  .nav-cta {
+    display: inline-flex !important; align-items: center;
+    background: linear-gradient(135deg, var(--sindoor), var(--sindoor-deep));
+    color: var(--cream) !important;
+    padding: 12px 22px !important; border-radius: 999px;
+    font-weight: 600 !important; font-size: 14px !important;
+    box-shadow: 0 10px 30px rgba(200,16,46,0.35);
+    transition: all 0.4s !important;
+    white-space: nowrap;
+    line-height: 1 !important;
+  }
+  .nav-cta:hover { transform: translateY(-2px); box-shadow: 0 14px 36px rgba(200,16,46,0.55); }
+  .nav-cta::after { display:none !important; }
+
+  @media (max-width: 1200px) {
+    .nav-links { gap: 20px; }
+    .nav-links a { font-size: 13px; }
+  }
+
+  /* ============================================================
+     HERO — SHOSHTI EVENING with the BIG pandal-with-Maa scene
+     ============================================================ */
+  .hero {
+    position: relative;
+    min-height: 100vh;
+    overflow: hidden;
+    display: flex; align-items: center;
+    padding: 60px 0 120px;
+  }
+
+  /* skyline silhouette at the bottom */
+  .pandal-bg {
+    position: absolute; bottom: 0; left: 0; right: 0;
+    height: 40vh; z-index: 0;
+    pointer-events: none;
+  }
+  .pandal-bg svg { width:100%; height:100%; display:block; }
+
+  /* warm glow behind hero */
+  .hero::before {
+    content:''; position:absolute; inset:0; z-index:0;
+    background:
+      radial-gradient(ellipse at 50% 80%, rgba(232,169,60,0.35) 0%, transparent 50%),
+      radial-gradient(ellipse at 20% 40%, rgba(200,16,46,0.22) 0%, transparent 55%);
+  }
+
+  .diya {
+    position: absolute; width: 8px; height: 8px;
+    border-radius: 50%;
+    background: radial-gradient(circle, #fff4c2 0%, var(--marigold-bright) 30%, transparent 70%);
+    box-shadow: 0 0 20px var(--marigold-bright), 0 0 40px rgba(232,169,60,0.4);
+    animation: float-diya 9s ease-in-out infinite;
+    z-index: 1;
+  }
+  @keyframes float-diya {
+    0%,100% { transform: translateY(0) scale(1); opacity: 0.9; }
+    50% { transform: translateY(-40px) scale(1.3); opacity: 1; }
+  }
+
+  .petal {
+    position: absolute; top: -20px;
+    width: 10px; height: 14px;
+    background: var(--marigold);
+    border-radius: 50% 50% 50% 50% / 60% 60% 40% 40%;
+    opacity: 0;
+    z-index: 1;
+    animation: fall 16s linear infinite;
+  }
+  .petal.red { background: var(--sindoor); }
+  .petal.pale { background: var(--marigold-pale); }
+  @keyframes fall {
+    0% { transform: translateY(0) rotate(0); opacity: 0; }
+    10% { opacity: 0.85; }
+    100% { transform: translateY(110vh) rotate(720deg); opacity: 0; }
+  }
+
+  .hero .wrap {
+    max-width: 1320px; margin: 0 auto;
+    padding: 60px 32px 60px;
+    position: relative; z-index: 5;
+    display: grid; grid-template-columns: 1.15fr 1fr; gap: 60px; align-items: center;
+  }
+
+  .hero-eyebrow {
+    display: inline-flex; align-items: center; gap: 12px;
+    padding: 8px 18px;
+    background: rgba(232,169,60,0.12);
+    border: 1px solid rgba(232,169,60,0.35);
+    border-radius: 999px;
+    font-size: 12px; letter-spacing: 2.5px; text-transform: uppercase;
+    color: var(--marigold-bright);
+    margin-bottom: 28px;
+    opacity: 0; animation: fadeUp 1s ease forwards 0.2s;
+  }
+  .hero-eyebrow .dot {
+    width:8px; height:8px; border-radius:50%;
+    background:var(--sindoor); box-shadow:0 0 14px var(--sindoor);
+    animation: pulse 2s infinite;
+  }
+  .hero-eyebrow .bn { font-family:'Tiro Bangla',serif; color: var(--marigold); letter-spacing: 0; text-transform: none; }
+  @keyframes pulse { 0%,100% {opacity:1;} 50% {opacity:0.4;} }
+  @keyframes fadeUp { from { opacity:0; transform:translateY(28px); } to { opacity:1; transform:translateY(0); } }
+
+  h1.hero-title {
+    font-family: 'Cormorant Garamond', serif;
+    font-weight: 600;
+    font-size: clamp(48px, 6.5vw, 92px);
+    line-height: 1;
+    letter-spacing: -1.5px;
+    margin-bottom: 28px;
+    opacity: 0; animation: fadeUp 1.2s ease forwards 0.4s;
+    color: var(--cream);
+  }
+  .hero-title .bn-top {
+    display: block;
+    font-family: 'Tiro Bangla', serif;
+    color: var(--marigold);
+    font-size: 0.32em;
+    font-weight: 400;
+    margin-bottom: 18px;
+    letter-spacing: 0;
+    text-shadow: 0 0 18px rgba(232,169,60,0.4);
+  }
+  .hero-title .accent {
+    color: var(--marigold);
+    font-style: italic;
+    position: relative;
+    display:inline-block;
+  }
+  .hero-title .accent::after {
+    content:''; position:absolute; left:0; right:0; bottom: 8px; height: 14px;
+    background: rgba(232,169,60,0.15); z-index: -1;
+    border-radius: 6px;
+  }
+  .hero-title .accent2 {
+    background: linear-gradient(120deg, var(--sindoor) 0%, var(--marigold) 60%, var(--marigold-bright) 100%);
+    -webkit-background-clip: text; background-clip: text;
+    color: transparent;
+    font-style: italic;
+  }
+
+  .hero-lede {
+    font-family: 'Cormorant Garamond', serif;
+    font-size: 22px; line-height: 1.55;
+    max-width: 560px;
+    color: rgba(251,246,236,0.82);
+    margin-bottom: 36px;
+    opacity: 0; animation: fadeUp 1.2s ease forwards 0.6s;
+    font-style: italic;
+  }
+
+  .hero-actions { display:flex; gap:16px; flex-wrap:wrap; opacity:0; animation: fadeUp 1.2s ease forwards 0.8s; }
+  .btn {
+    display: inline-flex; align-items:center; gap:10px;
+    padding: 17px 34px; border-radius: 999px;
+    font-weight: 600; font-size: 15px;
+    text-decoration: none; border: none; cursor: pointer;
+    transition: all 0.45s cubic-bezier(.2,.8,.2,1);
+    position: relative; overflow: hidden;
+    font-family: 'Inter', sans-serif;
+  }
+  .btn-primary {
+    background: linear-gradient(135deg, var(--sindoor) 0%, var(--sindoor-deep) 100%);
+    color: white;
+    box-shadow: 0 12px 36px rgba(200,16,46,0.45);
+  }
+  .btn-primary::before {
+    content:''; position:absolute; inset:0;
+    background: linear-gradient(135deg, var(--marigold) 0%, var(--sindoor) 100%);
+    opacity: 0; transition: opacity 0.5s;
+  }
+  .btn-primary span, .btn-primary svg { position:relative; z-index: 2; }
+  .btn-primary:hover::before { opacity: 1; }
+  .btn-primary:hover { transform: translateY(-3px); box-shadow: 0 18px 48px rgba(232,169,60,0.5); }
+  .btn-ghost {
+    background: transparent; color: var(--cream);
+    border: 1px solid rgba(232,169,60,0.35);
+  }
+  .btn-ghost:hover { background: rgba(232,169,60,0.08); border-color: var(--marigold); color: var(--marigold); }
+  .btn .arrow { transition: transform 0.4s; display:inline-block; }
+  .btn:hover .arrow { transform: translateX(6px); }
+
+  /* tiny countdown row below the actions */
+  .hero-countdown {
+    display: flex; gap: 20px; margin-top: 40px; align-items: center;
+    opacity: 0; animation: fadeUp 1.2s ease forwards 1s;
+    flex-wrap: wrap;
+  }
+  .hero-countdown .item { display: flex; flex-direction: column; align-items: flex-start; min-width: 50px; }
+  .hero-countdown .item b {
+    font-family:'Cormorant Garamond',serif; font-weight: 700; font-size: 38px;
+    color: var(--marigold-bright); line-height: 1;
+    font-variant-numeric: tabular-nums;
+  }
+  .hero-countdown .item span {
+    font-size: 11px; letter-spacing: 2px; text-transform: uppercase;
+    color: var(--marigold-pale); margin-top: 8px; opacity: 0.85;
+  }
+  .hero-countdown .divider {
+    width: 1px; height: 40px;
+    background: linear-gradient(180deg, transparent, rgba(232,169,60,0.5), transparent);
+    flex-shrink: 0;
+  }
+
+  /* ============================================================
+     PANDAL+MAA SCENE — Hero right column (inline, not fixed)
+     ============================================================ */
+  .pandal-scene-wrap {
+    position: relative;
+    max-width: 480px;
+    margin: 0 0 0 auto;
+    opacity: 0; animation: fadeUp 1.4s ease forwards 0.6s;
+  }
+  .pandal-scene-wrap::before {
+    content:''; position: absolute; inset: -40px;
+    background: radial-gradient(circle at 50% 45%, rgba(232,169,60,0.35) 0%, transparent 65%);
+    pointer-events: none;
+    animation: aura 6s ease-in-out infinite;
+  }
+  @keyframes aura {
+    0%,100% { opacity: 0.6; transform: scale(1); }
+    50% { opacity: 0.9; transform: scale(1.04); }
+  }
+  .pandal-scene-wrap svg { width: 100%; height: auto; display: block; position: relative; z-index: 2; filter: drop-shadow(0 30px 60px rgba(0,0,0,0.55)); }
+
+  .pandal-info {
+    text-align: center; margin-top: 20px;
+    position: relative; z-index: 2;
+  }
+  .pandal-info .label { font-size: 11px; letter-spacing: 3px; text-transform: uppercase; color: var(--marigold); margin-bottom: 6px; }
+  .pandal-info .name {
+    font-family:'Cormorant Garamond',serif; font-size: 28px; color: var(--cream); line-height: 1.1;
+  }
+  .pandal-info .name .bn { color: var(--marigold-bright); font-family:'Tiro Bangla',serif; font-size: 22px; display:block; margin-bottom: 4px; }
+
+  /* dhaak rhythm + crowd animations (CSS-only on SVG elements) */
+  @keyframes dhakStickL { 0%,100% { transform: rotate(-20deg); } 50% { transform: rotate(5deg); } }
+  @keyframes dhakStickR { 0%,100% { transform: rotate(20deg); } 50% { transform: rotate(-5deg); } }
+  .stick-l { transform-origin: 60% 100%; animation: dhakStickL 0.7s ease-in-out infinite; }
+  .stick-r { transform-origin: 40% 100%; animation: dhakStickR 0.7s ease-in-out infinite; }
+
+  @keyframes garlandSway {
+    0%,100% { transform: rotate(-1.2deg); }
+    50% { transform: rotate(1.2deg); }
+  }
+  .garland-sway { transform-origin: 50% 0; animation: garlandSway 5s ease-in-out infinite; }
+
+  @keyframes lampBlink { 0%,100% { opacity: 1; } 50% { opacity: 0.5; } }
+  .lamp-blink { animation: lampBlink 2.4s ease-in-out infinite; }
+
+  @keyframes crowdBob { 0%,100% { transform: translateY(0); } 50% { transform: translateY(-1.5px); } }
+  .crowd-figure { animation: crowdBob 2.4s ease-in-out infinite; transform-box: fill-box; }
+  .crowd-figure:nth-child(2n) { animation-delay: 0.4s; }
+  .crowd-figure:nth-child(3n) { animation-delay: 0.8s; }
+  .crowd-figure:nth-child(5n) { animation-delay: 1.2s; }
+
+  @keyframes smokeRise {
+    0% { transform: translateY(0) scale(1); opacity: 0.55; }
+    100% { transform: translateY(-30px) scale(2); opacity: 0; }
+  }
+  .smoke { animation: smokeRise 3.5s linear infinite; transform-origin: center bottom; }
+  .smoke.d2 { animation-delay: 1.2s; }
+  .smoke.d3 { animation-delay: 2.4s; }
+
+  /* scroll cue */
+  .scroll-cue {
+    position: absolute; bottom: 28px; left: 50%; transform: translateX(-50%);
+    color: var(--marigold); font-size: 11px; letter-spacing: 3px; text-transform: uppercase;
+    display: flex; flex-direction: column; align-items: center; gap: 10px;
+    z-index: 5;
+    animation: bob 3s ease-in-out infinite;
+  }
+  .scroll-cue .bn { font-family:'Tiro Bangla',serif; letter-spacing:0; text-transform:none; font-size:14px; }
+  .scroll-cue .line { width: 1px; height: 36px; background: linear-gradient(180deg, var(--marigold), transparent); }
+  @keyframes bob { 0%,100% { transform: translateX(-50%) translateY(0);} 50% { transform: translateX(-50%) translateY(10px);} }
+
+  /* ============================================================
+     SECTIONS — COMMON
+     ============================================================ */
+  section { padding: 140px 0; position: relative; }
+  .container { max-width: 1320px; margin: 0 auto; padding: 0 32px; position:relative; z-index: 2; }
+
+  .section-eyebrow {
+    display: inline-flex; align-items: center; gap: 12px;
+    font-size: 12px; letter-spacing: 3px; text-transform: uppercase;
+    color: var(--marigold); font-weight: 600;
+    margin-bottom: 18px;
+    flex-wrap: wrap;
+  }
+  .section-eyebrow .bar { width: 36px; height: 2px; background: linear-gradient(90deg, var(--sindoor), var(--marigold)); }
+  .section-eyebrow .day-tag {
+    font-family:'Tiro Bangla',serif; color: var(--marigold-bright);
+    letter-spacing: 0; text-transform: none; font-size: 16px;
+  }
+
+  .section-title {
+    font-family: 'Cormorant Garamond', serif; font-weight: 600;
+    font-size: clamp(38px, 5vw, 64px); line-height: 1.05;
+    letter-spacing: -1.2px;
+    margin-bottom: 22px;
+    max-width: 720px;
+  }
+  .section-title .bn { display:block; font-family:'Tiro Bangla',serif; font-size: 0.38em; color: var(--marigold); font-weight: 400; margin-bottom: 10px; text-shadow: 0 0 14px rgba(232,169,60,0.3); }
+  .section-title em { font-style: italic; color: var(--marigold-bright); }
+
+  /* section-anchored vignette (small Pujo scene that sits in a section, not pinned) */
+  .vignette {
+    position: relative;
+    display: flex; align-items: center; justify-content: center;
+  }
+
+  /* ============================================================
+     MISSION — SAPTAMI MORNING
+     ============================================================ */
+  .mission { color: var(--cream); }
+  .mission .grid { display:grid; grid-template-columns: 1fr 1.1fr; gap: 80px; align-items: center; }
+  .mission .panel {
+    position: relative; aspect-ratio: 4/5; border-radius: 28px; overflow: hidden;
+    border: 1px solid rgba(232,169,60,0.2);
+    background:
+      linear-gradient(135deg, rgba(10,18,48,0.4), rgba(200,16,46,0.25)),
+      linear-gradient(180deg, #1a0e3a 0%, #3a1f5e 60%, #8e3a4a 100%);
+  }
+  .mission .panel .deity-svg {
+    position: absolute; inset: 8% 6% 14% 6%;
+    display: flex; align-items: center; justify-content: center;
+    opacity: 1;
+  }
+  .mission .panel .deity-svg svg { width: 100%; height: 100%; object-fit: contain; }
+  .mission .panel .marigold-string {
+    position: absolute; top: 0; left: 0; right: 0;
+    height: 40px;
+    background-image: radial-gradient(circle, var(--marigold) 5px, transparent 6px);
+    background-size: 18px 18px;
+    background-position: 0 14px;
+    opacity: 0.95;
+    filter: drop-shadow(0 4px 6px rgba(0,0,0,0.4));
+  }
+  .mission .panel::after {
+    content:''; position:absolute; inset:auto -40px -40px auto;
+    width: 220px; height: 220px;
+    background: radial-gradient(circle, var(--marigold) 0%, transparent 70%);
+    opacity: 0.4;
+  }
+  .mission .panel .badge {
+    position:absolute; bottom: 28px; left: 28px;
+    background: rgba(10,18,48,0.85); backdrop-filter: blur(8px);
+    border: 1px solid rgba(232,169,60,0.4);
+    border-radius: 999px;
+    padding: 12px 22px;
+    font-family:'Cormorant Garamond',serif; font-weight:600; font-size: 15px;
+    color: var(--marigold-bright);
+  }
+  .mission .panel .badge .bn { font-family:'Tiro Bangla',serif; color: var(--marigold); font-size:13px; }
+
+  .mission-pullquote {
+    font-family:'Cormorant Garamond',serif; font-style: italic;
+    font-size: 28px; line-height: 1.4; color: var(--marigold-bright);
+    padding-left: 28px; border-left: 3px solid var(--sindoor);
+    margin: 32px 0;
+  }
+  .mission-pullquote .bn {
+    display: block; font-family:'Tiro Bangla',serif; color: var(--marigold);
+    font-size: 0.7em; font-style: normal; margin-bottom: 12px;
+  }
+  .mission-body { font-size: 17px; color: rgba(251,246,236,0.78); line-height: 1.85; margin-bottom: 16px; }
+  .mission-stats { display:grid; grid-template-columns: repeat(3,1fr); gap: 24px; margin-top:40px; padding-top: 36px; border-top: 1px solid rgba(232,169,60,0.18); }
+  .mission-stats .stat .num {
+    font-family:'Cormorant Garamond',serif; font-weight:600; font-size: 52px;
+    background: linear-gradient(135deg, var(--marigold-bright), var(--sindoor));
+    -webkit-background-clip: text; background-clip: text; color: transparent;
+    display:block; line-height:1;
+  }
+  .mission-stats .stat .label { font-size: 12px; color: var(--marigold-pale); margin-top: 8px; display:block; letter-spacing: 1.5px; text-transform: uppercase; opacity: 0.85; }
+  .mission-stats .stat .bn { font-family:'Tiro Bangla',serif; color: var(--marigold); font-size: 12px; margin-top: 4px; display: block; opacity: 0.7; }
+
+  /* ============================================================
+     EVENTS — ASHTAMI / ANJALI (dhunuchi dancer vignette)
+     ============================================================ */
+  .events { color: var(--cream); }
+  .events-header {
+    display: flex; justify-content: space-between; align-items: flex-end;
+    gap: 40px; margin-bottom: 60px; flex-wrap: wrap;
+    position: relative;
+  }
+  .events-header .header-left { flex: 1; min-width: 280px; }
+  .events-header .header-right { display: flex; align-items: flex-end; gap: 28px; flex-shrink: 0; }
+  .events-header .dhunuchi-vignette {
+    width: 130px; height: 170px; flex-shrink: 0;
+    align-self: flex-end;
+    margin-bottom: 8px;
+  }
+  .events-grid {
+    display: grid; grid-template-columns: 2fr 1fr 1fr; grid-template-rows: 340px 340px; gap: 20px;
+  }
+  .event-card {
+    position: relative; border-radius: 22px; overflow: hidden; cursor: pointer;
+    background: var(--indigo);
+    transition: transform 0.7s cubic-bezier(.2,.8,.2,1), box-shadow 0.7s;
+    border: 1px solid rgba(232,169,60,0.18);
+  }
+  .event-card:nth-child(1) { grid-row: 1 / 3; }
+  .event-card .img {
+    position: absolute; inset: 0;
+    background-size: cover; background-position: center;
+    transition: transform 1.2s cubic-bezier(.2,.8,.2,1);
+  }
+  .event-card:hover .img { transform: scale(1.1) rotate(-1deg); }
+  .event-card:hover { transform: translateY(-8px); box-shadow: 0 30px 60px rgba(0,0,0,0.5), 0 0 0 1px rgba(232,169,60,0.4); }
+  .event-card .overlay {
+    position: absolute; inset: 0;
+    background: linear-gradient(180deg, transparent 30%, rgba(10,18,48,0.95) 100%);
+  }
+  .event-card .content {
+    position: absolute; bottom: 0; left: 0; right: 0;
+    padding: 28px; color: var(--cream);
+    z-index: 2;
+  }
+  .event-card .chip {
+    display: inline-flex; gap: 8px; align-items: center;
+    background: rgba(232,169,60,0.18); color: var(--marigold-bright);
+    padding: 6px 14px; border-radius: 999px;
+    font-size: 11px; letter-spacing:1.5px; text-transform: uppercase;
+    margin-bottom: 14px;
+    border: 1px solid rgba(232,169,60,0.35);
+  }
+  .event-card h3 { font-family:'Cormorant Garamond',serif; font-size: 30px; font-weight:600; line-height:1.1; margin-bottom: 6px; }
+  .event-card h3 .bn { display:block; font-family:'Tiro Bangla',serif; font-size: 0.7em; color: var(--marigold-bright); margin-bottom: 4px; opacity: 0.9; }
+  .event-card.feature h3 { font-size: 42px; }
+  .event-card .meta { font-size: 13px; opacity: 0.85; }
+  .event-card .arrow-circle {
+    position: absolute; top: 20px; right: 20px;
+    width: 46px; height: 46px; border-radius: 50%;
+    background: rgba(10,18,48,0.55); backdrop-filter: blur(8px);
+    display: flex; align-items: center; justify-content: center;
+    color: var(--cream); border: 1px solid rgba(232,169,60,0.35);
+    transition: all 0.5s;
+    z-index: 3;
+  }
+  .event-card:hover .arrow-circle { background: var(--marigold); color: var(--indigo); border-color: var(--marigold); transform: rotate(-45deg) scale(1.1); }
+  .event-card .pandal-deco {
+    position: absolute; top: 0; left: 0; right: 0; height: 40px;
+    background-image: radial-gradient(circle, var(--marigold-pale) 3px, transparent 4px);
+    background-size: 16px 16px;
+    background-position: 0 12px;
+    opacity: 0.7;
+    z-index: 1;
+  }
+
+  .img-durga { background: linear-gradient(135deg, #1a0e3a 0%, #8e0a20 50%, #E8A93C 100%); }
+  .img-kali { background: linear-gradient(135deg, #050818 0%, #1a0e3a 50%, #C8102E 100%); }
+  .img-saraswati { background: linear-gradient(135deg, #fff4d6 0%, #F6C95E 50%, #1B5E3A 100%); }
+  .img-boishakhi { background: linear-gradient(135deg, #C8102E 0%, #E8A93C 60%, #fff4d6 100%); }
+  .img-summer { background: linear-gradient(135deg, #1B5E3A 0%, #4caf6f 50%, #E8A93C 100%); }
+
+  .event-card .silhouette {
+    position: absolute; right: -20px; bottom: -20px;
+    width: 160px; height: 160px;
+    opacity: 0.25; z-index: 1;
+    transition: all 0.7s;
+  }
+  .event-card:hover .silhouette { opacity: 0.55; transform: translateY(-6px) rotate(3deg); }
+
+  /* ============================================================
+     STATS — NAVAMI (dhaki vignette beside heading)
+     ============================================================ */
+  .stats-strip {
+    color: var(--cream);
+    padding: 110px 0;
+    position: relative;
+    overflow: hidden;
+  }
+  .stats-strip::before {
+    content:''; position:absolute; inset:0; z-index: 0;
+    background: radial-gradient(ellipse at 50% 50%, rgba(232,169,60,0.18) 0%, transparent 60%);
+  }
+  .stats-strip .heading {
+    display: flex; flex-direction: column; align-items: center; justify-content: center;
+    gap: 20px; margin-bottom: 70px; position: relative; z-index: 2;
+  }
+  .stats-strip .heading .dhaki-vignette { width: 180px; height: 234px; }
+  .stats-strip .heading .copy { text-align: center; }
+  .stats-strip .heading h2 { font-family:'Cormorant Garamond',serif; font-size: 52px; font-weight: 600; margin-top: 10px; }
+  .stats-strip .heading .bn { color: var(--marigold-bright); font-family:'Tiro Bangla',serif; font-size: 22px; }
+  .stats-grid { display:grid; grid-template-columns: repeat(4,1fr); gap: 0; position: relative; z-index: 2; }
+  .stat-tile {
+    text-align: center; padding: 36px 24px;
+    border-right: 1px solid rgba(232,169,60,0.18);
+    position: relative;
+  }
+  .stat-tile:last-child { border-right: none; }
+  .stat-tile::before {
+    content:''; position: absolute; top: 0; left: 50%; transform: translateX(-50%);
+    width: 6px; height: 6px; border-radius: 50%;
+    background: var(--marigold);
+    box-shadow: 0 0 12px var(--marigold);
+    animation: lampBlink 3s ease-in-out infinite;
+  }
+  .stat-tile:nth-child(2)::before { animation-delay: 0.5s; }
+  .stat-tile:nth-child(3)::before { animation-delay: 1s; }
+  .stat-tile:nth-child(4)::before { animation-delay: 1.5s; }
+  .stat-tile .big {
+    font-family:'Cormorant Garamond',serif; font-weight: 700;
+    font-size: 78px; line-height: 1;
+    background: linear-gradient(135deg, var(--marigold-bright), var(--sindoor));
+    -webkit-background-clip: text; background-clip: text; color: transparent;
+  }
+  .stat-tile .small { font-size: 13px; letter-spacing: 1.8px; text-transform: uppercase; color: var(--marigold-pale); margin-top: 14px; }
+  .stat-tile .bn { font-family:'Tiro Bangla',serif; color: var(--marigold); font-size: 14px; margin-top: 6px; opacity: 0.8; }
+
+  .beat-row { display: inline-flex; gap: 6px; margin-top: 8px; }
+  .beat-row span {
+    width: 6px; height: 6px; border-radius: 50%; background: var(--marigold);
+    animation: beat 0.8s ease-in-out infinite;
+    box-shadow: 0 0 10px var(--marigold);
+  }
+  .beat-row span:nth-child(2) { animation-delay: 0.1s; }
+  .beat-row span:nth-child(3) { animation-delay: 0.2s; }
+  .beat-row span:nth-child(4) { animation-delay: 0.3s; }
+  .beat-row span:nth-child(5) { animation-delay: 0.4s; }
+  @keyframes beat {
+    0%,100% { transform: scale(1); opacity: 0.5; }
+    50% { transform: scale(1.8); opacity: 1; }
+  }
+
+  /* ============================================================
+     MAGAZINE
+     ============================================================ */
+  .magazine { color: var(--cream); }
+  .mag-flex { display:grid; grid-template-columns: 1fr 1.3fr; gap: 80px; align-items: center; }
+  .mag-stack { position: relative; height: 560px; perspective: 1200px; }
+  .mag-cover {
+    position: absolute; width: 280px; height: 380px;
+    border-radius: 6px; overflow: hidden;
+    box-shadow: 0 30px 60px rgba(0,0,0,0.55);
+    transition: transform 0.7s cubic-bezier(.2,.8,.2,1), box-shadow 0.7s;
+    display:flex; flex-direction:column; justify-content:space-between;
+    padding: 28px 24px;
+    color: var(--cream);
+    border: 1px solid rgba(232,169,60,0.25);
+  }
+  .mag-cover h4 { font-family:'Cormorant Garamond',serif; font-size: 32px; font-weight: 600; line-height: 1.1; }
+  .mag-cover h4 .bn { font-family:'Tiro Bangla',serif; color: var(--marigold-bright); font-size: 24px; display:block; margin-bottom: 4px; }
+  .mag-cover .year { font-family:'Cormorant Garamond',serif; font-size: 64px; font-weight: 700; opacity:0.95; }
+  .mag-cover .label { font-size: 11px; letter-spacing: 3px; text-transform: uppercase; opacity: 0.85; }
+  .mag-cover .top-border {
+    position: absolute; top: 14px; left: 14px; right: 14px;
+    height: 1px; background: linear-gradient(90deg, transparent, var(--marigold), transparent);
+  }
+  .mag-cover .bottom-border {
+    position: absolute; bottom: 14px; left: 14px; right: 14px;
+    height: 1px; background: linear-gradient(90deg, transparent, var(--marigold), transparent);
+  }
+  .mag-cover:nth-child(1) {
+    top: 20px; left: 50px; transform: rotate(-9deg);
+    background: linear-gradient(160deg, #8e0a20 0%, #C8102E 55%, #E8A93C 100%);
+    z-index: 1;
+  }
+  .mag-cover:nth-child(2) {
+    top: 80px; left: 130px; transform: rotate(2deg);
+    background: linear-gradient(160deg, #050818 0%, #1a0e3a 55%, #C8102E 100%);
+    z-index: 2;
+  }
+  .mag-cover:nth-child(3) {
+    top: 120px; left: 220px; transform: rotate(11deg);
+    background: linear-gradient(160deg, #1B5E3A 0%, #E8A93C 75%, #FBF6EC 100%);
+    color: var(--indigo);
+    z-index: 3;
+  }
+  .mag-cover:nth-child(3) h4 .bn { color: var(--sindoor); }
+  .mag-stack:hover .mag-cover:nth-child(1) { transform: rotate(-16deg) translateX(-40px) translateY(-12px); }
+  .mag-stack:hover .mag-cover:nth-child(3) { transform: rotate(18deg) translateX(40px) translateY(-12px); }
+
+  /* ============================================================
+     MEMBERSHIP — DOSHOMI (sindoor khela vignette)
+     ============================================================ */
+  .join { color: var(--cream); position: relative; overflow: hidden; padding: 160px 0; }
+  .sindoor-dust {
+    position: absolute; inset:0; z-index: 0; pointer-events: none;
+  }
+  .sindoor-dust .speck {
+    position: absolute; width: 5px; height: 5px; border-radius: 50%;
+    background: var(--sindoor);
+    box-shadow: 0 0 10px rgba(200,16,46,0.6);
+    opacity: 0; animation: dustDrift 14s linear infinite;
+  }
+  @keyframes dustDrift {
+    0% { transform: translateY(0) translateX(0); opacity: 0; }
+    10% { opacity: 0.7; }
+    100% { transform: translateY(80vh) translateX(40px); opacity: 0; }
+  }
+
+  .join .container { display:grid; grid-template-columns: 1.3fr 1fr; gap: 80px; align-items: center; }
+  .join .sindoor-vignette {
+    width: 320px; height: 240px;
+    margin-bottom: 30px;
+  }
+  .join-pricecard {
+    background: rgba(10,18,48,0.55);
+    backdrop-filter: blur(14px);
+    border: 1px solid rgba(232,169,60,0.4);
+    border-radius: 30px;
+    padding: 46px;
+    position: relative;
+    box-shadow: 0 40px 80px rgba(0,0,0,0.5);
+  }
+  .join-pricecard::before {
+    content:''; position: absolute; top:-1px; left: 25%; right: 25%; height: 1px;
+    background: linear-gradient(90deg, transparent, var(--marigold), transparent);
+  }
+  .join-pricecard .ribbon {
+    position: absolute; top: -18px; right: 32px;
+    background: linear-gradient(135deg, var(--sindoor), var(--sindoor-deep));
+    color: white;
+    padding: 9px 22px; border-radius: 999px;
+    font-size: 11px; letter-spacing: 2.5px; text-transform: uppercase; font-weight: 700;
+    box-shadow: 0 10px 30px rgba(200,16,46,0.45);
+  }
+  .join-pricecard .price {
+    font-family:'Cormorant Garamond',serif; font-weight:700; font-size: 96px; line-height: 1;
+    color: var(--marigold-bright); display: block;
+  }
+  .join-pricecard .price-sub { font-size: 16px; color: var(--marigold-pale); margin-top: 8px; opacity: 0.85; }
+  .join-pricecard .price-sub .bn { font-family:'Tiro Bangla',serif; color: var(--marigold); }
+  .benefits-list { list-style: none; margin: 32px 0; }
+  .benefits-list li {
+    display: flex; gap: 14px; align-items: flex-start;
+    padding: 14px 0; border-bottom: 1px solid rgba(232,169,60,0.12);
+    font-size: 15px;
+  }
+  .benefits-list li:last-child { border-bottom: none; }
+  .benefits-list .check {
+    flex-shrink: 0; width: 28px; height: 28px; border-radius: 50%;
+    background: linear-gradient(135deg, var(--marigold), var(--sindoor));
+    display: flex; align-items: center; justify-content: center;
+    color: white; font-weight: bold; font-size: 14px;
+  }
+
+  /* ============================================================
+     FOOTER — BISORJON (boat on river vignette)
+     ============================================================ */
+  footer {
+    background: linear-gradient(180deg, transparent 0%, rgba(5,8,24,0.9) 60%, var(--ink) 100%);
+    color: var(--cream);
+    padding: 100px 0 24px;
+    position: relative;
+    overflow: hidden;
+  }
+  footer::before {
+    content:''; position:absolute; top:0; left:0; right:0; height: 3px;
+    background: linear-gradient(90deg, var(--sindoor), var(--marigold), var(--emerald), var(--marigold), var(--sindoor));
+    background-size: 200% 100%;
+    animation: marigoldShimmer 8s linear infinite;
+  }
+  @keyframes marigoldShimmer { to { background-position: 200% 0; } }
+
+  .river {
+    position: absolute; left: 0; right: 0; bottom: 0; height: 280px;
+    background: linear-gradient(180deg, rgba(232,169,60,0.06) 0%, rgba(10,18,48,0.7) 50%, rgba(5,8,24,1) 100%);
+    overflow: hidden; pointer-events: none;
+  }
+  .river::before {
+    content:''; position:absolute; inset:0;
+    background-image:
+      repeating-linear-gradient(90deg, transparent 0, transparent 18px, rgba(232,169,60,0.06) 19px, transparent 20px),
+      repeating-linear-gradient(90deg, transparent 0, transparent 32px, rgba(251,246,236,0.04) 33px, transparent 34px);
+    animation: ripple 18s linear infinite;
+  }
+  @keyframes ripple { to { background-position: 80px 0, -60px 0; } }
+  .floating-lantern {
+    position: absolute; width: 14px; height: 18px;
+    background: radial-gradient(circle, #fff4c2 0%, var(--marigold) 60%, transparent 100%);
+    border-radius: 30% 30% 50% 50%;
+    box-shadow: 0 0 18px var(--marigold-bright);
+    animation: lanternDrift 24s linear infinite;
+    opacity: 0.8;
+  }
+  @keyframes lanternDrift {
+    0% { transform: translateX(-30px); opacity: 0; }
+    10% { opacity: 0.9; }
+    90% { opacity: 0.9; }
+    100% { transform: translateX(calc(100vw + 30px)); opacity: 0; }
+  }
+
+  /* boat vignette in footer */
+  .boat-vignette {
+    position: absolute; bottom: 70px; left: 50%; transform: translateX(-50%);
+    width: 280px; height: 160px;
+    z-index: 1; opacity: 0.7;
+    animation: boatBob 7s ease-in-out infinite;
+    pointer-events: none;
+  }
+  @keyframes boatBob {
+    0%,100% { transform: translateX(-50%) translateY(0) rotate(-1.2deg); }
+    50% { transform: translateX(-50%) translateY(-10px) rotate(1.2deg); }
+  }
+
+  footer .container { display: grid; grid-template-columns: 1.5fr 1fr 1fr 1fr; gap: 60px; position: relative; z-index: 5; }
+  footer h5 { font-family:'Cormorant Garamond',serif; font-size: 22px; margin-bottom: 22px; color: var(--marigold); font-weight: 600; }
+  footer h5 .bn { font-family:'Tiro Bangla',serif; color: var(--marigold-bright); font-size: 16px; display:block; opacity: 0.7; }
+  footer ul { list-style: none; }
+  footer li { padding: 6px 0; }
+  footer a { color: rgba(251,246,236,0.7); text-decoration: none; transition: color 0.4s; font-size: 14px; }
+  footer a:hover { color: var(--marigold); }
+  footer .brand p { font-size: 14px; opacity: 0.65; line-height: 1.7; margin-top: 14px; max-width: 360px; }
+  footer .visarjan-quote {
+    font-family:'Cormorant Garamond',serif; font-style: italic;
+    color: var(--marigold-pale); font-size: 17px;
+    margin: 28px 0 16px;
+    line-height: 1.6;
+  }
+  footer .visarjan-quote .bn { font-family:'Tiro Bangla',serif; color: var(--marigold); font-style: normal; display: block; margin-top: 6px; opacity: 0.85; font-size: 15px; }
+
+  footer .socials { display:flex; gap: 12px; margin-top: 20px; }
+  footer .socials a {
+    width: 42px; height: 42px; border-radius: 50%;
+    border: 1px solid rgba(232,169,60,0.3);
+    display: flex; align-items: center; justify-content: center;
+    transition: all 0.5s;
+    background: rgba(10,18,48,0.4);
+  }
+  footer .socials a:hover { background: var(--marigold); border-color: var(--marigold); color: var(--indigo); transform: translateY(-3px); }
+
+  footer .bottom {
+    border-top: 1px solid rgba(232,169,60,0.12);
+    padding-top: 26px; margin-top: 70px;
+    text-align: center; font-size: 13px; opacity: 0.55;
+    position: relative; z-index: 2;
+  }
+  footer .bottom .bn { font-family:'Tiro Bangla',serif; color: var(--marigold); margin-top: 8px; font-size: 14px; opacity: 0.7; display: block; }
+
+  /* ============================================================
+     REVEAL ANIMATIONS — softer, longer
+     ============================================================ */
+  .reveal { opacity: 0; transform: translateY(50px); transition: opacity 1.4s ease, transform 1.4s cubic-bezier(.2,.8,.2,1); }
+  .reveal.in { opacity: 1; transform: translateY(0); }
+  .reveal-delay-1 { transition-delay: 0.2s; }
+  .reveal-delay-2 { transition-delay: 0.4s; }
+
+  /* shloka breakers */
+  .shloka {
+    text-align: center; padding: 100px 32px;
+    font-family:'Cormorant Garamond',serif; font-style: italic;
+    color: var(--marigold-bright);
+    max-width: 900px; margin: 0 auto;
+  }
+  .shloka .bn-quote {
+    font-family:'Tiro Bangla',serif; font-style: normal;
+    font-size: 32px; line-height: 1.4; color: var(--marigold);
+    margin-bottom: 18px;
+    text-shadow: 0 0 24px rgba(232,169,60,0.3);
+  }
+  .shloka .translit {
+    font-size: 18px; opacity: 0.7; letter-spacing: 1.5px;
+  }
+  .shloka .ornament-line {
+    display: flex; align-items: center; justify-content: center;
+    gap: 14px; margin: 20px auto 0; max-width: 200px;
+    color: var(--marigold);
+  }
+  .shloka .ornament-line .line { flex:1; height:1px; background: linear-gradient(90deg, transparent, var(--marigold), transparent); }
+
+  /* left-rail day indicator — icon-only Bengali ornaments, no text */
+  .day-indicator {
+    position: fixed; left: 22px; top: 50%; transform: translateY(-50%);
+    z-index: 50;
+    display: flex; flex-direction: column; align-items: center; gap: 4px;
+    pointer-events: none;
+  }
+  .day-rail-line {
+    width: 1px; height: 18px;
+    background: linear-gradient(180deg, transparent, rgba(232,169,60,0.35), transparent);
+  }
+  .day-dot {
+    width: 26px; height: 26px;
+    display: flex; align-items: center; justify-content: center;
+    opacity: 0.35;
+    transition: all 0.9s cubic-bezier(.2,.8,.2,1);
+    position: relative;
+  }
+  .day-dot svg { width: 100%; height: 100%; display: block; }
+  .day-dot.active {
+    opacity: 1;
+    transform: scale(1.35);
+    filter: drop-shadow(0 0 8px rgba(232,169,60,0.7));
+  }
+  .day-dot.active::before {
+    content:''; position: absolute; inset: -8px;
+    border-radius: 50%;
+    background: radial-gradient(circle, rgba(232,169,60,0.25) 0%, transparent 70%);
+    animation: dayDotGlow 2.4s ease-in-out infinite;
+  }
+  @keyframes dayDotGlow {
+    0%,100% { opacity: 0.6; transform: scale(1); }
+    50% { opacity: 1; transform: scale(1.15); }
+  }
+
+  /* ============================================================
+     RESPONSIVE
+     ============================================================ */
+  @media (max-width: 1100px) {
+    .day-indicator { display: none; }
+  }
+  @media (max-width: 980px) {
+    .nav-links { display: none; }
+    .hero .wrap { grid-template-columns: 1fr; gap: 50px; }
+    .pandal-scene-wrap { max-width: 360px; margin: 0 auto; }
+    .mission .grid { grid-template-columns: 1fr; }
+    .events-header { grid-template-columns: 1fr; }
+    .events-grid { grid-template-columns: 1fr; grid-template-rows: auto; }
+    .event-card:nth-child(1) { grid-row: auto; }
+    .event-card { min-height: 300px; }
+    .stats-grid { grid-template-columns: repeat(2,1fr); }
+    .stat-tile { border-right: none; border-bottom: 1px solid rgba(232,169,60,0.18); }
+    .mag-flex { grid-template-columns: 1fr; }
+    .mag-stack { height: 460px; }
+    .join .container { grid-template-columns: 1fr; }
+    footer .container { grid-template-columns: 1fr 1fr; }
+    .mission-stats { grid-template-columns: 1fr; }
+  }
+</style>
+</head>
+<body>
+
+<!-- ============= SCROLL-DRIVEN BACKGROUND ============= -->
+<div class="sky-bg" id="skyBg"></div>
+<div class="sky-stars" id="stars"></div>
+
+<!-- ============= PARALLAX BACKGROUND MOTIFS (far from content) ============= -->
+<div class="motif" id="motif-conch" style="top: 25vh; left: 2vw; width: 80px; height: 80px;">
+  <svg viewBox="0 0 100 100" fill="none">
+    <path d="M50 10 C30 15 18 35 22 55 C26 75 45 88 60 85 C72 82 80 72 80 60 C80 50 72 42 62 42 C56 42 52 47 54 52 C56 57 60 56 62 54"
+      stroke="#E8A93C" stroke-width="2" stroke-linecap="round"/>
+    <circle cx="60" cy="60" r="3" fill="#E8A93C"/>
+  </svg>
+</div>
+<div class="motif" id="motif-lotus" style="top: 90vh; right: 2vw; width: 100px; height: 100px;">
+  <svg viewBox="0 0 100 100" fill="none">
+    <g stroke="#E8A93C" stroke-width="1.5" fill="none">
+      <ellipse cx="50" cy="50" rx="6" ry="22" transform="rotate(0 50 50)"/>
+      <ellipse cx="50" cy="50" rx="6" ry="22" transform="rotate(45 50 50)"/>
+      <ellipse cx="50" cy="50" rx="6" ry="22" transform="rotate(90 50 50)"/>
+      <ellipse cx="50" cy="50" rx="6" ry="22" transform="rotate(135 50 50)"/>
+      <circle cx="50" cy="50" r="5"/>
+    </g>
+  </svg>
+</div>
+<div class="motif" id="motif-trishul" style="top: 170vh; left: 2vw; width: 60px; height: 100px;">
+  <svg viewBox="0 0 60 100" fill="none">
+    <line x1="30" y1="40" x2="30" y2="100" stroke="#E8A93C" stroke-width="2"/>
+    <path d="M30 5 L30 45 M10 20 L10 45 Q10 55 30 50 Q50 55 50 45 L50 20" stroke="#E8A93C" stroke-width="2" fill="none"/>
+  </svg>
+</div>
+<div class="motif" id="motif-alpana" style="top: 250vh; right: 3vw; width: 120px; height: 120px;">
+  <svg viewBox="0 0 100 100" fill="none">
+    <g stroke="#E8A93C" stroke-width="1.2" fill="none">
+      <circle cx="50" cy="50" r="35"/>
+      <circle cx="50" cy="50" r="22"/>
+      <circle cx="50" cy="50" r="12"/>
+      <path d="M50 15 L55 35 L50 32 L45 35 Z"/>
+      <path d="M50 85 L55 65 L50 68 L45 65 Z"/>
+      <path d="M15 50 L35 55 L32 50 L35 45 Z"/>
+      <path d="M85 50 L65 55 L68 50 L65 45 Z"/>
+    </g>
+  </svg>
+</div>
+
+<!-- ============= DAY INDICATOR (left rail) — icon only, cute Bengali ornaments ============= -->
+<div class="day-indicator">
+
+  <!-- Shoshti: a diya (oil lamp being lit) -->
+  <div class="day-dot" data-day="shoshti" title="ষষ্ঠী">
+    <svg viewBox="0 0 26 26" fill="none" xmlns="http://www.w3.org/2000/svg">
+      <!-- flame -->
+      <path d="M13 4 Q11 8 12 10 Q13.5 11.5 13 13 Q12.5 11.5 14 10 Q15 8 13 4 Z" fill="#F6C95E"/>
+      <ellipse cx="13" cy="9" rx="1" ry="3" fill="#FBF6EC"/>
+      <!-- lamp bowl -->
+      <path d="M6 16 Q13 22 20 16 Q17 14 13 14 Q9 14 6 16 Z" fill="#E8A93C"/>
+      <path d="M7 17 Q13 20 19 17" stroke="#8e0a20" stroke-width="0.6" fill="none"/>
+    </svg>
+  </div>
+  <div class="day-rail-line"></div>
+
+  <!-- Saptami: a lotus -->
+  <div class="day-dot" data-day="saptami" title="সপ্তমী">
+    <svg viewBox="0 0 26 26" fill="none" xmlns="http://www.w3.org/2000/svg">
+      <g stroke="#E8A93C" stroke-width="1.4" fill="none">
+        <ellipse cx="13" cy="13" rx="2.5" ry="9" transform="rotate(0 13 13)"/>
+        <ellipse cx="13" cy="13" rx="2.5" ry="9" transform="rotate(45 13 13)"/>
+        <ellipse cx="13" cy="13" rx="2.5" ry="9" transform="rotate(90 13 13)"/>
+        <ellipse cx="13" cy="13" rx="2.5" ry="9" transform="rotate(135 13 13)"/>
+      </g>
+      <circle cx="13" cy="13" r="2.2" fill="#C8102E"/>
+    </svg>
+  </div>
+  <div class="day-rail-line"></div>
+
+  <!-- Ashtami: dhunuchi (smoking censer) -->
+  <div class="day-dot" data-day="ashtami" title="অষ্টমী">
+    <svg viewBox="0 0 26 26" fill="none" xmlns="http://www.w3.org/2000/svg">
+      <!-- smoke wisps -->
+      <path d="M11 4 Q13 6 11 8 Q9 10 11 12" stroke="#E8A93C" stroke-width="1" fill="none" opacity="0.7" stroke-linecap="round"/>
+      <path d="M15 4 Q13 6 15 8 Q17 10 15 12" stroke="#E8A93C" stroke-width="1" fill="none" opacity="0.7" stroke-linecap="round"/>
+      <!-- bowl rim -->
+      <ellipse cx="13" cy="13" rx="6" ry="1.8" fill="#E8A93C"/>
+      <!-- bowl body -->
+      <path d="M7 13 Q13 22 19 13 Z" fill="#8e0a20"/>
+      <!-- glowing embers -->
+      <circle cx="13" cy="14" r="1.6" fill="#F6C95E"/>
+    </svg>
+  </div>
+  <div class="day-rail-line"></div>
+
+  <!-- Navami: dhaak (drum) -->
+  <div class="day-dot" data-day="navami" title="নবমী">
+    <svg viewBox="0 0 26 26" fill="none" xmlns="http://www.w3.org/2000/svg">
+      <!-- decorative feather on top -->
+      <path d="M13 3 Q12 6 13 8" stroke="#FBF6EC" stroke-width="0.8" fill="none"/>
+      <circle cx="13" cy="3.5" r="1" fill="#FBF6EC"/>
+      <!-- drum body -->
+      <ellipse cx="13" cy="9" rx="8" ry="2" fill="#F6C95E"/>
+      <rect x="5" y="9" width="16" height="9" fill="#E8A93C"/>
+      <ellipse cx="13" cy="18" rx="8" ry="2" fill="#8e0a20"/>
+      <!-- lacing -->
+      <line x1="7" y1="9" x2="7" y2="18" stroke="#8e0a20" stroke-width="0.5"/>
+      <line x1="13" y1="9" x2="13" y2="18" stroke="#8e0a20" stroke-width="0.5"/>
+      <line x1="19" y1="9" x2="19" y2="18" stroke="#8e0a20" stroke-width="0.5"/>
+    </svg>
+  </div>
+  <div class="day-rail-line"></div>
+
+  <!-- Doshomi: sindoor box (red sindoor + gold rim) -->
+  <div class="day-dot" data-day="doshomi" title="দশমী">
+    <svg viewBox="0 0 26 26" fill="none" xmlns="http://www.w3.org/2000/svg">
+      <!-- sindoor puffs above -->
+      <circle cx="10" cy="6" r="1.4" fill="#C8102E" opacity="0.6"/>
+      <circle cx="16" cy="5" r="1.2" fill="#C8102E" opacity="0.6"/>
+      <circle cx="13" cy="3" r="1" fill="#C8102E" opacity="0.5"/>
+      <!-- plate rim -->
+      <ellipse cx="13" cy="14" rx="9" ry="2.5" fill="#E8A93C"/>
+      <!-- sindoor pile -->
+      <ellipse cx="13" cy="12" rx="6" ry="3" fill="#C8102E"/>
+      <ellipse cx="13" cy="11" rx="3" ry="1.5" fill="#8e0a20"/>
+      <!-- plate bottom -->
+      <path d="M4 14 Q4 18 13 19 Q22 18 22 14" fill="#E8A93C"/>
+    </svg>
+  </div>
+  <div class="day-rail-line"></div>
+
+  <!-- Bisorjon: a small boat on water -->
+  <div class="day-dot" data-day="bisorjon" title="বিসর্জন">
+    <svg viewBox="0 0 26 26" fill="none" xmlns="http://www.w3.org/2000/svg">
+      <!-- tiny Maa silhouette on boat -->
+      <ellipse cx="13" cy="9" rx="1.5" ry="2" fill="#C8102E"/>
+      <circle cx="13" cy="6" r="1.2" fill="#E8A93C"/>
+      <!-- mast / pole -->
+      <line x1="13" y1="11" x2="13" y2="6" stroke="#E8A93C" stroke-width="0.7"/>
+      <!-- boat -->
+      <path d="M4 15 Q13 19 22 15 L20 18 Q13 20 6 18 Z" fill="#8e0a20"/>
+      <path d="M5 16 Q13 18 21 16" stroke="#E8A93C" stroke-width="0.6" fill="none"/>
+      <!-- water ripples -->
+      <path d="M3 22 Q7 21 11 22 Q15 23 19 22 Q23 21 25 22" stroke="#E8A93C" stroke-width="0.7" fill="none" opacity="0.6"/>
+    </svg>
+  </div>
+
+</div>
+
+<!-- TOPBAR -->
+<div class="topbar">
+  <div class="wrap">
+    <span>📞 610.570.2756 &nbsp;·&nbsp; ✉️ pragati.management@gmail.com</span>
+    <span class="marigold">✦ <span class="bn">দুর্গা পূজা ২০২৬</span> · Durga Puja 2026 · Oct 16–18 · Greater Philadelphia Expo Center</span>
+  </div>
+</div>
+
+<!-- NAV -->
+<nav class="main">
+  <div class="wrap">
+    <a href="#" class="logo">
+      <div class="logo-mark"></div>
+      <div class="logo-text">
+        <div class="name">Pragati <span class="bn">প্রগতি</span></div>
+        <div class="sub">Bengali Association of Greater Philadelphia · Since 2012</div>
+      </div>
+    </a>
+    <ul class="nav-links">
+      <li><a href="#"><span class="bn">বাড়ি</span>Home</a></li>
+      <li><a href="#mission"><span class="bn">আমরা</span>About</a></li>
+      <li><a href="#events"><span class="bn">উৎসব</span>Events</a></li>
+      <li><a href="#magazine"><span class="bn">পত্রিকা</span>Magazine</a></li>
+      <li><a href="#join"><span class="bn">সদস্যতা</span>Membership</a></li>
+      <li><a href="#" class="nav-cta">Become a Member</a></li>
+    </ul>
+  </div>
+</nav>
+
+<!-- ============= HERO — SHOSHTI EVENING ============= -->
+<section class="hero" data-section="shoshti">
+  <!-- Pandal skyline at bottom -->
+  <div class="pandal-bg">
+    <svg viewBox="0 0 1440 360" preserveAspectRatio="none" xmlns="http://www.w3.org/2000/svg">
+      <g fill="#050818" opacity="0.85">
+        <path d="M0 360 L0 280 L60 280 L80 240 L120 240 L140 200 L180 200 L200 160 L240 160 L260 200 L300 200 L320 240 L360 240 L380 280 L1060 280 L1080 240 L1120 240 L1140 200 L1180 200 L1200 160 L1240 160 L1260 200 L1300 200 L1320 240 L1360 240 L1380 280 L1440 280 L1440 360 Z"/>
+      </g>
+      <g fill="#F6C95E">
+        <circle cx="80" cy="240" r="3"><animate attributeName="opacity" values="0.5;1;0.5" dur="3s" repeatCount="indefinite"/></circle>
+        <circle cx="180" cy="200" r="3"><animate attributeName="opacity" values="0.5;1;0.5" dur="3s" begin="0.5s" repeatCount="indefinite"/></circle>
+        <circle cx="260" cy="200" r="3"><animate attributeName="opacity" values="0.5;1;0.5" dur="3s" begin="1s" repeatCount="indefinite"/></circle>
+        <circle cx="380" cy="280" r="3"><animate attributeName="opacity" values="0.5;1;0.5" dur="3s" begin="1.5s" repeatCount="indefinite"/></circle>
+        <circle cx="1080" cy="240" r="3"><animate attributeName="opacity" values="0.5;1;0.5" dur="3s" begin="0.7s" repeatCount="indefinite"/></circle>
+        <circle cx="1180" cy="200" r="3"><animate attributeName="opacity" values="0.5;1;0.5" dur="3s" begin="1.2s" repeatCount="indefinite"/></circle>
+        <circle cx="1260" cy="200" r="3"><animate attributeName="opacity" values="0.5;1;0.5" dur="3s" begin="1.8s" repeatCount="indefinite"/></circle>
+        <circle cx="1380" cy="280" r="3"><animate attributeName="opacity" values="0.5;1;0.5" dur="3s" begin="2.2s" repeatCount="indefinite"/></circle>
+      </g>
+    </svg>
+  </div>
+
+  <span class="diya" style="top:20%; left:8%; animation-delay:0s;"></span>
+  <span class="diya" style="top:62%; left:12%; animation-delay:1.2s; width:6px; height:6px;"></span>
+  <span class="diya" style="top:30%; left:24%; animation-delay:2.4s; width:10px; height:10px;"></span>
+  <span class="diya" style="top:72%; left:18%; animation-delay:3.6s;"></span>
+  <span class="diya" style="top:12%; left:40%; animation-delay:1.8s; width:6px; height:6px;"></span>
+  <span class="diya" style="top:42%; left:6%; animation-delay:2.8s; width:7px; height:7px;"></span>
+
+  <span class="petal" style="left:10%; animation-delay:0s;"></span>
+  <span class="petal red" style="left:25%; animation-delay:3s;"></span>
+  <span class="petal pale" style="left:45%; animation-delay:6s;"></span>
+  <span class="petal" style="left:65%; animation-delay:2s;"></span>
+  <span class="petal red" style="left:85%; animation-delay:7s;"></span>
+
+  <div class="wrap">
+    <!-- LEFT: copy -->
+    <div>
+      <div class="hero-eyebrow"><span class="dot"></span> <span class="bn">২০১২ থেকে</span> · Since 2012 · A 501(c)(3) Non-Profit</div>
+      <h1 class="hero-title">
+        <span class="bn-top">আলো জ্বেলে যাও, ঐতিহ্যে ভাসো</span>
+        Where the <span class="accent">dhaak</span> beats,<br/>
+        and home <span class="accent2">comes alive</span>.
+      </h1>
+      <p class="hero-lede">
+        Five days of light. A thousand familiar faces. Bengali Philadelphia, lit up like Kolkata's
+        Park Street on Saptami night — Pragati has been bringing Pujo home since 2012.
+      </p>
+      <div class="hero-actions">
+        <a href="#join" class="btn btn-primary"><span>Join the parikrama</span> <span class="arrow">→</span></a>
+        <a href="#events" class="btn btn-ghost">See this year's lineup</a>
+      </div>
+
+      <div class="hero-countdown">
+        <div class="item"><b id="cd-d">152</b><span>Days</span></div>
+        <div class="divider"></div>
+        <div class="item"><b id="cd-h">14</b><span>Hours</span></div>
+        <div class="divider"></div>
+        <div class="item"><b id="cd-m">32</b><span>Minutes</span></div>
+        <div class="divider"></div>
+        <div class="item"><b id="cd-s">08</b><span>Seconds</span></div>
+      </div>
+    </div>
+
+    <!-- RIGHT: REFINED PANDAL + MAA DURGA + FAMILY SCENE -->
+    <div class="pandal-scene-wrap">
+      <svg viewBox="0 0 460 540" xmlns="http://www.w3.org/2000/svg">
+        <defs>
+          <linearGradient id="archGrad" x1="0" y1="0" x2="0" y2="1">
+            <stop offset="0" stop-color="#C8102E"/>
+            <stop offset="1" stop-color="#8e0a20"/>
+          </linearGradient>
+          <linearGradient id="archInner" x1="0" y1="0" x2="0" y2="1">
+            <stop offset="0" stop-color="#3a1f5e"/>
+            <stop offset="0.6" stop-color="#1a0e3a"/>
+            <stop offset="1" stop-color="#0a1230"/>
+          </linearGradient>
+          <radialGradient id="haloGrad" cx="0.5" cy="0.5" r="0.5">
+            <stop offset="0" stop-color="#F6C95E" stop-opacity="0.85"/>
+            <stop offset="0.6" stop-color="#E8A93C" stop-opacity="0.3"/>
+            <stop offset="1" stop-color="#F6C95E" stop-opacity="0"/>
+          </radialGradient>
+          <linearGradient id="lionGrad" x1="0" y1="0" x2="0" y2="1">
+            <stop offset="0" stop-color="#F6C95E"/>
+            <stop offset="1" stop-color="#d99c6a"/>
+          </linearGradient>
+        </defs>
+
+        <!-- PANDAL outer arch (red) -->
+        <path d="M40 530 L40 220 Q40 60 230 60 Q420 60 420 220 L420 530 Z" fill="url(#archGrad)"/>
+        <!-- arch trim -->
+        <path d="M52 530 L52 220 Q52 72 230 72 Q408 72 408 220 L408 530" fill="none" stroke="#E8A93C" stroke-width="1.5" opacity="0.7"/>
+        <path d="M64 530 L64 220 Q64 84 230 84 Q396 84 396 220 L396 530" fill="none" stroke="#E8A93C" stroke-width="0.8" opacity="0.4"/>
+
+        <!-- top dome ornament -->
+        <circle cx="230" cy="55" r="8" fill="#E8A93C"/>
+        <line x1="230" y1="35" x2="230" y2="55" stroke="#E8A93C" stroke-width="2"/>
+        <circle cx="230" cy="32" r="5" fill="#F6C95E"/>
+        <path d="M225 27 L230 18 L235 27" fill="#F6C95E"/>
+
+        <!-- inside dark gradient backdrop -->
+        <path d="M76 525 L76 230 Q76 96 230 96 Q384 96 384 230 L384 525 Z" fill="url(#archInner)"/>
+
+        <!-- arch top lamps (5) -->
+        <g>
+          <circle class="lamp-blink" cx="100" cy="200" r="4" fill="#F6C95E"/>
+          <circle class="lamp-blink" cx="150" cy="150" r="4" fill="#F6C95E" style="animation-delay:0.4s"/>
+          <circle class="lamp-blink" cx="230" cy="130" r="4" fill="#F6C95E" style="animation-delay:0.8s"/>
+          <circle class="lamp-blink" cx="310" cy="150" r="4" fill="#F6C95E" style="animation-delay:1.2s"/>
+          <circle class="lamp-blink" cx="360" cy="200" r="4" fill="#F6C95E" style="animation-delay:1.6s"/>
+        </g>
+
+        <!-- side hanging lights -->
+        <g>
+          <line x1="60" y1="100" x2="60" y2="180" stroke="#E8A93C" stroke-width="0.5"/>
+          <circle class="lamp-blink" cx="60" cy="180" r="3" fill="#F6C95E" style="animation-delay:0.3s"/>
+          <line x1="400" y1="100" x2="400" y2="180" stroke="#E8A93C" stroke-width="0.5"/>
+          <circle class="lamp-blink" cx="400" cy="180" r="3" fill="#F6C95E" style="animation-delay:1.1s"/>
+        </g>
+
+        <!-- marigold garland (swaying) -->
+        <g class="garland-sway">
+          <path d="M85 240 Q230 290 375 240" fill="none" stroke="#E8A93C" stroke-width="2"/>
+          <g fill="#E8A93C">
+            <circle cx="100" cy="248" r="4"/>
+            <circle cx="120" cy="256" r="4"/>
+            <circle cx="140" cy="263" r="4"/>
+            <circle cx="160" cy="269" r="4"/>
+            <circle cx="180" cy="274" r="4"/>
+            <circle cx="200" cy="277" r="4.5"/>
+            <circle cx="220" cy="279" r="4.5"/>
+            <circle cx="240" cy="279" r="4.5"/>
+            <circle cx="260" cy="277" r="4.5"/>
+            <circle cx="280" cy="274" r="4"/>
+            <circle cx="300" cy="269" r="4"/>
+            <circle cx="320" cy="263" r="4"/>
+            <circle cx="340" cy="256" r="4"/>
+            <circle cx="360" cy="248" r="4"/>
+          </g>
+          <g fill="#C8102E" opacity="0.7">
+            <circle cx="110" cy="252" r="2"/>
+            <circle cx="170" cy="271" r="2"/>
+            <circle cx="230" cy="279" r="2"/>
+            <circle cx="290" cy="271" r="2"/>
+            <circle cx="350" cy="252" r="2"/>
+          </g>
+        </g>
+
+        <!-- HALO behind Maa -->
+        <circle cx="230" cy="370" r="115" fill="url(#haloGrad)"/>
+
+        <!-- 10 ARMS (cleaner, fewer overlapping curves, more visible spread) -->
+        <g stroke="#E8A93C" stroke-width="3" stroke-linecap="round" fill="none">
+          <!-- main two arms forward (welcoming pose) -->
+          <path d="M200 420 Q175 430 165 445"/>
+          <path d="M260 420 Q285 430 295 445"/>
+          <!-- left supplementary arms -->
+          <path d="M205 400 Q175 380 155 360"/>
+          <path d="M200 410 Q160 405 135 395"/>
+          <path d="M205 440 Q175 460 160 485"/>
+          <!-- right supplementary arms -->
+          <path d="M255 400 Q285 380 305 360"/>
+          <path d="M260 410 Q300 405 325 395"/>
+          <path d="M255 440 Q285 460 300 485"/>
+          <!-- top two arms (most prominent — holding key weapons) -->
+          <path d="M210 395 Q175 360 150 330"/>
+          <path d="M250 395 Q285 360 310 330"/>
+        </g>
+
+        <!-- weapons (chibi-simple, fewer details) -->
+        <!-- trishul -->
+        <line x1="150" y1="330" x2="148" y2="305" stroke="#E8A93C" stroke-width="2.5"/>
+        <path d="M142 305 L148 290 L154 305" stroke="#E8A93C" stroke-width="2" fill="#F6C95E"/>
+        <!-- chakra (sudarshan) -->
+        <circle cx="310" cy="330" r="10" fill="#F6C95E"/>
+        <circle cx="310" cy="330" r="7" fill="#E8A93C"/>
+        <circle cx="310" cy="330" r="3" fill="#8e0a20"/>
+        <!-- conch (small) -->
+        <path d="M135 395 Q142 388 148 395 Q146 402 138 402 Z" fill="#F6C95E"/>
+        <!-- lotus (right hand) -->
+        <ellipse cx="325" cy="395" rx="6" ry="3" fill="#F6C95E"/>
+        <path d="M319 395 Q325 388 331 395" fill="#E8A93C"/>
+        <circle cx="325" cy="394" r="1.5" fill="#C8102E"/>
+
+        <!-- BODY (saree — cute, rounder) -->
+        <path d="M195 510 Q195 410 230 410 Q265 410 265 510 Z" fill="#C8102E"/>
+        <path d="M195 500 Q230 510 265 500" stroke="#E8A93C" stroke-width="2.5" fill="none"/>
+        <path d="M198 480 Q230 488 262 480" stroke="#E8A93C" stroke-width="1.4" fill="none" opacity="0.8"/>
+        <g fill="#E8A93C" opacity="0.6">
+          <circle cx="210" cy="455" r="1.4"/>
+          <circle cx="225" cy="465" r="1.4"/>
+          <circle cx="240" cy="455" r="1.4"/>
+          <circle cx="255" cy="465" r="1.4"/>
+          <circle cx="215" cy="475" r="1.2"/>
+          <circle cx="245" cy="475" r="1.2"/>
+        </g>
+        <!-- waist belt -->
+        <ellipse cx="230" cy="445" rx="34" ry="3.5" fill="#E8A93C"/>
+        <!-- neck/upper body — wider, cuter -->
+        <path d="M214 410 Q230 400 246 410 L248 422 Q230 425 212 422 Z" fill="#C8102E"/>
+        <!-- necklace (chunky) -->
+        <path d="M212 415 Q230 432 248 415" stroke="#E8A93C" stroke-width="2" fill="none"/>
+        <circle cx="230" cy="426" r="3" fill="#C8102E"/>
+        <circle cx="230" cy="426" r="1.5" fill="#F6C95E"/>
+
+        <!-- FACE (much bigger, rounder = cuter) -->
+        <circle cx="230" cy="380" r="26" fill="#f4c89e"/>
+        <!-- soft cheek blush -->
+        <circle cx="216" cy="388" r="5" fill="#e88a8a" opacity="0.55"/>
+        <circle cx="244" cy="388" r="5" fill="#e88a8a" opacity="0.55"/>
+        <!-- chin shading -->
+        <ellipse cx="230" cy="400" rx="10" ry="3" fill="#e0aa7a" opacity="0.4"/>
+
+        <!-- crown / mukut (bigger, prouder) -->
+        <path d="M204 365 L208 348 L214 360 L220 340 L226 358 L230 332 L234 358 L240 340 L246 360 L252 348 L256 365 Z" fill="#E8A93C"/>
+        <circle cx="230" cy="338" r="3.5" fill="#C8102E"/>
+        <circle cx="220" cy="358" r="2" fill="#C8102E"/>
+        <circle cx="240" cy="358" r="2" fill="#C8102E"/>
+        <!-- crown gem highlights -->
+        <circle cx="230" cy="338" r="1.4" fill="#F6C95E"/>
+
+        <!-- hair (longer, flowing on sides) -->
+        <path d="M206 380 Q200 410 210 425 Q215 412 212 380 Z" fill="#1a0a14"/>
+        <path d="M254 380 Q260 410 250 425 Q245 412 248 380 Z" fill="#1a0a14"/>
+
+        <!-- BIG ROUND EYES (anime/chibi style) -->
+        <ellipse cx="219" cy="380" rx="4.5" ry="5.5" fill="#fff"/>
+        <ellipse cx="241" cy="380" rx="4.5" ry="5.5" fill="#fff"/>
+        <ellipse cx="219" cy="381" rx="3" ry="4" fill="#1a0a14"/>
+        <ellipse cx="241" cy="381" rx="3" ry="4" fill="#1a0a14"/>
+        <!-- eye sparkles -->
+        <circle cx="220.5" cy="379" r="1.4" fill="#fff"/>
+        <circle cx="242.5" cy="379" r="1.4" fill="#fff"/>
+        <circle cx="218" cy="383" r="0.6" fill="#fff"/>
+        <circle cx="240" cy="383" r="0.6" fill="#fff"/>
+        <!-- eyebrows (curved, gentle) -->
+        <path d="M214 372 Q219 369 224 372" stroke="#0a0a14" stroke-width="1.4" fill="none" stroke-linecap="round"/>
+        <path d="M236 372 Q241 369 246 372" stroke="#0a0a14" stroke-width="1.4" fill="none" stroke-linecap="round"/>
+        <!-- third eye (small almond) -->
+        <ellipse cx="230" cy="370" rx="3" ry="1.5" fill="#C8102E"/>
+        <ellipse cx="230" cy="370" rx="1.2" ry="0.6" fill="#fff"/>
+        <!-- bindi -->
+        <circle cx="230" cy="362" r="2" fill="#C8102E"/>
+        <!-- nose (tiny) -->
+        <ellipse cx="230" cy="390" rx="1.5" ry="2" fill="#e0aa7a" opacity="0.5"/>
+        <!-- nose ring -->
+        <circle cx="226" cy="393" r="1.2" fill="#E8A93C"/>
+        <!-- big sweet smile -->
+        <path d="M222 397 Q230 403 238 397" stroke="#8e0a20" stroke-width="1.6" fill="none" stroke-linecap="round"/>
+        <ellipse cx="230" cy="399" rx="2.5" ry="1.4" fill="#C8102E" opacity="0.6"/>
+        <!-- earrings (jhumka style) -->
+        <circle cx="205" cy="385" r="2" fill="#E8A93C"/>
+        <path d="M203 386 Q205 392 207 386" fill="#E8A93C"/>
+        <circle cx="205" cy="392" r="1.5" fill="#C8102E"/>
+        <circle cx="255" cy="385" r="2" fill="#E8A93C"/>
+        <path d="M253 386 Q255 392 257 386" fill="#E8A93C"/>
+        <circle cx="255" cy="392" r="1.5" fill="#C8102E"/>
+
+        <!-- LION mount (under Maa, behind) -->
+        <g>
+          <!-- lion body -->
+          <ellipse cx="230" cy="500" rx="68" ry="14" fill="url(#lionGrad)" opacity="0.85"/>
+          <!-- mane -->
+          <ellipse cx="295" cy="490" rx="22" ry="22" fill="#E8A93C"/>
+          <ellipse cx="295" cy="490" rx="18" ry="18" fill="#d99c6a"/>
+          <!-- mane spikes -->
+          <g fill="#E8A93C">
+            <path d="M280 478 L275 470 L283 474 Z"/>
+            <path d="M295 470 L295 462 L300 470 Z"/>
+            <path d="M310 478 L317 472 L313 480 Z"/>
+            <path d="M318 490 L326 488 L320 495 Z"/>
+            <path d="M313 504 L320 510 L312 508 Z"/>
+          </g>
+          <!-- lion face -->
+          <circle cx="297" cy="488" r="2" fill="#0a0a14"/>
+          <path d="M293 494 Q297 498 301 494" stroke="#0a0a14" stroke-width="0.8" fill="none"/>
+          <ellipse cx="297" cy="492" rx="1.5" ry="1" fill="#0a0a14"/>
+          <!-- legs -->
+          <line x1="180" y1="510" x2="178" y2="525" stroke="#8e0a20" stroke-width="2.5"/>
+          <line x1="208" y1="513" x2="206" y2="528" stroke="#8e0a20" stroke-width="2.5"/>
+          <line x1="252" y1="513" x2="254" y2="528" stroke="#8e0a20" stroke-width="2.5"/>
+          <line x1="280" y1="510" x2="282" y2="525" stroke="#8e0a20" stroke-width="2.5"/>
+          <!-- tail -->
+          <path d="M165 498 Q150 488 155 475" stroke="#E8A93C" stroke-width="2" fill="none"/>
+          <ellipse cx="153" cy="473" rx="4" ry="3" fill="#E8A93C"/>
+        </g>
+
+        <!-- MAHISHASURA (small green/blue figure being defeated) -->
+        <g>
+          <ellipse cx="165" cy="518" rx="14" ry="5" fill="#1B5E3A"/>
+          <ellipse cx="165" cy="510" rx="6" ry="4" fill="#1B5E3A"/>
+          <!-- horns -->
+          <path d="M161 506 L158 500 M169 506 L172 500" stroke="#1a0a14" stroke-width="1.5"/>
+          <!-- eyes -->
+          <circle cx="163" cy="509" r="0.8" fill="#fff"/>
+          <circle cx="167" cy="509" r="0.8" fill="#fff"/>
+        </g>
+
+        <!-- FOUR CHILDREN (refined, distinct) -->
+
+        <!-- GANESH (far left) — chubby chibi elephant head -->
+        <g>
+          <!-- chubby body (rounder) -->
+          <path d="M68 528 Q68 506 85 506 Q102 506 102 528 Q102 532 85 532 Q68 532 68 528 Z" fill="#E8A93C"/>
+          <!-- belly button -->
+          <circle cx="85" cy="518" r="1" fill="#8e0a20" opacity="0.4"/>
+          <!-- BIG head (chibi) -->
+          <circle cx="85" cy="490" r="14" fill="#f4c89e"/>
+          <!-- chubby cheeks -->
+          <circle cx="76" cy="495" r="3" fill="#e88a8a" opacity="0.6"/>
+          <circle cx="94" cy="495" r="3" fill="#e88a8a" opacity="0.6"/>
+          <!-- ears (bigger, floppy) -->
+          <ellipse cx="73" cy="490" rx="6" ry="9" fill="#f4c89e"/>
+          <ellipse cx="97" cy="490" rx="6" ry="9" fill="#f4c89e"/>
+          <ellipse cx="73" cy="491" rx="3.5" ry="6" fill="#d99c6a" opacity="0.7"/>
+          <ellipse cx="97" cy="491" rx="3.5" ry="6" fill="#d99c6a" opacity="0.7"/>
+          <!-- trunk (curlier, cuter) -->
+          <path d="M85 498 Q82 506 88 508 Q84 512 86 515" stroke="#d99c6a" stroke-width="3.5" fill="none" stroke-linecap="round"/>
+          <!-- tusks (small) -->
+          <ellipse cx="81" cy="500" rx="0.8" ry="2" fill="#fff"/>
+          <ellipse cx="89" cy="500" rx="0.8" ry="2" fill="#fff"/>
+          <!-- BIG anime eyes -->
+          <ellipse cx="80" cy="488" rx="2" ry="2.5" fill="#fff"/>
+          <ellipse cx="90" cy="488" rx="2" ry="2.5" fill="#fff"/>
+          <circle cx="80" cy="489" r="1.4" fill="#0a0a14"/>
+          <circle cx="90" cy="489" r="1.4" fill="#0a0a14"/>
+          <circle cx="80.6" cy="488" r="0.6" fill="#fff"/>
+          <circle cx="90.6" cy="488" r="0.6" fill="#fff"/>
+          <!-- crown (cute) -->
+          <path d="M76 478 L80 470 L83 476 L85 466 L87 476 L90 470 L94 478 Z" fill="#E8A93C"/>
+          <circle cx="85" cy="470" r="1.5" fill="#C8102E"/>
+          <!-- bindi on forehead -->
+          <circle cx="85" cy="481" r="1" fill="#C8102E"/>
+          <!-- modak in hand -->
+          <circle cx="102" cy="515" r="3.5" fill="#F6C95E"/>
+          <path d="M99 514 L102 510 L105 514" stroke="#E8A93C" stroke-width="1" fill="none"/>
+          <!-- cute mouse (vehicle) -->
+          <ellipse cx="58" cy="528" rx="6" ry="3" fill="#a9a9a9"/>
+          <circle cx="52" cy="527" r="2" fill="#a9a9a9"/>
+          <circle cx="50" cy="525" r="1.2" fill="#a9a9a9"/>
+          <circle cx="50" cy="525" r="0.4" fill="#1a0a14"/>
+          <circle cx="51" cy="527" r="0.5" fill="#0a0a14"/>
+          <line x1="55" y1="528" x2="48" y2="530" stroke="#a9a9a9" stroke-width="1"/>
+        </g>
+
+        <!-- LAKSHMI (mid-left) — chibi cute -->
+        <g>
+          <!-- body (gold saree, rounder) -->
+          <path d="M118 530 Q118 506 132 506 Q146 506 146 530 Q146 533 132 533 Q118 533 118 530 Z" fill="#F6C95E"/>
+          <path d="M118 525 Q132 530 146 525" stroke="#E8A93C" stroke-width="1.4" fill="none"/>
+          <g fill="#E8A93C" opacity="0.6">
+            <circle cx="125" cy="518" r="0.8"/>
+            <circle cx="139" cy="518" r="0.8"/>
+            <circle cx="132" cy="522" r="0.8"/>
+          </g>
+          <!-- BIG head -->
+          <circle cx="132" cy="492" r="10" fill="#f4c89e"/>
+          <!-- chubby cheeks -->
+          <circle cx="125" cy="496" r="2.2" fill="#e88a8a" opacity="0.6"/>
+          <circle cx="139" cy="496" r="2.2" fill="#e88a8a" opacity="0.6"/>
+          <!-- hair (frames face) -->
+          <path d="M122 488 Q119 500 125 504 L128 500 Q124 492 122 488" fill="#1a0a14"/>
+          <path d="M142 488 Q145 500 139 504 L136 500 Q140 492 142 488" fill="#1a0a14"/>
+          <!-- hair bun on top -->
+          <circle cx="132" cy="482" r="5" fill="#1a0a14"/>
+          <!-- flower in hair -->
+          <circle cx="126" cy="481" r="2" fill="#E8A93C"/>
+          <circle cx="126" cy="481" r="0.8" fill="#C8102E"/>
+          <!-- crown -->
+          <path d="M126 478 L129 472 L132 477 L132 469 L132 477 L135 472 L138 478 Z" fill="#E8A93C"/>
+          <circle cx="132" cy="473" r="1.4" fill="#C8102E"/>
+          <!-- BIG anime eyes -->
+          <ellipse cx="128" cy="492" rx="1.8" ry="2.2" fill="#fff"/>
+          <ellipse cx="136" cy="492" rx="1.8" ry="2.2" fill="#fff"/>
+          <circle cx="128" cy="493" r="1.2" fill="#0a0a14"/>
+          <circle cx="136" cy="493" r="1.2" fill="#0a0a14"/>
+          <circle cx="128.5" cy="492" r="0.5" fill="#fff"/>
+          <circle cx="136.5" cy="492" r="0.5" fill="#fff"/>
+          <!-- bindi -->
+          <circle cx="132" cy="486" r="1" fill="#C8102E"/>
+          <!-- happy smile -->
+          <path d="M129 497 Q132 499 135 497" stroke="#8e0a20" stroke-width="0.8" fill="none" stroke-linecap="round"/>
+          <!-- earrings -->
+          <circle cx="121" cy="494" r="0.8" fill="#E8A93C"/>
+          <circle cx="143" cy="494" r="0.8" fill="#E8A93C"/>
+          <!-- big lotus in hand -->
+          <g>
+            <ellipse cx="150" cy="514" rx="7" ry="4" fill="#F6C95E"/>
+            <path d="M143 514 Q146 506 150 514 M147 514 Q150 506 153 514 M151 514 Q154 506 157 514" stroke="#E8A93C" stroke-width="1" fill="#E8A93C" opacity="0.85"/>
+            <circle cx="150" cy="514" r="2" fill="#C8102E"/>
+          </g>
+          <!-- cute owl (vehicle) -->
+          <g>
+            <ellipse cx="110" cy="528" rx="5.5" ry="4" fill="#d99c6a"/>
+            <ellipse cx="110" cy="528" rx="3.5" ry="2.5" fill="#FBF6EC"/>
+            <circle cx="107" cy="526" r="1.5" fill="#fff"/>
+            <circle cx="113" cy="526" r="1.5" fill="#fff"/>
+            <circle cx="107" cy="526" r="0.7" fill="#0a0a14"/>
+            <circle cx="113" cy="526" r="0.7" fill="#0a0a14"/>
+            <!-- beak -->
+            <path d="M109 528 L110 530 L111 528 Z" fill="#E8A93C"/>
+          </g>
+        </g>
+
+        <!-- SARASWATI (mid-right, white saree, veena) — chibi cute -->
+        <g>
+          <!-- body (white saree, rounder) -->
+          <path d="M318 530 Q318 506 332 506 Q346 506 346 530 Q346 533 332 533 Q318 533 318 530 Z" fill="#FBF6EC"/>
+          <path d="M318 525 Q332 530 346 525" stroke="#E8A93C" stroke-width="1.4" fill="none"/>
+          <g fill="#E8A93C" opacity="0.6">
+            <circle cx="325" cy="518" r="0.8"/>
+            <circle cx="339" cy="518" r="0.8"/>
+            <circle cx="332" cy="522" r="0.8"/>
+          </g>
+          <!-- BIG head -->
+          <circle cx="332" cy="492" r="10" fill="#f4c89e"/>
+          <!-- chubby cheeks -->
+          <circle cx="325" cy="496" r="2.2" fill="#e88a8a" opacity="0.6"/>
+          <circle cx="339" cy="496" r="2.2" fill="#e88a8a" opacity="0.6"/>
+          <!-- hair frames face -->
+          <path d="M322 488 Q319 500 325 504 L328 500 Q324 492 322 488" fill="#1a0a14"/>
+          <path d="M342 488 Q345 500 339 504 L336 500 Q340 492 342 488" fill="#1a0a14"/>
+          <!-- bun -->
+          <circle cx="332" cy="482" r="5" fill="#1a0a14"/>
+          <!-- white flower in hair -->
+          <circle cx="338" cy="481" r="2" fill="#FBF6EC"/>
+          <circle cx="338" cy="481" r="0.8" fill="#E8A93C"/>
+          <!-- crown -->
+          <path d="M326 478 L329 472 L332 477 L332 469 L332 477 L335 472 L338 478 Z" fill="#E8A93C"/>
+          <circle cx="332" cy="473" r="1.4" fill="#C8102E"/>
+          <!-- BIG anime eyes -->
+          <ellipse cx="328" cy="492" rx="1.8" ry="2.2" fill="#fff"/>
+          <ellipse cx="336" cy="492" rx="1.8" ry="2.2" fill="#fff"/>
+          <circle cx="328" cy="493" r="1.2" fill="#0a0a14"/>
+          <circle cx="336" cy="493" r="1.2" fill="#0a0a14"/>
+          <circle cx="328.5" cy="492" r="0.5" fill="#fff"/>
+          <circle cx="336.5" cy="492" r="0.5" fill="#fff"/>
+          <!-- bindi -->
+          <circle cx="332" cy="486" r="1" fill="#C8102E"/>
+          <!-- happy smile -->
+          <path d="M329 497 Q332 499 335 497" stroke="#8e0a20" stroke-width="0.8" fill="none" stroke-linecap="round"/>
+          <!-- earrings -->
+          <circle cx="321" cy="494" r="0.8" fill="#E8A93C"/>
+          <circle cx="343" cy="494" r="0.8" fill="#E8A93C"/>
+          <!-- VEENA (cuter, more visible) -->
+          <g>
+            <line x1="320" y1="512" x2="306" y2="498" stroke="#E8A93C" stroke-width="2" stroke-linecap="round"/>
+            <ellipse cx="304" cy="496" rx="5" ry="4" fill="#E8A93C"/>
+            <ellipse cx="304" cy="496" rx="3" ry="2" fill="#8e0a20"/>
+            <line x1="320" y1="512" x2="322" y2="522" stroke="#E8A93C" stroke-width="1.5"/>
+            <ellipse cx="322" cy="524" rx="3" ry="2" fill="#E8A93C"/>
+          </g>
+          <!-- cute swan (vehicle) -->
+          <g>
+            <ellipse cx="355" cy="528" rx="6.5" ry="3.5" fill="#fff"/>
+            <path d="M362 525 Q365 520 360 519 Q358 522 360 526" fill="#fff"/>
+            <path d="M366 520 L369 517" stroke="#E8A93C" stroke-width="1.5" stroke-linecap="round"/>
+            <circle cx="362" cy="522" r="0.6" fill="#0a0a14"/>
+            <!-- wing -->
+            <path d="M353 526 Q357 524 358 528" stroke="#E8A93C" stroke-width="0.8" fill="none"/>
+          </g>
+        </g>
+
+        <!-- KARTIK (far right) — chibi cute -->
+        <g>
+          <!-- body (green, rounder) -->
+          <path d="M368 530 Q368 506 382 506 Q396 506 396 530 Q396 533 382 533 Q368 533 368 530 Z" fill="#1B5E3A"/>
+          <path d="M368 525 Q382 530 396 525" stroke="#E8A93C" stroke-width="1.4" fill="none"/>
+          <g fill="#E8A93C" opacity="0.6">
+            <circle cx="375" cy="518" r="0.8"/>
+            <circle cx="389" cy="518" r="0.8"/>
+            <circle cx="382" cy="522" r="0.8"/>
+          </g>
+          <!-- BIG head -->
+          <circle cx="382" cy="492" r="10" fill="#f4c89e"/>
+          <!-- chubby cheeks -->
+          <circle cx="375" cy="496" r="2.2" fill="#e88a8a" opacity="0.6"/>
+          <circle cx="389" cy="496" r="2.2" fill="#e88a8a" opacity="0.6"/>
+          <!-- hair (slightly shorter on a boy) -->
+          <path d="M372 484 Q372 490 374 494 L378 488 Q374 484 372 484" fill="#1a0a14"/>
+          <path d="M392 484 Q392 490 390 494 L386 488 Q390 484 392 484" fill="#1a0a14"/>
+          <path d="M373 482 Q382 478 391 482 L388 488 Q382 486 376 488 Z" fill="#1a0a14"/>
+          <!-- crown -->
+          <path d="M376 478 L379 472 L382 477 L382 469 L382 477 L385 472 L388 478 Z" fill="#E8A93C"/>
+          <circle cx="382" cy="473" r="1.4" fill="#C8102E"/>
+          <!-- BIG anime eyes -->
+          <ellipse cx="378" cy="492" rx="1.8" ry="2.2" fill="#fff"/>
+          <ellipse cx="386" cy="492" rx="1.8" ry="2.2" fill="#fff"/>
+          <circle cx="378" cy="493" r="1.2" fill="#0a0a14"/>
+          <circle cx="386" cy="493" r="1.2" fill="#0a0a14"/>
+          <circle cx="378.5" cy="492" r="0.5" fill="#fff"/>
+          <circle cx="386.5" cy="492" r="0.5" fill="#fff"/>
+          <!-- bindi -->
+          <circle cx="382" cy="486" r="1" fill="#C8102E"/>
+          <!-- smile (cheeky) -->
+          <path d="M379 497 Q382 500 385 497" stroke="#8e0a20" stroke-width="0.8" fill="none" stroke-linecap="round"/>
+          <!-- earrings -->
+          <circle cx="371" cy="494" r="0.8" fill="#E8A93C"/>
+          <circle cx="393" cy="494" r="0.8" fill="#E8A93C"/>
+          <!-- spear in hand -->
+          <line x1="398" y1="512" x2="402" y2="486" stroke="#E8A93C" stroke-width="1.8" stroke-linecap="round"/>
+          <path d="M400 484 L402 478 L404 484 Z" fill="#F6C95E"/>
+          <!-- cute baby peacock (vehicle) -->
+          <g>
+            <ellipse cx="366" cy="528" rx="6" ry="3.5" fill="#1B5E3A"/>
+            <circle cx="362" cy="524" r="2.5" fill="#1B5E3A"/>
+            <circle cx="361" cy="523" r="0.6" fill="#fff"/>
+            <circle cx="361" cy="523" r="0.3" fill="#0a0a14"/>
+            <!-- beak -->
+            <path d="M359 525 L357 526 L359 527" fill="#E8A93C"/>
+            <!-- crest on top of head -->
+            <path d="M361 521 L361 519 M362 521 L363 519 M360 521 L359 519" stroke="#1B5E3A" stroke-width="0.8"/>
+            <circle cx="361" cy="519" r="0.6" fill="#E8A93C"/>
+            <!-- tail feathers (bigger, more colorful) -->
+            <path d="M370 527 Q357 522 350 514" stroke="#1B5E3A" stroke-width="1.4" fill="none"/>
+            <ellipse cx="350" cy="514" rx="3" ry="2" fill="#1B5E3A"/>
+            <circle cx="350" cy="514" r="1.5" fill="#E8A93C"/>
+            <circle cx="350" cy="514" r="0.6" fill="#C8102E"/>
+            <path d="M372 530 Q360 532 354 528" stroke="#1B5E3A" stroke-width="1" fill="none"/>
+            <ellipse cx="354" cy="528" rx="2" ry="1.5" fill="#E8A93C"/>
+          </g>
+        </g>
+
+        <!-- CROWD silhouettes at the very bottom -->
+        <g fill="#050818" opacity="0.7">
+          <g class="crowd-figure">
+            <circle cx="18" cy="528" r="3"/><rect x="15" y="530" width="6" height="12" rx="2"/>
+          </g>
+          <g class="crowd-figure">
+            <circle cx="32" cy="530" r="3"/><rect x="29" y="532" width="6" height="10" rx="2"/>
+          </g>
+          <g class="crowd-figure">
+            <circle cx="48" cy="530" r="2.5"/><rect x="46" y="532" width="5" height="10" rx="2"/>
+          </g>
+          <g class="crowd-figure">
+            <circle cx="415" cy="528" r="3"/><rect x="412" y="530" width="6" height="12" rx="2"/>
+          </g>
+          <g class="crowd-figure">
+            <circle cx="430" cy="530" r="2.5"/><rect x="428" y="532" width="5" height="10" rx="2"/>
+          </g>
+          <g class="crowd-figure">
+            <circle cx="445" cy="530" r="3"/><rect x="442" y="532" width="6" height="10" rx="2"/>
+          </g>
+        </g>
+
+      </svg>
+
+      <div class="pandal-info">
+        <div class="label">Next Celebration</div>
+        <div class="name"><span class="bn">দুর্গা পূজা ২০২৬</span>Durga Puja 2026</div>
+      </div>
+    </div>
+
+  </div>
+
+  <div class="scroll-cue"><span class="bn">নীচে যান</span><span>Scroll</span><div class="line"></div></div>
+</section>
+
+<!-- ============= SHLOKA BREAKER ============= -->
+<div class="shloka reveal">
+  <div class="bn-quote">"যা দেবী সর্বভূতেষু শক্তিরূপেণ সংস্থিতা"</div>
+  <div class="translit">Yā Devī sarva-bhūteṣu śakti-rūpeṇa saṁsthitā — to the goddess who dwells in all beings as power</div>
+  <div class="ornament-line"><div class="line"></div>✦<div class="line"></div></div>
+</div>
+
+<!-- ============= MISSION — SAPTAMI MORNING ============= -->
+<section id="mission" class="mission" data-section="saptami">
+  <div class="container">
+    <div class="grid">
+      <div class="panel reveal">
+        <div class="marigold-string"></div>
+        <div class="deity-svg">
+          <!-- Saptami diya — tall brass oil lamp on an ornate stand, glow column, falling petals -->
+          <svg viewBox="0 0 400 600" fill="none" xmlns="http://www.w3.org/2000/svg">
+            <defs>
+              <radialGradient id="lampGlow" cx="0.5" cy="0.5" r="0.5">
+                <stop offset="0" stop-color="#F6C95E" stop-opacity="0.85"/>
+                <stop offset="0.4" stop-color="#E8A93C" stop-opacity="0.35"/>
+                <stop offset="1" stop-color="#F6C95E" stop-opacity="0"/>
+              </radialGradient>
+              <linearGradient id="brassGrad" x1="0" y1="0" x2="0" y2="1">
+                <stop offset="0" stop-color="#F6C95E"/>
+                <stop offset="0.5" stop-color="#E8A93C"/>
+                <stop offset="1" stop-color="#a87726"/>
+              </linearGradient>
+              <linearGradient id="brassRim" x1="0" y1="0" x2="0" y2="1">
+                <stop offset="0" stop-color="#FBF6EC"/>
+                <stop offset="0.5" stop-color="#F6C95E"/>
+                <stop offset="1" stop-color="#a87726"/>
+              </linearGradient>
+              <radialGradient id="flameGlow" cx="0.5" cy="0.5" r="0.5">
+                <stop offset="0" stop-color="#fff" stop-opacity="1"/>
+                <stop offset="0.3" stop-color="#F6C95E" stop-opacity="0.9"/>
+                <stop offset="0.7" stop-color="#E8A93C" stop-opacity="0.5"/>
+                <stop offset="1" stop-color="#C8102E" stop-opacity="0"/>
+              </radialGradient>
+            </defs>
+
+            <!-- ============================================================
+                 GLOW COLUMN behind the diya — rising warm light
+                 ============================================================ -->
+            <ellipse cx="200" cy="280" rx="160" ry="280" fill="url(#lampGlow)"/>
+
+            <!-- decorative alpana ring at the base, behind stand -->
+            <g stroke="#E8A93C" stroke-width="1" fill="none" opacity="0.3">
+              <ellipse cx="200" cy="540" rx="150" ry="20"/>
+              <ellipse cx="200" cy="540" rx="120" ry="14"/>
+              <ellipse cx="200" cy="540" rx="90" ry="10"/>
+            </g>
+
+            <!-- ============================================================
+                 TALL BRASS DIYA STAND — vertical, ornate
+                 ============================================================ -->
+            <g>
+              <!-- BASE PLATE (widest) -->
+              <ellipse cx="200" cy="545" rx="90" ry="14" fill="#8a5d18"/>
+              <ellipse cx="200" cy="540" rx="90" ry="14" fill="url(#brassGrad)"/>
+              <ellipse cx="200" cy="538" rx="80" ry="11" fill="#F6C95E"/>
+              <ellipse cx="200" cy="536" rx="68" ry="8" fill="#E8A93C"/>
+              <!-- decorative dots on base rim -->
+              <g fill="#8e6628">
+                <circle cx="135" cy="540" r="2"/>
+                <circle cx="165" cy="542" r="2"/>
+                <circle cx="200" cy="543" r="2"/>
+                <circle cx="235" cy="542" r="2"/>
+                <circle cx="265" cy="540" r="2"/>
+              </g>
+
+              <!-- LOWER STEM bowl -->
+              <path d="M170 530 L180 510 L220 510 L230 530 Z" fill="url(#brassGrad)"/>
+              <ellipse cx="200" cy="510" rx="20" ry="4" fill="#F6C95E"/>
+
+              <!-- TIER 1 -->
+              <rect x="195" y="490" width="10" height="20" fill="url(#brassGrad)"/>
+              <ellipse cx="200" cy="490" rx="22" ry="6" fill="#a87726"/>
+              <ellipse cx="200" cy="488" rx="22" ry="6" fill="url(#brassRim)"/>
+              <ellipse cx="200" cy="487" rx="18" ry="4" fill="#F6C95E"/>
+
+              <!-- STEM column -->
+              <rect x="197" y="430" width="6" height="58" fill="url(#brassGrad)"/>
+              <!-- column rings -->
+              <ellipse cx="200" cy="468" rx="9" ry="3" fill="url(#brassRim)"/>
+              <ellipse cx="200" cy="450" rx="9" ry="3" fill="url(#brassRim)"/>
+
+              <!-- TIER 2 (mid bulb) -->
+              <ellipse cx="200" cy="425" rx="16" ry="8" fill="#a87726"/>
+              <ellipse cx="200" cy="423" rx="16" ry="8" fill="url(#brassGrad)"/>
+              <ellipse cx="200" cy="421" rx="12" ry="5" fill="#F6C95E"/>
+
+              <!-- STEM upper column -->
+              <rect x="197" y="380" width="6" height="42" fill="url(#brassGrad)"/>
+              <ellipse cx="200" cy="402" rx="8" ry="2.5" fill="url(#brassRim)"/>
+
+              <!-- DIYA BOWL (the main oil cup at top) -->
+              <!-- bowl outer -->
+              <path d="M150 360 Q200 410 250 360 Q230 348 200 348 Q170 348 150 360 Z" fill="#8a5d18"/>
+              <!-- bowl rim -->
+              <ellipse cx="200" cy="360" rx="50" ry="7" fill="url(#brassRim)"/>
+              <ellipse cx="200" cy="358" rx="48" ry="6" fill="#F6C95E"/>
+              <!-- bowl inside (oil) -->
+              <ellipse cx="200" cy="360" rx="42" ry="4" fill="#a87726"/>
+              <ellipse cx="200" cy="359" rx="42" ry="3" fill="#E8A93C"/>
+              <!-- decorative spout / beak at front -->
+              <path d="M195 360 Q200 372 205 360 Z" fill="#F6C95E"/>
+
+              <!-- wick + flame stem -->
+              <line x1="200" y1="355" x2="200" y2="340" stroke="#8e0a20" stroke-width="2"/>
+
+              <!-- ============================================================
+                   FLAME — animated, three-layer glow
+                   ============================================================ -->
+              <g>
+                <!-- outer glow halo (animates pulse) -->
+                <circle cx="200" cy="310" r="55" fill="url(#flameGlow)">
+                  <animate attributeName="r" values="50;60;50" dur="2.4s" repeatCount="indefinite"/>
+                  <animate attributeName="opacity" values="0.7;1;0.7" dur="2.4s" repeatCount="indefinite"/>
+                </circle>
+                <!-- outer flame body (red-orange) -->
+                <path d="M186 340 Q180 320 200 270 Q220 320 214 340 Q207 332 200 336 Q193 332 186 340 Z" fill="#C8102E">
+                  <animate attributeName="d"
+                    values="M186 340 Q180 320 200 270 Q220 320 214 340 Q207 332 200 336 Q193 332 186 340 Z;
+                            M186 340 Q178 318 200 264 Q222 318 214 340 Q207 330 200 334 Q193 330 186 340 Z;
+                            M186 340 Q180 320 200 270 Q220 320 214 340 Q207 332 200 336 Q193 332 186 340 Z"
+                    dur="1.6s" repeatCount="indefinite"/>
+                </path>
+                <!-- middle flame (orange/marigold) -->
+                <path d="M190 338 Q186 320 200 285 Q214 320 210 338 Q205 332 200 334 Q195 332 190 338 Z" fill="#E8A93C">
+                  <animate attributeName="d"
+                    values="M190 338 Q186 320 200 285 Q214 320 210 338 Q205 332 200 334 Q195 332 190 338 Z;
+                            M190 338 Q184 318 200 278 Q216 318 210 338 Q205 330 200 332 Q195 330 190 338 Z;
+                            M190 338 Q186 320 200 285 Q214 320 210 338 Q205 332 200 334 Q195 332 190 338 Z"
+                    dur="1.6s" begin="0.1s" repeatCount="indefinite"/>
+                </path>
+                <!-- inner flame (yellow) -->
+                <path d="M194 335 Q192 320 200 300 Q208 320 206 335 Q203 330 200 332 Q197 330 194 335 Z" fill="#F6C95E">
+                  <animate attributeName="d"
+                    values="M194 335 Q192 320 200 300 Q208 320 206 335 Q203 330 200 332 Q197 330 194 335 Z;
+                            M194 335 Q190 318 200 294 Q210 318 206 335 Q203 328 200 330 Q197 328 194 335 Z;
+                            M194 335 Q192 320 200 300 Q208 320 206 335 Q203 330 200 332 Q197 330 194 335 Z"
+                    dur="1.6s" begin="0.2s" repeatCount="indefinite"/>
+                </path>
+                <!-- innermost flame core (white-hot) -->
+                <ellipse cx="200" cy="320" rx="3" ry="9" fill="#fff" opacity="0.85">
+                  <animate attributeName="ry" values="8;10;8" dur="1.6s" repeatCount="indefinite"/>
+                </ellipse>
+
+                <!-- tiny sparks rising from flame -->
+                <circle cx="200" cy="270" r="1.5" fill="#F6C95E">
+                  <animate attributeName="cy" values="270;200;270" dur="3s" repeatCount="indefinite"/>
+                  <animate attributeName="opacity" values="0;1;0" dur="3s" repeatCount="indefinite"/>
+                </circle>
+                <circle cx="195" cy="270" r="1" fill="#F6C95E">
+                  <animate attributeName="cy" values="275;205;275" dur="3.4s" begin="0.5s" repeatCount="indefinite"/>
+                  <animate attributeName="opacity" values="0;1;0" dur="3.4s" begin="0.5s" repeatCount="indefinite"/>
+                  <animate attributeName="cx" values="195;188;195" dur="3.4s" begin="0.5s" repeatCount="indefinite"/>
+                </circle>
+                <circle cx="205" cy="270" r="1" fill="#F6C95E">
+                  <animate attributeName="cy" values="275;205;275" dur="3.2s" begin="1.2s" repeatCount="indefinite"/>
+                  <animate attributeName="opacity" values="0;1;0" dur="3.2s" begin="1.2s" repeatCount="indefinite"/>
+                  <animate attributeName="cx" values="205;212;205" dur="3.2s" begin="1.2s" repeatCount="indefinite"/>
+                </circle>
+              </g>
+
+              <!-- ============================================================
+                   MARIGOLDS around the base (offering at the foot of the diya)
+                   ============================================================ -->
+              <g>
+                <!-- left cluster -->
+                <circle cx="130" cy="552" r="9" fill="#E8A93C"/>
+                <circle cx="130" cy="552" r="6" fill="#F6C95E"/>
+                <circle cx="130" cy="552" r="2.5" fill="#8e0a20"/>
+                <circle cx="148" cy="558" r="8" fill="#C8102E"/>
+                <circle cx="148" cy="558" r="5" fill="#E8A93C"/>
+                <circle cx="148" cy="558" r="2" fill="#8e0a20"/>
+                <circle cx="115" cy="558" r="7" fill="#E8A93C"/>
+                <circle cx="115" cy="558" r="4" fill="#F6C95E"/>
+                <!-- right cluster -->
+                <circle cx="270" cy="552" r="9" fill="#E8A93C"/>
+                <circle cx="270" cy="552" r="6" fill="#F6C95E"/>
+                <circle cx="270" cy="552" r="2.5" fill="#8e0a20"/>
+                <circle cx="252" cy="558" r="8" fill="#C8102E"/>
+                <circle cx="252" cy="558" r="5" fill="#E8A93C"/>
+                <circle cx="252" cy="558" r="2" fill="#8e0a20"/>
+                <circle cx="285" cy="558" r="7" fill="#E8A93C"/>
+                <circle cx="285" cy="558" r="4" fill="#F6C95E"/>
+                <!-- center small -->
+                <circle cx="200" cy="565" r="5" fill="#F6C95E"/>
+                <circle cx="200" cy="565" r="2" fill="#C8102E"/>
+                <!-- bel-pata (small green leaves) -->
+                <ellipse cx="170" cy="557" rx="5" ry="2.5" fill="#1B5E3A" transform="rotate(-15 170 557)"/>
+                <ellipse cx="230" cy="557" rx="5" ry="2.5" fill="#1B5E3A" transform="rotate(15 230 557)"/>
+              </g>
+            </g>
+
+            <!-- ============================================================
+                 FALLING PETALS — continuous, drift past the flame and pool around base
+                 ============================================================ -->
+            <g>
+              <!-- left side petals -->
+              <ellipse cx="80" cy="0" rx="3.5" ry="7" fill="#E8A93C">
+                <animate attributeName="cy" values="-20;600" dur="6s" begin="0s" repeatCount="indefinite"/>
+                <animate attributeName="opacity" values="0;1;1;0" keyTimes="0;0.1;0.85;1" dur="6s" repeatCount="indefinite"/>
+                <animate attributeName="cx" values="80;90;75;85" dur="6s" repeatCount="indefinite"/>
+                <animateTransform attributeName="transform" type="rotate" from="0 80 0" to="720 80 0" dur="6s" repeatCount="indefinite"/>
+              </ellipse>
+
+              <ellipse cx="110" cy="0" rx="3" ry="6" fill="#C8102E">
+                <animate attributeName="cy" values="-20;600" dur="7s" begin="1.2s" repeatCount="indefinite"/>
+                <animate attributeName="opacity" values="0;1;1;0" keyTimes="0;0.1;0.85;1" dur="7s" begin="1.2s" repeatCount="indefinite"/>
+                <animate attributeName="cx" values="110;100;115;105" dur="7s" begin="1.2s" repeatCount="indefinite"/>
+              </ellipse>
+
+              <ellipse cx="60" cy="0" rx="2.5" ry="5" fill="#F6C95E">
+                <animate attributeName="cy" values="-20;600" dur="5.5s" begin="2.4s" repeatCount="indefinite"/>
+                <animate attributeName="opacity" values="0;1;1;0" keyTimes="0;0.1;0.85;1" dur="5.5s" begin="2.4s" repeatCount="indefinite"/>
+              </ellipse>
+
+              <!-- right side petals -->
+              <ellipse cx="320" cy="0" rx="3.5" ry="7" fill="#C8102E">
+                <animate attributeName="cy" values="-20;600" dur="6.4s" begin="0.6s" repeatCount="indefinite"/>
+                <animate attributeName="opacity" values="0;1;1;0" keyTimes="0;0.1;0.85;1" dur="6.4s" begin="0.6s" repeatCount="indefinite"/>
+                <animate attributeName="cx" values="320;310;325;315" dur="6.4s" begin="0.6s" repeatCount="indefinite"/>
+                <animateTransform attributeName="transform" type="rotate" from="0 320 0" to="-720 320 0" dur="6.4s" begin="0.6s" repeatCount="indefinite"/>
+              </ellipse>
+
+              <ellipse cx="290" cy="0" rx="3" ry="6" fill="#E8A93C">
+                <animate attributeName="cy" values="-20;600" dur="5.8s" begin="1.8s" repeatCount="indefinite"/>
+                <animate attributeName="opacity" values="0;1;1;0" keyTimes="0;0.1;0.85;1" dur="5.8s" begin="1.8s" repeatCount="indefinite"/>
+                <animate attributeName="cx" values="290;298;285;292" dur="5.8s" begin="1.8s" repeatCount="indefinite"/>
+              </ellipse>
+
+              <ellipse cx="340" cy="0" rx="2.5" ry="5" fill="#F6C95E">
+                <animate attributeName="cy" values="-20;600" dur="6.8s" begin="3s" repeatCount="indefinite"/>
+                <animate attributeName="opacity" values="0;1;1;0" keyTimes="0;0.1;0.85;1" dur="6.8s" begin="3s" repeatCount="indefinite"/>
+              </ellipse>
+
+              <!-- center petals (drift past the flame on either side) -->
+              <ellipse cx="170" cy="0" rx="2.5" ry="5" fill="#E8A93C">
+                <animate attributeName="cy" values="-20;600" dur="7.5s" begin="2s" repeatCount="indefinite"/>
+                <animate attributeName="opacity" values="0;0.9;0.9;0" keyTimes="0;0.1;0.85;1" dur="7.5s" begin="2s" repeatCount="indefinite"/>
+                <animate attributeName="cx" values="170;150;165;145" dur="7.5s" begin="2s" repeatCount="indefinite"/>
+              </ellipse>
+              <ellipse cx="230" cy="0" rx="2.5" ry="5" fill="#C8102E">
+                <animate attributeName="cy" values="-20;600" dur="7.2s" begin="4s" repeatCount="indefinite"/>
+                <animate attributeName="opacity" values="0;0.9;0.9;0" keyTimes="0;0.1;0.85;1" dur="7.2s" begin="4s" repeatCount="indefinite"/>
+                <animate attributeName="cx" values="230;250;235;255" dur="7.2s" begin="4s" repeatCount="indefinite"/>
+              </ellipse>
+            </g>
+          </svg>
+        </div>
+        <div class="badge"><span class="bn">প্রতিষ্ঠা ২০১২ ·</span> Est. 2012</div>
+      </div>
+      <div class="reveal reveal-delay-1">
+        <div class="section-eyebrow"><span class="bar"></span> <span class="day-tag">সপ্তমী সন্ধ্যা · প্রদীপ প্রজ্জ্বলন</span> · Saptami evening · lamp lighting</div>
+        <h2 class="section-title">
+          <span class="bn">আমাদের লক্ষ্য, আমাদের পরিবার</span>
+          A community built on <em>culture</em>, compassion, and continuity.
+        </h2>
+        <div class="mission-pullquote">
+          <span class="bn">"যেখানে দশভুজার আশীর্বাদ, সেখানেই আমাদের বাড়ি।"</span>
+          "Where Maa Durga's blessing dwells, there we make our home."
+        </div>
+        <p class="mission-body">
+          Formed in 2012, Pragati is among the oldest Bengali organizations on the East Coast — dedicated to
+          honouring our shared heritage while welcoming every neighbour, friend, and stranger into the warmth of a Bengali household.
+          From Saraswati Puja in February to Kali Puja in November, we keep the year lit.
+        </p>
+        <div class="mission-stats">
+          <div class="stat"><span class="num">13+</span><span class="label">Years celebrating</span><span class="bn">তেরো বছর</span></div>
+          <div class="stat"><span class="num">80+</span><span class="label">Founding families</span><span class="bn">আশি পরিবার</span></div>
+          <div class="stat"><span class="num">200+</span><span class="label">Active members</span><span class="bn">দুইশো সদস্য</span></div>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ============= EVENTS — ASHTAMI (with dhunuchi dancer vignette) ============= -->
+<section id="events" class="events" data-section="ashtami">
+  <div class="container">
+    <div class="events-header reveal">
+      <div class="header-left">
+        <div class="section-eyebrow"><span class="bar"></span> <span class="day-tag">অষ্টমী সন্ধ্যা · ধুনুচি নাচ</span> · Ashtami · dhunuchi naach</div>
+        <h2 class="section-title">
+          <span class="bn">উৎসবের রাত</span>
+          Festivals, food, music — <em>together</em>.
+        </h2>
+      </div>
+      <div class="header-right">
+      <!-- DHUNUCHI DANCER VIGNETTE -->
+      <div class="dhunuchi-vignette">
+        <svg viewBox="0 0 200 260" fill="none" xmlns="http://www.w3.org/2000/svg">
+          <!-- aura behind dancer -->
+          <ellipse cx="100" cy="170" rx="80" ry="50" fill="#E8A93C" opacity="0.12"/>
+
+          <!-- saree (wider, A-line) -->
+          <path d="M55 250 Q60 160 100 160 Q140 160 145 250 Z" fill="#C8102E"/>
+          <!-- saree gold trim at hem -->
+          <path d="M55 244 Q100 254 145 244" stroke="#E8A93C" stroke-width="2.5" fill="none"/>
+          <path d="M58 232 Q100 240 142 232" stroke="#E8A93C" stroke-width="1.2" fill="none" opacity="0.7"/>
+          <!-- pleats -->
+          <line x1="85" y1="185" x2="80" y2="244" stroke="#8e0a20" stroke-width="0.8" opacity="0.5"/>
+          <line x1="100" y1="185" x2="100" y2="244" stroke="#8e0a20" stroke-width="0.8" opacity="0.5"/>
+          <line x1="115" y1="185" x2="120" y2="244" stroke="#8e0a20" stroke-width="0.8" opacity="0.5"/>
+          <!-- waist gold belt -->
+          <ellipse cx="100" cy="165" rx="20" ry="3" fill="#E8A93C"/>
+
+          <!-- shoulders/blouse -->
+          <path d="M82 160 Q100 150 118 160 Q124 168 100 170 Q76 168 82 160 Z" fill="#8e0a20"/>
+
+          <!-- ARMS raised diagonally outward (more dynamic) -->
+          <path d="M85 158 Q60 130 40 90" stroke="#f4c89e" stroke-width="9" fill="none" stroke-linecap="round"/>
+          <path d="M115 158 Q140 130 160 90" stroke="#f4c89e" stroke-width="9" fill="none" stroke-linecap="round"/>
+          <!-- bangles on each wrist -->
+          <line x1="44" y1="98" x2="36" y2="92" stroke="#E8A93C" stroke-width="2.5"/>
+          <line x1="40" y1="92" x2="32" y2="86" stroke="#C8102E" stroke-width="2"/>
+          <line x1="156" y1="98" x2="164" y2="92" stroke="#E8A93C" stroke-width="2.5"/>
+          <line x1="160" y1="92" x2="168" y2="86" stroke="#C8102E" stroke-width="2"/>
+
+          <!-- NECK -->
+          <rect x="95" y="125" width="10" height="10" fill="#f4c89e"/>
+          <!-- necklace -->
+          <path d="M90 132 Q100 138 110 132" stroke="#E8A93C" stroke-width="1.4" fill="none"/>
+
+          <!-- FACE -->
+          <ellipse cx="100" cy="115" rx="14" ry="17" fill="#f4c89e"/>
+          <!-- hair, bun on top -->
+          <path d="M86 113 Q83 100 100 95 Q117 100 114 113 L114 105 Q100 92 86 105 Z" fill="#1a0a14"/>
+          <circle cx="100" cy="92" r="9" fill="#1a0a14"/>
+          <!-- flower in hair bun -->
+          <circle cx="92" cy="89" r="3" fill="#E8A93C"/>
+          <circle cx="92" cy="89" r="1.2" fill="#C8102E"/>
+          <!-- forehead bindi & sindoor -->
+          <path d="M97 100 L103 100" stroke="#C8102E" stroke-width="1.5"/>
+          <circle cx="100" cy="106" r="2" fill="#C8102E"/>
+          <!-- eyes -->
+          <ellipse cx="94" cy="115" rx="2" ry="1.4" fill="#fff"/>
+          <ellipse cx="106" cy="115" rx="2" ry="1.4" fill="#fff"/>
+          <circle cx="94" cy="115" r="0.9" fill="#0a0a14"/>
+          <circle cx="106" cy="115" r="0.9" fill="#0a0a14"/>
+          <!-- eyebrows -->
+          <path d="M90 110 Q94 108 98 110" stroke="#0a0a14" stroke-width="0.8" fill="none" stroke-linecap="round"/>
+          <path d="M102 110 Q106 108 110 110" stroke="#0a0a14" stroke-width="0.8" fill="none" stroke-linecap="round"/>
+          <!-- nose -->
+          <path d="M100 118 Q101 122 100 122" stroke="#d99c6a" stroke-width="0.6" fill="none"/>
+          <!-- lips -->
+          <path d="M95 125 Q100 128 105 125" stroke="#8e0a20" stroke-width="1" fill="none" stroke-linecap="round"/>
+          <!-- earrings hanging -->
+          <circle cx="86" cy="120" r="1.5" fill="#E8A93C"/>
+          <line x1="86" y1="121" x2="86" y2="126" stroke="#E8A93C" stroke-width="0.8"/>
+          <circle cx="86" cy="128" r="1.8" fill="#C8102E"/>
+          <circle cx="114" cy="120" r="1.5" fill="#E8A93C"/>
+          <line x1="114" y1="121" x2="114" y2="126" stroke="#E8A93C" stroke-width="0.8"/>
+          <circle cx="114" cy="128" r="1.8" fill="#C8102E"/>
+
+          <!-- LEFT DHUNUCHI -->
+          <g>
+            <!-- bowl outer -->
+            <path d="M22 92 Q40 70 58 92 Q52 102 40 102 Q28 102 22 92 Z" fill="#8e0a20"/>
+            <ellipse cx="40" cy="92" rx="18" ry="4" fill="#5a0510"/>
+            <!-- gold rim -->
+            <ellipse cx="40" cy="89" rx="17" ry="3.5" fill="#E8A93C"/>
+            <ellipse cx="40" cy="89" rx="14" ry="2.5" fill="#5a0510"/>
+            <!-- glowing embers -->
+            <circle cx="40" cy="87" r="6" fill="#F6C95E" opacity="0.85">
+              <animate attributeName="opacity" values="0.6;1;0.6" dur="1.5s" repeatCount="indefinite"/>
+            </circle>
+            <circle cx="40" cy="87" r="3" fill="#fff"/>
+            <!-- handle/stem (small) -->
+            <line x1="40" y1="102" x2="40" y2="106" stroke="#8e0a20" stroke-width="2"/>
+            <!-- smoke rising -->
+            <g>
+              <circle class="smoke" cx="40" cy="80" r="4" fill="#fff" opacity="0.45"/>
+              <circle class="smoke d2" cx="36" cy="74" r="3.5" fill="#fff" opacity="0.35"/>
+              <circle class="smoke d3" cx="44" cy="68" r="3" fill="#fff" opacity="0.3"/>
+            </g>
+          </g>
+
+          <!-- RIGHT DHUNUCHI -->
+          <g>
+            <path d="M142 92 Q160 70 178 92 Q172 102 160 102 Q148 102 142 92 Z" fill="#8e0a20"/>
+            <ellipse cx="160" cy="92" rx="18" ry="4" fill="#5a0510"/>
+            <ellipse cx="160" cy="89" rx="17" ry="3.5" fill="#E8A93C"/>
+            <ellipse cx="160" cy="89" rx="14" ry="2.5" fill="#5a0510"/>
+            <circle cx="160" cy="87" r="6" fill="#F6C95E" opacity="0.85">
+              <animate attributeName="opacity" values="0.6;1;0.6" dur="1.5s" begin="0.6s" repeatCount="indefinite"/>
+            </circle>
+            <circle cx="160" cy="87" r="3" fill="#fff"/>
+            <line x1="160" y1="102" x2="160" y2="106" stroke="#8e0a20" stroke-width="2"/>
+            <g>
+              <circle class="smoke" cx="160" cy="80" r="4" fill="#fff" opacity="0.45"/>
+              <circle class="smoke d2" cx="156" cy="74" r="3.5" fill="#fff" opacity="0.35"/>
+              <circle class="smoke d3" cx="164" cy="68" r="3" fill="#fff" opacity="0.3"/>
+            </g>
+          </g>
+        </svg>
+      </div>
+      <a href="#" class="btn btn-primary"><span>Full calendar</span> <span class="arrow">→</span></a>
+      </div>
+    </div>
+
+    <div class="events-grid">
+
+      <div class="event-card feature reveal">
+        <div class="pandal-deco"></div>
+        <div class="img img-durga"></div>
+        <div class="overlay"></div>
+        <svg class="silhouette" viewBox="0 0 100 120" fill="none">
+          <ellipse cx="50" cy="40" rx="14" ry="18" fill="#fff"/>
+          <path d="M28 80 Q50 65 72 80 L75 120 L25 120 Z" fill="#fff"/>
+          <line x1="32" y1="85" x2="10" y2="60" stroke="#fff" stroke-width="1.5"/>
+          <line x1="68" y1="85" x2="90" y2="60" stroke="#fff" stroke-width="1.5"/>
+          <line x1="35" y1="90" x2="5" y2="80" stroke="#fff" stroke-width="1.5"/>
+          <line x1="65" y1="90" x2="95" y2="80" stroke="#fff" stroke-width="1.5"/>
+        </svg>
+        <div class="arrow-circle">↗</div>
+        <div class="content">
+          <span class="chip">★ Featured · 3 days</span>
+          <h3><span class="bn">দুর্গা পূজা ২০২৬</span>Durga Puja 2026</h3>
+          <div class="meta">Oct 16–18 · Greater Philadelphia Expo Center · Lopamudra, Iman Chakraborty & more</div>
+        </div>
+      </div>
+
+      <div class="event-card reveal reveal-delay-1">
+        <div class="img img-saraswati"></div>
+        <div class="overlay"></div>
+        <svg class="silhouette" viewBox="0 0 100 100" fill="none">
+          <path d="M20 50 Q50 30 80 50 Q80 70 50 70 Q20 70 20 50 Z" fill="#fff"/>
+          <line x1="20" y1="50" x2="20" y2="20" stroke="#fff" stroke-width="2"/>
+          <circle cx="20" cy="18" r="4" fill="#fff"/>
+        </svg>
+        <div class="arrow-circle">↗</div>
+        <div class="content">
+          <span class="chip">Cultural · vidya</span>
+          <h3><span class="bn">সরস্বতী পূজা</span>Saraswati Puja</h3>
+          <div class="meta">Feb 14, 2026</div>
+        </div>
+      </div>
+
+      <div class="event-card reveal reveal-delay-2">
+        <div class="img img-boishakhi"></div>
+        <div class="overlay"></div>
+        <svg class="silhouette" viewBox="0 0 100 100" fill="none">
+          <circle cx="50" cy="50" r="30" fill="#fff" opacity="0.6"/>
+          <text x="50" y="58" text-anchor="middle" fill="#C8102E" font-family="Tiro Bangla" font-size="22">১</text>
+        </svg>
+        <div class="arrow-circle">↗</div>
+        <div class="content">
+          <span class="chip">Bengali New Year</span>
+          <h3><span class="bn">বৈশাখী আড্ডা</span>Boishakhi Adda</h3>
+          <div class="meta">May 9, 2026</div>
+        </div>
+      </div>
+
+      <div class="event-card reveal">
+        <div class="img img-kali"></div>
+        <div class="overlay"></div>
+        <svg class="silhouette" viewBox="0 0 100 100" fill="none">
+          <path d="M20 60 Q50 80 80 60 Q70 50 50 50 Q30 50 20 60 Z" fill="#fff"/>
+          <path d="M48 50 Q50 30 52 50 Z" fill="#E8A93C"/>
+          <ellipse cx="50" cy="35" rx="5" ry="10" fill="#E8A93C" opacity="0.6"/>
+        </svg>
+        <div class="arrow-circle">↗</div>
+        <div class="content">
+          <span class="chip">Sacred night · diyas</span>
+          <h3><span class="bn">কালী পূজা</span>Kali Puja</h3>
+          <div class="meta">Nov 8, 2026</div>
+        </div>
+      </div>
+
+      <div class="event-card reveal reveal-delay-1">
+        <div class="img img-summer"></div>
+        <div class="overlay"></div>
+        <svg class="silhouette" viewBox="0 0 100 100" fill="none">
+          <circle cx="65" cy="35" r="15" fill="#fff"/>
+          <path d="M10 80 Q30 60 50 80 Q70 60 90 80 L90 100 L10 100 Z" fill="#fff" opacity="0.7"/>
+        </svg>
+        <div class="arrow-circle">↗</div>
+        <div class="content">
+          <span class="chip">Outdoors · grill · games</span>
+          <h3><span class="bn">গ্রীষ্মের পিকনিক</span>Summer Picnic</h3>
+          <div class="meta">July 12, 2026</div>
+        </div>
+      </div>
+
+    </div>
+  </div>
+</section>
+
+<!-- ============= STATS — NAVAMI (dhaki vignette inline) ============= -->
+<section class="stats-strip" data-section="navami">
+  <div class="container">
+    <div class="heading reveal">
+      <!-- DHAKI VIGNETTE inline beside heading -->
+      <div class="dhaki-vignette">
+        <svg viewBox="0 0 200 260" fill="none" xmlns="http://www.w3.org/2000/svg">
+          <!-- aura glow -->
+          <ellipse cx="100" cy="160" rx="90" ry="60" fill="#E8A93C" opacity="0.1"/>
+
+          <!-- HEAD (large, clearly visible above drum) -->
+          <ellipse cx="100" cy="55" rx="18" ry="22" fill="#f4c89e"/>
+          <!-- TOPI (Bengali cap) -->
+          <path d="M78 48 Q100 25 122 48 L118 54 L82 54 Z" fill="#FBF6EC"/>
+          <ellipse cx="100" cy="48" rx="22" ry="3" fill="#E8A93C"/>
+          <!-- topi band -->
+          <line x1="80" y1="54" x2="120" y2="54" stroke="#C8102E" stroke-width="1.5"/>
+          <!-- eyes -->
+          <ellipse cx="92" cy="58" rx="2" ry="1.4" fill="#fff"/>
+          <ellipse cx="108" cy="58" rx="2" ry="1.4" fill="#fff"/>
+          <circle cx="92" cy="58" r="1" fill="#0a0a14"/>
+          <circle cx="108" cy="58" r="1" fill="#0a0a14"/>
+          <!-- eyebrows -->
+          <path d="M88 53 Q92 51 96 53" stroke="#0a0a14" stroke-width="0.8" fill="none"/>
+          <path d="M104 53 Q108 51 112 53" stroke="#0a0a14" stroke-width="0.8" fill="none"/>
+          <!-- nose -->
+          <path d="M100 61 Q101 65 100 65" stroke="#d99c6a" stroke-width="0.6" fill="none"/>
+          <!-- moustache -->
+          <path d="M91 68 Q100 72 109 68" stroke="#1a0a14" stroke-width="1.4" fill="none" stroke-linecap="round"/>
+          <!-- smile -->
+          <path d="M93 74 Q100 76 107 74" stroke="#8e0a20" stroke-width="0.8" fill="none" stroke-linecap="round"/>
+
+          <!-- NECK -->
+          <rect x="94" y="77" width="12" height="10" fill="#f4c89e"/>
+
+          <!-- TORSO (kurta) -->
+          <path d="M70 90 Q100 82 130 90 L130 155 Q100 162 70 155 Z" fill="#E8A93C"/>
+          <!-- kurta neckline -->
+          <path d="M86 88 Q100 96 114 88" stroke="#8e0a20" stroke-width="1.4" fill="none"/>
+          <!-- chest centerline -->
+          <line x1="100" y1="92" x2="100" y2="155" stroke="#8e0a20" stroke-width="0.8" opacity="0.4"/>
+
+          <!-- ARMS holding sticks (arms come out from sides of torso) -->
+          <path d="M72 110 Q55 130 50 158" stroke="#f4c89e" stroke-width="9" fill="none" stroke-linecap="round"/>
+          <path d="M128 110 Q145 130 150 158" stroke="#f4c89e" stroke-width="9" fill="none" stroke-linecap="round"/>
+          <!-- bangles/wrist bands -->
+          <line x1="46" y1="156" x2="54" y2="156" stroke="#C8102E" stroke-width="2.5"/>
+          <line x1="146" y1="156" x2="154" y2="156" stroke="#C8102E" stroke-width="2.5"/>
+
+          <!-- DHAAK DRUM (in front of body, suspended from neck by strap) -->
+          <!-- strap -->
+          <path d="M85 90 L50 175" stroke="#8e0a20" stroke-width="1.5"/>
+          <path d="M115 90 L150 175" stroke="#8e0a20" stroke-width="1.5"/>
+          <!-- drum body -->
+          <ellipse cx="100" cy="172" rx="55" ry="11" fill="#F6C95E"/>
+          <rect x="45" y="172" width="110" height="38" fill="#E8A93C"/>
+          <ellipse cx="100" cy="210" rx="55" ry="11" fill="#8e0a20"/>
+          <!-- gold rim top -->
+          <ellipse cx="100" cy="172" rx="55" ry="6" fill="#E8A93C"/>
+          <ellipse cx="100" cy="172" rx="50" ry="4" fill="#F6C95E"/>
+          <!-- lacing -->
+          <line x1="55" y1="172" x2="55" y2="210" stroke="#8e0a20" stroke-width="1.2"/>
+          <line x1="73" y1="172" x2="73" y2="210" stroke="#8e0a20" stroke-width="1.2"/>
+          <line x1="91" y1="172" x2="91" y2="210" stroke="#8e0a20" stroke-width="1.2"/>
+          <line x1="109" y1="172" x2="109" y2="210" stroke="#8e0a20" stroke-width="1.2"/>
+          <line x1="127" y1="172" x2="127" y2="210" stroke="#8e0a20" stroke-width="1.2"/>
+          <line x1="145" y1="172" x2="145" y2="210" stroke="#8e0a20" stroke-width="1.2"/>
+          <!-- decorative cloth on top of drum -->
+          <path d="M60 168 Q100 158 140 168" fill="none" stroke="#C8102E" stroke-width="2"/>
+          <!-- feather plumes on top of drum -->
+          <g>
+            <path d="M60 168 Q55 150 60 138 Q62 155 65 168" stroke="#FBF6EC" stroke-width="1.2" fill="none"/>
+            <circle cx="60" cy="140" r="3" fill="#FBF6EC"/>
+            <path d="M100 168 Q95 148 102 134 Q105 155 108 168" stroke="#FBF6EC" stroke-width="1.2" fill="none"/>
+            <circle cx="101" cy="136" r="3.5" fill="#FBF6EC"/>
+            <path d="M140 168 Q145 150 140 138 Q138 155 135 168" stroke="#FBF6EC" stroke-width="1.2" fill="none"/>
+            <circle cx="140" cy="140" r="3" fill="#FBF6EC"/>
+          </g>
+
+          <!-- STICKS held by hands (animating) -->
+          <g class="stick-l" style="transform-origin: 50px 158px;">
+            <line x1="50" y1="158" x2="40" y2="135" stroke="#FBF6EC" stroke-width="3" stroke-linecap="round"/>
+            <circle cx="40" cy="133" r="3.5" fill="#FBF6EC"/>
+          </g>
+          <g class="stick-r" style="transform-origin: 150px 158px;">
+            <line x1="150" y1="158" x2="160" y2="135" stroke="#FBF6EC" stroke-width="3" stroke-linecap="round"/>
+            <circle cx="160" cy="133" r="3.5" fill="#FBF6EC"/>
+          </g>
+
+          <!-- legs/dhoti hint at bottom -->
+          <path d="M75 240 Q100 234 125 240 L125 258 L75 258 Z" fill="#FBF6EC" opacity="0.85"/>
+          <line x1="100" y1="240" x2="100" y2="258" stroke="#E8A93C" stroke-width="0.8"/>
+        </svg>
+      </div>
+      <div class="copy">
+        <div class="section-eyebrow" style="justify-content:center; align-items:center;">
+          <span class="bar"></span>
+          <span class="day-tag">নবমী রাত · শেষ আরতি · Navami night</span>
+          <span class="bar"></span>
+        </div>
+        <h2><span class="bn" style="display:block;">প্রগতি, সংখ্যায়</span>Pragati by the numbers</h2>
+        <div class="beat-row" style="display:inline-flex; margin-top:14px;"><span></span><span></span><span></span><span></span><span></span></div>
+      </div>
+    </div>
+    <div class="stats-grid">
+      <div class="stat-tile reveal"><div class="big" data-count="13">0</div><div class="small">Years of community</div><div class="bn">তেরো বছর</div></div>
+      <div class="stat-tile reveal reveal-delay-1"><div class="big" data-count="80">0</div><div class="small">Founding families</div><div class="bn">আশি পরিবার</div></div>
+      <div class="stat-tile reveal reveal-delay-2"><div class="big" data-count="200">0</div><div class="small">Active members</div><div class="bn">দুইশো সদস্য</div></div>
+      <div class="stat-tile reveal"><div class="big" data-count="12">0</div><div class="small">Annual events</div><div class="bn">বারো উৎসব</div></div>
+    </div>
+  </div>
+</section>
+
+<!-- ============= MAGAZINE ============= -->
+<section id="magazine" class="magazine" data-section="navami">
+  <div class="container">
+    <div class="mag-flex">
+      <div class="mag-stack reveal">
+        <div class="mag-cover">
+          <span class="label">Vol. XIII</span>
+          <div class="top-border"></div>
+          <div><h4><span class="bn">প্রগতি</span>Pragati</h4></div>
+          <div class="year">2024</div>
+          <div class="bottom-border"></div>
+        </div>
+        <div class="mag-cover">
+          <span class="label">Vol. XII</span>
+          <div class="top-border"></div>
+          <div><h4><span class="bn">প্রগতি</span>Pragati</h4></div>
+          <div class="year">2023</div>
+          <div class="bottom-border"></div>
+        </div>
+        <div class="mag-cover">
+          <span class="label">Vol. XI</span>
+          <div class="top-border"></div>
+          <div><h4><span class="bn">প্রগতি</span>Pragati</h4></div>
+          <div class="year">2022</div>
+          <div class="bottom-border"></div>
+        </div>
+      </div>
+
+      <div class="reveal reveal-delay-1">
+        <div class="section-eyebrow"><span class="bar"></span> <span class="day-tag">নবমী · পত্রিকা</span> · Navami · yearly publication</div>
+        <h2 class="section-title">
+          <span class="bn">প্রগতি পত্রিকা</span>
+          Voices of our community, in <em>print</em>.
+        </h2>
+        <p style="font-size:17px; color:rgba(251,246,236,0.75); margin-bottom:32px; line-height:1.85;">
+          Every year, Pragati publishes a curated magazine of essays, poetry, recipes, art, and reflections
+          from our members — preserving Bengali voices across generations and oceans. Flip through the archive,
+          or download any volume to read at your own pace.
+        </p>
+        <div style="display:flex; gap:14px; flex-wrap:wrap;">
+          <a href="#" class="btn btn-primary"><span>Read latest issue</span> <span class="arrow">→</span></a>
+          <a href="#" class="btn btn-ghost">Browse archive</a>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ============= SHLOKA BREAKER ============= -->
+<div class="shloka reveal">
+  <div class="bn-quote">"আসছে বছর আবার হবে"</div>
+  <div class="translit">Aschhe bochhor abar hobe — next year, again, we will meet</div>
+  <div class="ornament-line"><div class="line"></div>✦<div class="line"></div></div>
+</div>
+
+<!-- ============= MEMBERSHIP — DOSHOMI (sindoor khela vignette) ============= -->
+<section id="join" class="join" data-section="doshomi">
+  <div class="sindoor-dust">
+    <span class="speck" style="left:5%; animation-delay:0s;"></span>
+    <span class="speck" style="left:20%; animation-delay:2s;"></span>
+    <span class="speck" style="left:35%; animation-delay:4s;"></span>
+    <span class="speck" style="left:55%; animation-delay:1s;"></span>
+    <span class="speck" style="left:70%; animation-delay:3s;"></span>
+    <span class="speck" style="left:85%; animation-delay:5s;"></span>
+    <span class="speck" style="left:45%; animation-delay:6s;"></span>
+    <span class="speck" style="left:90%; animation-delay:7s;"></span>
+  </div>
+
+  <div class="container">
+    <div class="reveal">
+      <!-- SINDOOR KHELA VIGNETTE v2 — connected by a shared thala and reaching hand -->
+      <div class="sindoor-vignette">
+        <svg viewBox="0 0 320 260" fill="none" xmlns="http://www.w3.org/2000/svg">
+          <defs>
+            <linearGradient id="skSareeGrad" x1="0" y1="0" x2="0" y2="1">
+              <stop offset="0" stop-color="#C8102E"/>
+              <stop offset="1" stop-color="#8e0a20"/>
+            </linearGradient>
+          </defs>
+
+          <!-- warm halo -->
+          <ellipse cx="160" cy="150" rx="160" ry="90" fill="#C8102E" opacity="0.1"/>
+
+          <!-- ============================================================
+               LEFT WOMAN (foreground — applying sindoor with her right hand)
+               ============================================================ -->
+          <g>
+            <!-- saree -->
+            <path d="M30 255 Q40 155 88 155 Q136 155 146 255 Z" fill="url(#skSareeGrad)"/>
+            <path d="M30 248 Q88 260 146 248" stroke="#E8A93C" stroke-width="3" fill="none"/>
+            <path d="M36 232 Q88 240 140 232" stroke="#E8A93C" stroke-width="1.4" fill="none" opacity="0.7"/>
+            <!-- saree decorative dots -->
+            <g fill="#E8A93C" opacity="0.5">
+              <circle cx="60" cy="200" r="1.5"/>
+              <circle cx="80" cy="210" r="1.5"/>
+              <circle cx="100" cy="205" r="1.5"/>
+              <circle cx="120" cy="215" r="1.5"/>
+              <circle cx="70" cy="225" r="1.5"/>
+              <circle cx="110" cy="230" r="1.5"/>
+            </g>
+            <!-- waist belt -->
+            <ellipse cx="88" cy="160" rx="24" ry="3.5" fill="#E8A93C"/>
+
+            <!-- blouse / shoulders -->
+            <path d="M68 158 Q88 144 108 158 Q116 166 88 170 Q60 166 68 158 Z" fill="#8e0a20"/>
+            <!-- blouse trim -->
+            <path d="M70 158 Q88 152 106 158" stroke="#E8A93C" stroke-width="1" fill="none"/>
+
+            <!-- BACK arm (left arm) holding the shared thala -->
+            <!-- arm drops from shoulder to thala -->
+            <path d="M70 165 Q60 188 90 200" stroke="#f4c89e" stroke-width="13" fill="none" stroke-linecap="round"/>
+            <!-- bangles -->
+            <line x1="78" y1="184" x2="86" y2="183" stroke="#E8A93C" stroke-width="2.5"/>
+            <line x1="78" y1="190" x2="86" y2="189" stroke="#C8102E" stroke-width="2"/>
+            <!-- left hand cradling the thala bottom -->
+            <ellipse cx="92" cy="202" rx="14" ry="7" fill="#f4c89e"/>
+
+            <!-- FRONT arm (right arm) reaching toward right woman's face -->
+            <!-- arm crosses through scene to other woman's head -->
+            <path d="M108 158 Q160 130 200 100" stroke="#f4c89e" stroke-width="13" fill="none" stroke-linecap="round"/>
+            <!-- bangles on this arm -->
+            <line x1="118" y1="150" x2="126" y2="146" stroke="#E8A93C" stroke-width="2.5"/>
+            <line x1="124" y1="146" x2="132" y2="142" stroke="#C8102E" stroke-width="2"/>
+            <!-- hand at the end (open palm) -->
+            <ellipse cx="200" cy="100" rx="10" ry="8" fill="#f4c89e" transform="rotate(-20 200 100)"/>
+            <!-- fingers visible -->
+            <ellipse cx="208" cy="92" rx="3" ry="6" fill="#f4c89e" transform="rotate(-30 208 92)"/>
+            <ellipse cx="204" cy="88" rx="3" ry="6" fill="#f4c89e" transform="rotate(-15 204 88)"/>
+            <ellipse cx="198" cy="86" rx="3" ry="6" fill="#f4c89e" transform="rotate(0 198 86)"/>
+            <!-- SINDOOR on the fingertips -->
+            <circle cx="210" cy="86" r="3.5" fill="#C8102E"/>
+            <circle cx="205" cy="82" r="3.5" fill="#C8102E"/>
+            <circle cx="200" cy="80" r="3" fill="#C8102E"/>
+            <!-- sindoor smear trail behind fingers -->
+            <path d="M178 100 Q190 92 205 84" stroke="#C8102E" stroke-width="1.5" fill="none" opacity="0.45"/>
+
+            <!-- neck -->
+            <rect x="82" y="128" width="12" height="14" fill="#f4c89e"/>
+            <path d="M76 138 Q88 144 100 138" stroke="#E8A93C" stroke-width="1.5" fill="none"/>
+            <!-- pendant -->
+            <circle cx="88" cy="141" r="2" fill="#E8A93C"/>
+
+            <!-- HEAD -->
+            <ellipse cx="88" cy="115" rx="17" ry="21" fill="#f4c89e"/>
+            <!-- hair -->
+            <path d="M71 113 Q67 96 88 90 Q109 96 105 113 L105 102 Q88 90 71 102 Z" fill="#1a0a14"/>
+            <circle cx="88" cy="86" r="9" fill="#1a0a14"/>
+            <!-- flower in hair -->
+            <circle cx="78" cy="84" r="3.5" fill="#E8A93C"/>
+            <circle cx="78" cy="84" r="1.5" fill="#C8102E"/>
+            <!-- sindoor in parting -->
+            <rect x="86" y="90" width="4" height="13" fill="#C8102E"/>
+            <!-- bindi -->
+            <circle cx="88" cy="105" r="2" fill="#C8102E"/>
+            <!-- eyes -->
+            <ellipse cx="82" cy="115" rx="2.2" ry="1.5" fill="#fff"/>
+            <ellipse cx="94" cy="115" rx="2.2" ry="1.5" fill="#fff"/>
+            <circle cx="82" cy="115" r="1.1" fill="#0a0a14"/>
+            <circle cx="94" cy="115" r="1.1" fill="#0a0a14"/>
+            <!-- eyebrows -->
+            <path d="M78 110 Q82 108 86 110" stroke="#0a0a14" stroke-width="0.9" fill="none"/>
+            <path d="M90 110 Q94 108 98 110" stroke="#0a0a14" stroke-width="0.9" fill="none"/>
+            <!-- nose -->
+            <path d="M88 118 Q89 122 88 122" stroke="#d99c6a" stroke-width="0.6" fill="none"/>
+            <!-- smile (focused, slight) -->
+            <path d="M83 125 Q88 128 93 125" stroke="#8e0a20" stroke-width="1.2" fill="none" stroke-linecap="round"/>
+            <!-- earrings -->
+            <circle cx="73" cy="121" r="1.6" fill="#E8A93C"/>
+            <circle cx="73" cy="127" r="2.2" fill="#C8102E"/>
+            <circle cx="103" cy="121" r="1.6" fill="#E8A93C"/>
+            <circle cx="103" cy="127" r="2.2" fill="#C8102E"/>
+          </g>
+
+          <!-- ============================================================
+               RIGHT WOMAN (receiving sindoor — has smudges + closed-eye smile)
+               Drawn AFTER left's reaching arm so left's hand sits on her forehead
+               ============================================================ -->
+          <g>
+            <!-- saree -->
+            <path d="M180 255 Q190 155 232 155 Q274 155 284 255 Z" fill="url(#skSareeGrad)"/>
+            <path d="M180 248 Q232 260 284 248" stroke="#E8A93C" stroke-width="3" fill="none"/>
+            <path d="M186 232 Q232 240 278 232" stroke="#E8A93C" stroke-width="1.4" fill="none" opacity="0.7"/>
+            <g fill="#E8A93C" opacity="0.5">
+              <circle cx="200" cy="200" r="1.5"/>
+              <circle cx="220" cy="210" r="1.5"/>
+              <circle cx="240" cy="205" r="1.5"/>
+              <circle cx="260" cy="215" r="1.5"/>
+              <circle cx="210" cy="225" r="1.5"/>
+              <circle cx="250" cy="230" r="1.5"/>
+            </g>
+            <ellipse cx="232" cy="160" rx="24" ry="3.5" fill="#E8A93C"/>
+            <path d="M212 158 Q232 144 252 158 Q260 166 232 170 Q204 166 212 158 Z" fill="#8e0a20"/>
+            <path d="M214 158 Q232 152 250 158" stroke="#E8A93C" stroke-width="1" fill="none"/>
+
+            <!-- her right arm holding TOP of shared thala -->
+            <path d="M220 168 Q200 188 130 200" stroke="#f4c89e" stroke-width="13" fill="none" stroke-linecap="round"/>
+            <!-- bangles -->
+            <line x1="208" y1="180" x2="216" y2="178" stroke="#E8A93C" stroke-width="2.5"/>
+            <line x1="200" y1="186" x2="208" y2="184" stroke="#C8102E" stroke-width="2"/>
+            <!-- her hand holding top of thala -->
+            <ellipse cx="128" cy="200" rx="14" ry="7" fill="#f4c89e"/>
+
+            <!-- her left arm hangs down at side -->
+            <path d="M250 168 Q260 200 254 230" stroke="#f4c89e" stroke-width="11" fill="none" stroke-linecap="round"/>
+            <line x1="252" y1="220" x2="258" y2="220" stroke="#E8A93C" stroke-width="2"/>
+
+            <!-- neck -->
+            <rect x="226" y="128" width="12" height="14" fill="#f4c89e"/>
+            <path d="M220 138 Q232 144 244 138" stroke="#E8A93C" stroke-width="1.5" fill="none"/>
+            <circle cx="232" cy="141" r="2" fill="#E8A93C"/>
+
+            <!-- HEAD (tilted up — receiving) -->
+            <ellipse cx="232" cy="110" rx="17" ry="21" fill="#f4c89e"/>
+            <!-- hair -->
+            <path d="M215 108 Q211 91 232 85 Q253 91 249 108 L249 97 Q232 85 215 97 Z" fill="#1a0a14"/>
+            <circle cx="232" cy="81" r="9" fill="#1a0a14"/>
+            <!-- flower in hair -->
+            <circle cx="222" cy="79" r="3.5" fill="#E8A93C"/>
+            <circle cx="222" cy="79" r="1.5" fill="#C8102E"/>
+            <!-- BIG sindoor smudge in parting (just got applied) -->
+            <rect x="228" y="85" width="8" height="15" fill="#C8102E"/>
+            <ellipse cx="232" cy="100" rx="6" ry="3" fill="#C8102E"/>
+            <!-- bindi -->
+            <circle cx="232" cy="102" r="2.5" fill="#C8102E"/>
+            <!-- cheek smudges -->
+            <ellipse cx="220" cy="116" rx="3.5" ry="2.5" fill="#C8102E" opacity="0.6"/>
+            <ellipse cx="244" cy="116" rx="3.5" ry="2.5" fill="#C8102E" opacity="0.6"/>
+            <!-- closed-eye smile -->
+            <path d="M223 113 Q227 110 231 113" stroke="#0a0a14" stroke-width="1.2" fill="none" stroke-linecap="round"/>
+            <path d="M233 113 Q237 110 241 113" stroke="#0a0a14" stroke-width="1.2" fill="none" stroke-linecap="round"/>
+            <!-- eyebrows happy -->
+            <path d="M218 106 Q223 104 228 106" stroke="#0a0a14" stroke-width="0.9" fill="none"/>
+            <path d="M236 106 Q241 104 246 106" stroke="#0a0a14" stroke-width="0.9" fill="none"/>
+            <!-- nose -->
+            <path d="M232 116 Q233 120 232 120" stroke="#d99c6a" stroke-width="0.6" fill="none"/>
+            <!-- joyful smile -->
+            <path d="M223 124 Q232 130 241 124" stroke="#8e0a20" stroke-width="1.6" fill="none" stroke-linecap="round"/>
+            <!-- earrings -->
+            <circle cx="217" cy="122" r="1.6" fill="#E8A93C"/>
+            <circle cx="217" cy="128" r="2.2" fill="#C8102E"/>
+            <circle cx="247" cy="122" r="1.6" fill="#E8A93C"/>
+            <circle cx="247" cy="128" r="2.2" fill="#C8102E"/>
+          </g>
+
+          <!-- ============================================================
+               SHARED SINDOOR THALA (plate) between them — connects both hands
+               ============================================================ -->
+          <g>
+            <!-- plate base (gold) -->
+            <ellipse cx="110" cy="206" rx="32" ry="6" fill="#8e6628"/>
+            <!-- plate rim -->
+            <ellipse cx="110" cy="200" rx="32" ry="7" fill="#E8A93C"/>
+            <!-- plate inside -->
+            <ellipse cx="110" cy="199" rx="27" ry="5" fill="#a87d31"/>
+            <!-- sindoor pile in plate -->
+            <ellipse cx="110" cy="194" rx="22" ry="5" fill="#C8102E"/>
+            <ellipse cx="110" cy="191" rx="16" ry="4" fill="#8e0a20"/>
+            <!-- tiny sindoor mound -->
+            <ellipse cx="110" cy="188" rx="8" ry="3" fill="#C8102E"/>
+            <!-- two small leaves/bel-pata decoration on plate edge -->
+            <ellipse cx="86" cy="198" rx="4" ry="2" fill="#1B5E3A"/>
+            <ellipse cx="134" cy="198" rx="4" ry="2" fill="#1B5E3A"/>
+          </g>
+
+          <!-- ============================================================
+               FLYING SINDOOR PARTICLES — drift up and out
+               ============================================================ -->
+          <g fill="#C8102E">
+            <circle cx="110" cy="180" r="4">
+              <animate attributeName="cy" values="185;120;185" dur="3s" repeatCount="indefinite"/>
+              <animate attributeName="opacity" values="0.7;0;0.7" dur="3s" repeatCount="indefinite"/>
+            </circle>
+            <circle cx="100" cy="180" r="3">
+              <animate attributeName="cy" values="185;110;185" dur="3.4s" begin="0.5s" repeatCount="indefinite"/>
+              <animate attributeName="opacity" values="0.6;0;0.6" dur="3.4s" begin="0.5s" repeatCount="indefinite"/>
+              <animate attributeName="cx" values="100;85;100" dur="3.4s" begin="0.5s" repeatCount="indefinite"/>
+            </circle>
+            <circle cx="120" cy="180" r="3">
+              <animate attributeName="cy" values="185;125;185" dur="3.6s" begin="1s" repeatCount="indefinite"/>
+              <animate attributeName="opacity" values="0.7;0;0.7" dur="3.6s" begin="1s" repeatCount="indefinite"/>
+              <animate attributeName="cx" values="120;135;120" dur="3.6s" begin="1s" repeatCount="indefinite"/>
+            </circle>
+            <!-- sindoor drifting near right woman's face (just applied) -->
+            <circle cx="200" cy="95" r="2.5">
+              <animate attributeName="cy" values="95;75;95" dur="2.6s" begin="0.3s" repeatCount="indefinite"/>
+              <animate attributeName="opacity" values="0.7;0;0.7" dur="2.6s" begin="0.3s" repeatCount="indefinite"/>
+            </circle>
+            <circle cx="215" cy="92" r="2">
+              <animate attributeName="cy" values="92;72;92" dur="2.8s" begin="1.2s" repeatCount="indefinite"/>
+              <animate attributeName="opacity" values="0.7;0;0.7" dur="2.8s" begin="1.2s" repeatCount="indefinite"/>
+            </circle>
+          </g>
+        </svg>
+      </div>
+
+      <div class="section-eyebrow"><span class="bar"></span> <span class="day-tag">দশমী · সিঁদুর খেলা</span> · Doshomi · sindoor khela</div>
+      <h2 class="section-title">
+        <span class="bn">প্রগতি পরিবারের অংশ হোন</span>
+        Become part of <em>home</em> — away from home.
+      </h2>
+      <p style="font-size:18px; color:rgba(251,246,236,0.8); max-width: 500px; margin-top: 16px; line-height: 1.75;">
+        Pragati's annual membership unlocks reserved event seats, our yearly magazine, the summer picnic,
+        eligibility for Executive Committee positions, and a real sense of belonging — for just $35 a year.
+      </p>
+      <div style="margin-top:32px; font-size:13px; letter-spacing:2.5px; text-transform:uppercase; color: var(--marigold);">
+        ✦ <span class="bn" style="font-family:'Tiro Bangla',serif; letter-spacing:0; text-transform:none;">সদস্যতা চক্র: আগস্ট ১ – জুলাই ৩১</span> · Cycle: Aug 1 – Jul 31
+      </div>
+    </div>
+
+    <div class="join-pricecard reveal reveal-delay-1">
+      <div class="ribbon">Most loved</div>
+      <span class="price">$35</span>
+      <div class="price-sub"><span class="bn">প্রতি পরিবার, প্রতি বছর</span> · per family · per year</div>
+      <ul class="benefits-list">
+        <li><span class="check">✓</span><span>Exclusive year-round event discounts</span></li>
+        <li><span class="check">✓</span><span>Free annual Pragati magazine</span></li>
+        <li><span class="check">✓</span><span>Free summer picnic for the family</span></li>
+        <li><span class="check">✓</span><span>Seasonal social event participation</span></li>
+        <li><span class="check">✓</span><span>Eligibility for Executive Committee positions</span></li>
+        <li><span class="check">✓</span><span>Recognition on our website & magazine</span></li>
+      </ul>
+      <a href="#" class="btn btn-primary" style="width: 100%; justify-content: center;"><span>Pay membership now</span> <span class="arrow">→</span></a>
+    </div>
+  </div>
+</section>
+
+<!-- ============= FOOTER — BISORJON ============= -->
+<footer data-section="bisorjon">
+  <div class="river">
+    <span class="floating-lantern" style="top:60%; animation-delay:0s;"></span>
+    <span class="floating-lantern" style="top:75%; animation-delay:6s;"></span>
+    <span class="floating-lantern" style="top:50%; animation-delay:12s;"></span>
+    <span class="floating-lantern" style="top:70%; animation-delay:18s;"></span>
+  </div>
+
+  <!-- BISORJON BOAT VIGNETTE -->
+  <div class="boat-vignette">
+    <svg viewBox="0 0 280 160" fill="none" xmlns="http://www.w3.org/2000/svg">
+      <!-- moonlight glow -->
+      <ellipse cx="140" cy="80" rx="120" ry="60" fill="#F6C95E" opacity="0.1"/>
+
+      <!-- BOAT body -->
+      <path d="M40 120 Q140 142 240 120 L220 138 Q140 148 60 138 Z" fill="#8e0a20"/>
+      <path d="M50 124 Q140 138 230 124" stroke="#E8A93C" stroke-width="1.4" fill="none"/>
+      <!-- boat decorative trim -->
+      <path d="M60 130 Q140 142 220 130" stroke="#E8A93C" stroke-width="0.8" fill="none" opacity="0.6"/>
+
+      <!-- DURGA silhouette on boat (larger, more readable) -->
+      <g>
+        <!-- saree body -->
+        <path d="M120 118 Q120 80 140 80 Q160 80 160 118 Z" fill="#C8102E"/>
+        <!-- arms hint (10 arms fanning) -->
+        <g stroke="#E8A93C" stroke-width="1.2" stroke-linecap="round">
+          <line x1="125" y1="92" x2="110" y2="78"/>
+          <line x1="125" y1="98" x2="105" y2="95"/>
+          <line x1="125" y1="105" x2="108" y2="112"/>
+          <line x1="155" y1="92" x2="170" y2="78"/>
+          <line x1="155" y1="98" x2="175" y2="95"/>
+          <line x1="155" y1="105" x2="172" y2="112"/>
+        </g>
+        <!-- face -->
+        <ellipse cx="140" cy="70" rx="8" ry="10" fill="#f4c89e"/>
+        <!-- crown -->
+        <path d="M132 64 L135 56 L138 62 L140 52 L142 62 L145 56 L148 64 Z" fill="#E8A93C"/>
+        <!-- bindi -->
+        <circle cx="140" cy="60" r="1.5" fill="#C8102E"/>
+        <!-- eyes -->
+        <circle cx="137" cy="70" r="0.8" fill="#0a0a14"/>
+        <circle cx="143" cy="70" r="0.8" fill="#0a0a14"/>
+        <!-- small smile -->
+        <path d="M137 76 Q140 78 143 76" stroke="#8e0a20" stroke-width="0.6" fill="none"/>
+      </g>
+
+      <!-- water ripples below boat -->
+      <g stroke="#E8A93C" stroke-width="0.6" fill="none" opacity="0.5">
+        <path d="M20 152 Q60 148 100 152 Q140 156 180 152 Q220 148 260 152"/>
+      </g>
+
+      <!-- waving people on shore -->
+      <g fill="#050818" opacity="0.55">
+        <!-- left shore figures -->
+        <g>
+          <circle cx="14" cy="135" r="3"/>
+          <rect x="11" y="138" width="6" height="14" rx="1.5"/>
+          <line x1="14" y1="138" x2="8" y2="128" stroke="#050818" stroke-width="1.5" stroke-linecap="round"/>
+        </g>
+        <g>
+          <circle cx="28" cy="138" r="2.5"/>
+          <rect x="26" y="140" width="5" height="12" rx="1.5"/>
+        </g>
+        <!-- right shore figures -->
+        <g>
+          <circle cx="266" cy="135" r="3"/>
+          <rect x="263" y="138" width="6" height="14" rx="1.5"/>
+          <line x1="266" y1="138" x2="272" y2="128" stroke="#050818" stroke-width="1.5" stroke-linecap="round"/>
+        </g>
+        <g>
+          <circle cx="252" cy="138" r="2.5"/>
+          <rect x="250" y="140" width="5" height="12" rx="1.5"/>
+        </g>
+      </g>
+    </svg>
+  </div>
+
+  <div class="container">
+    <div class="brand">
+      <a href="#" class="logo" style="color: var(--cream);">
+        <div class="logo-mark"></div>
+        <div class="logo-text">
+          <div class="name" style="color: var(--cream);">Pragati <span class="bn" style="color: var(--marigold);">প্রগতি</span></div>
+          <div class="sub" style="color: rgba(251,246,236,0.5);">Since 2012</div>
+        </div>
+      </a>
+      <div class="visarjan-quote">
+        "Maa goes home, but the light she left behind stays — in our pandals, in our songs, in our family."
+        <span class="bn">— আসছে বছর আবার হবে, মা।</span>
+      </div>
+      <div class="socials">
+        <a href="#" title="Facebook">f</a>
+        <a href="#" title="Instagram">◎</a>
+        <a href="#" title="WhatsApp">✆</a>
+        <a href="#" title="YouTube">▶</a>
+      </div>
+    </div>
+    <div>
+      <h5>Explore <span class="bn">আমাদের</span></h5>
+      <ul>
+        <li><a href="#">Mission & Vision</a></li>
+        <li><a href="#">Our Team</a></li>
+        <li><a href="#">Sponsors</a></li>
+        <li><a href="#">Life Members</a></li>
+      </ul>
+    </div>
+    <div>
+      <h5>Events <span class="bn">উৎসব</span></h5>
+      <ul>
+        <li><a href="#">Durga Puja 2026</a></li>
+        <li><a href="#">Saraswati Puja</a></li>
+        <li><a href="#">Past events</a></li>
+        <li><a href="#">Yearly magazine</a></li>
+      </ul>
+    </div>
+    <div>
+      <h5>Visit <span class="bn">যোগাযোগ</span></h5>
+      <ul>
+        <li>127 Lotus Lane</li>
+        <li>Malvern, PA 19355</li>
+        <li>610.570.2756</li>
+        <li><a href="mailto:pragati.management@gmail.com">pragati.management@gmail.com</a></li>
+      </ul>
+    </div>
+  </div>
+  <div class="bottom">
+    © 2026 Pragati · The Bengali Association of Greater Philadelphia · All rights reserved
+    <span class="bn">শুভ বিজয়া · দুর্গা মা কি জয়</span>
+  </div>
+</footer>
+
+<script>
+  // ============= STAR FIELD =============
+  const stars = document.getElementById('stars');
+  for (let i=0;i<90;i++){
+    const s = document.createElement('span');
+    s.className = 'star';
+    s.style.left = (Math.random()*100)+'%';
+    s.style.top = (Math.random()*100)+'%';
+    s.style.animationDelay = (Math.random()*4)+'s';
+    s.style.opacity = (0.3 + Math.random()*0.7);
+    s.style.width = (1 + Math.random()*2)+'px';
+    s.style.height = s.style.width;
+    stars.appendChild(s);
+  }
+
+  // ============= REVEAL ON SCROLL =============
+  const io = new IntersectionObserver((entries) => {
+    entries.forEach(e => { if (e.isIntersecting) { e.target.classList.add('in'); io.unobserve(e.target); } });
+  }, { threshold: 0.12 });
+  document.querySelectorAll('.reveal').forEach(el => io.observe(el));
+
+  // ============= COUNT UP =============
+  const counters = document.querySelectorAll('[data-count]');
+  const cio = new IntersectionObserver((entries) => {
+    entries.forEach(e => {
+      if (e.isIntersecting) {
+        const el = e.target; const target = +el.dataset.count; let cur = 0;
+        const step = Math.max(1, Math.ceil(target/50));
+        const tick = () => {
+          cur += step;
+          if (cur >= target) { el.textContent = target + '+'; return; }
+          el.textContent = cur;
+          requestAnimationFrame(tick);
+        };
+        tick();
+        cio.unobserve(el);
+      }
+    });
+  }, { threshold: 0.3 });
+  counters.forEach(c => cio.observe(c));
+
+  // ============= HERO CURSOR PARALLAX =============
+  const hero = document.querySelector('.hero');
+  hero.addEventListener('mousemove', (e) => {
+    const x = (e.clientX / window.innerWidth - 0.5) * 25;
+    const y = (e.clientY / window.innerHeight - 0.5) * 25;
+    document.querySelectorAll('.diya').forEach((d,i) => {
+      d.style.transform = `translate(${x*(i%3+1)*0.3}px, ${y*(i%2+1)*0.3}px)`;
+    });
+  });
+
+  // ============= SMOOTH SCROLL-DRIVEN SKY =============
+  const sky = document.getElementById('skyBg');
+
+  const motifs = [
+    {el:document.getElementById('motif-conch'), speed:0.08, rot:0.02},
+    {el:document.getElementById('motif-lotus'), speed:0.12, rot:-0.03},
+    {el:document.getElementById('motif-trishul'), speed:0.10, rot:-0.02},
+    {el:document.getElementById('motif-alpana'), speed:0.14, rot:-0.025}
+  ];
+
+  // sky stops — Shoshti dusk → Saptami morning → Ashtami afternoon → Navami night → Doshomi sunset → Bisorjon moonlit
+  const skyStops = [
+    { at: 0.00, bg: 'radial-gradient(ellipse at 30% 20%, rgba(58,31,94,0.6) 0%, transparent 50%), radial-gradient(ellipse at 70% 80%, rgba(200,16,46,0.25) 0%, transparent 60%), linear-gradient(180deg, #0a1230 0%, #1a0e3a 60%, #2a0f1a 100%)' },
+    { at: 0.20, bg: 'radial-gradient(ellipse at 30% 30%, rgba(232,169,60,0.4) 0%, transparent 55%), radial-gradient(ellipse at 80% 70%, rgba(200,16,46,0.3) 0%, transparent 55%), linear-gradient(180deg, #2a1a4a 0%, #3a1f5e 50%, #8e3a4a 100%)' },
+    { at: 0.40, bg: 'radial-gradient(ellipse at 50% 30%, rgba(246,201,94,0.35) 0%, transparent 55%), radial-gradient(ellipse at 80% 80%, rgba(232,169,60,0.25) 0%, transparent 55%), linear-gradient(180deg, #1a0e3a 0%, #2a1a4a 50%, #3a1f3e 100%)' },
+    { at: 0.62, bg: 'radial-gradient(ellipse at 50% 60%, rgba(232,169,60,0.3) 0%, transparent 55%), radial-gradient(ellipse at 20% 30%, rgba(200,16,46,0.2) 0%, transparent 55%), linear-gradient(180deg, #050818 0%, #0a1230 50%, #1a0e3a 100%)' },
+    { at: 0.82, bg: 'radial-gradient(ellipse at 70% 40%, rgba(232,169,60,0.4) 0%, transparent 55%), radial-gradient(ellipse at 30% 60%, rgba(200,16,46,0.45) 0%, transparent 55%), linear-gradient(180deg, #2a0f1a 0%, #8e3a4a 50%, #c8102e 100%)' },
+    { at: 1.00, bg: 'radial-gradient(ellipse at 60% 20%, rgba(255,244,214,0.18) 0%, transparent 50%), linear-gradient(180deg, #050818 0%, #0a1230 70%, #0a0a14 100%)' }
+  ];
+
+  function currentDay(t) {
+    if (t < 0.15) return 'shoshti';
+    if (t < 0.35) return 'saptami';
+    if (t < 0.55) return 'ashtami';
+    if (t < 0.75) return 'navami';
+    if (t < 0.92) return 'doshomi';
+    return 'bisorjon';
+  }
+
+  function pickSkyBg(t) {
+    let bestIdx = 0;
+    for (let i=0;i<skyStops.length;i++) {
+      if (t >= skyStops[i].at) bestIdx = i;
+    }
+    return skyStops[bestIdx].bg;
+  }
+
+  let scrollT = 0;
+  let scrollTRaw = 0;
+  function lerp(a,b,t) { return a + (b-a)*t; }
+
+  let lastSkyKey = '';
+  let lastDayKey = '';
+
+  function tick() {
+    const max = document.body.scrollHeight - window.innerHeight;
+    scrollTRaw = Math.min(1, Math.max(0, window.scrollY / max));
+    scrollT = lerp(scrollT, scrollTRaw, 0.06);
+
+    const skyBg = pickSkyBg(scrollT);
+    if (skyBg !== lastSkyKey) { sky.style.background = skyBg; lastSkyKey = skyBg; }
+
+    const starsOpacity = (scrollT < 0.18 || scrollT > 0.55) ? 1 : Math.max(0, 1 - (scrollT-0.18)*4);
+    document.getElementById('stars').style.opacity = starsOpacity;
+
+    const day = currentDay(scrollT);
+    if (day !== lastDayKey) {
+      document.querySelectorAll('.day-dot').forEach(d => {
+        d.classList.toggle('active', d.dataset.day === day);
+      });
+      lastDayKey = day;
+    }
+
+    motifs.forEach(m => {
+      if (!m.el) return;
+      const y = -window.scrollY * m.speed;
+      const r = window.scrollY * m.rot;
+      m.el.style.transform = `translateY(${y}px) rotate(${r}deg)`;
+    });
+
+    requestAnimationFrame(tick);
+  }
+  tick();
+  sky.style.background = skyStops[0].bg;
+
+  // ============= COUNTDOWN (live, animated) =============
+  const target = new Date('2026-10-16T18:00:00').getTime();
+  function updateCountdown() {
+    const now = Date.now();
+    const diff = Math.max(0, target - now);
+    const d = Math.floor(diff / 86400000);
+    const h = Math.floor(diff % 86400000 / 3600000);
+    const m = Math.floor(diff % 3600000 / 60000);
+    const s = Math.floor(diff % 60000 / 1000);
+    document.getElementById('cd-d').textContent = d;
+    document.getElementById('cd-h').textContent = String(h).padStart(2,'0');
+    document.getElementById('cd-m').textContent = String(m).padStart(2,'0');
+    document.getElementById('cd-s').textContent = String(s).padStart(2,'0');
+  }
+  updateCountdown();
+  setInterval(updateCountdown, 1000);
+</script>
+</body>
+</html>
