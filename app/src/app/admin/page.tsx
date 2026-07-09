@@ -48,7 +48,9 @@ export default async function AdminDashboard() {
   const paused = (await getConfig<string>("registration_paused")) === "yes";
   const squareOff = (await getConfig<string>("payments_square_enabled")) === "no";
   const zelleOff = (await getConfig<string>("payments_zelle_enabled")) === "no";
-  const emailLive = process.env.EMAIL_PROVIDER === "resend" && !!process.env.RESEND_API_KEY;
+  const emailLive =
+    (process.env.EMAIL_PROVIDER ?? "console") !== "console" &&
+    (!!process.env.BREVO_API_KEY || !!process.env.RESEND_API_KEY);
   const paymentsMode = process.env.PAYMENTS_MODE ?? "test";
   const [lastBackup] = await db
     .select()
@@ -76,7 +78,7 @@ export default async function AdminDashboard() {
     paused && "⏸ Registration is PAUSED (re-enable in Settings)",
     squareOff && "💳 Card payments disabled (Settings)",
     zelleOff && "🏦 Zelle disabled (Settings)",
-    !emailLive && "📧 Email in console mode — no real emails send (set RESEND_API_KEY)",
+    !emailLive && "📧 Email in console mode — no real emails send (set EMAIL_PROVIDER=live plus a BREVO_API_KEY or RESEND_API_KEY)",
     paymentsMode !== "live" && "🧪 Payments in TEST mode — no real money moves",
     lastBackup?.status === "failed" && "🛟 Last backup email FAILED — check Email log",
     !lastBackup && "🛟 No backup email sent yet — try “Email backup now” on Registrations",
