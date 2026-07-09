@@ -1,4 +1,6 @@
 import type { Metadata } from "next";
+import { Analytics } from "@vercel/analytics/next";
+import { SpeedInsights } from "@vercel/speed-insights/next";
 import { site } from "@/config/site";
 import "@/styles/globals.css";
 
@@ -26,7 +28,11 @@ export default async function RootLayout({
       {/* suppressHydrationWarning: browser extensions (Grammarly, etc.) inject
           attributes like data-gr-ext-installed onto <body> before React
           hydrates, which otherwise triggers a harmless hydration mismatch. */}
-      <body suppressHydrationWarning>{children}</body>
+      <body suppressHydrationWarning>
+        {children}
+        <Analytics />
+        <SpeedInsights />
+      </body>
     </html>
   );
 }
