@@ -2,6 +2,7 @@ import { asc, eq } from "drizzle-orm";
 import { getDb, schema } from "@/db/client";
 import { formatCents } from "@/lib/pricing";
 import ZelleQueueRow from "./ZelleQueueRow";
+import { requireSectionAccess } from "@/lib/auth/access";
 
 export const dynamic = "force-dynamic";
 
@@ -15,6 +16,7 @@ function ago(d: Date | null): string {
 }
 
 export default async function PendingZellePage() {
+  await requireSectionAccess("zelle");
   const db = getDb();
   const regs = await db
     .select()

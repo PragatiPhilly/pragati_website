@@ -1,10 +1,12 @@
 import { desc } from "drizzle-orm";
 import { getDb, schema } from "@/db/client";
 import ResendButton from "./ResendButton";
+import { requireSectionAccess } from "@/lib/auth/access";
 
 export const dynamic = "force-dynamic";
 
 export default async function AdminEmailsPage() {
+  await requireSectionAccess("emails");
   const db = getDb();
   const emails = await db.select().from(schema.emailLog).orderBy(desc(schema.emailLog.createdAt)).limit(100);
   const isTest = (process.env.APP_ENV ?? "test") === "test";

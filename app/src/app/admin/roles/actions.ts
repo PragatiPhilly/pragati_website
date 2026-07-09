@@ -6,10 +6,11 @@ import { getDb, schema } from "@/db/client";
 import { getSession } from "@/lib/auth/session";
 import { hashPassword } from "@/lib/auth/password";
 import { createResetToken } from "@/lib/auth/reset";
-import { getConfig } from "@/lib/system-config";
+import { getConfig, setConfig } from "@/lib/system-config";
 import { sendMail } from "@/lib/email";
 import { inviteEmail } from "@/lib/email/templates";
 import { randomBytes } from "crypto";
+import { CONFIGURABLE_SECTIONS, type RoleAccess, type SectionKey } from "@/lib/auth/access";
 
 const ROLES = ["member", "volunteer", "admin", "super_admin"] as const;
 export type Role = (typeof ROLES)[number];
@@ -18,6 +19,26 @@ async function requireSuper() {
   const s = await getSession();
   if (!s || s.role !== "super_admin") throw new Error("Super-admin required");
   return s;
+}
+
+/** Save the section-access matrix (super admin only, audit-logged). */
+export async function saveRoleAccessAction(access: RoleAccess): Promise<void> {
+  const me = await requireSuper();
+  const valid = CONFIGURABLE_SECTIONS.map((s) => s.key);
+  const clean = (list: SectionKey[]) =>
+    [...new Set(Array.isArray(list) ? list : [])].filter((k) => valid.includes(k));
+  const value: RoleAccess = { admin: clean(access.admin), volunteer: clean(access.volunteer) };
+
+  await setConfig("role_access", value, me.userId);
+  const db = getDb();
+  await db.insert(schema.auditLog).values({
+    userId: me.userId,
+    action: "role_access_updated",
+    entityType: "system_config",
+    entityId: "role_access",
+    changes: value,
+  });
+  revalidatePath("/admin", "layout"); // refresh nav across all admin pages
 }
 
 export async function setRoleAction(userId: string, role: Role): Promise<{ ok: boolean; message: string }> {

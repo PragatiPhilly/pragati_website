@@ -1,10 +1,12 @@
 import { desc } from "drizzle-orm";
 import { getDb, schema } from "@/db/client";
 import { getSession } from "@/lib/auth/session";
+import { requireSectionAccess } from "@/lib/auth/access";
 
 export const dynamic = "force-dynamic";
 
 export default async function AdminAuditPage() {
+  await requireSectionAccess("audit");
   const session = await getSession();
   const db = getDb();
   const rows = await db.select().from(schema.auditLog).orderBy(desc(schema.auditLog.createdAt)).limit(200);

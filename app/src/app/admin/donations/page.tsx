@@ -2,10 +2,12 @@ import { desc } from "drizzle-orm";
 import { getDb, schema } from "@/db/client";
 import { formatCents } from "@/lib/pricing";
 import StatusBadge from "@/components/admin/StatusBadge";
+import { requireSectionAccess } from "@/lib/auth/access";
 
 export const dynamic = "force-dynamic";
 
 export default async function AdminDonationsPage() {
+  await requireSectionAccess("donations");
   const db = getDb();
   const dons = await db.select().from(schema.donations).orderBy(desc(schema.donations.createdAt)).limit(200);
 

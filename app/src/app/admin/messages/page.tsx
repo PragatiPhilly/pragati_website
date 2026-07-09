@@ -3,6 +3,7 @@ import { getDb, schema } from "@/db/client";
 import { getSession } from "@/lib/auth/session";
 import { ensureMediaTables } from "@/lib/media/ensure";
 import { toggleHandledAction, deleteMessageAction } from "./actions";
+import { requireSectionAccess } from "@/lib/auth/access";
 
 export const dynamic = "force-dynamic";
 
@@ -16,6 +17,7 @@ const TOPIC_LABELS: Record<string, string> = {
 };
 
 export default async function AdminMessagesPage() {
+  await requireSectionAccess("messages");
   const session = await getSession();
   const isAdmin = session && (session.role === "admin" || session.role === "super_admin");
   if (!isAdmin) {

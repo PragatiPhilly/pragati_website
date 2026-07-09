@@ -6,6 +6,7 @@ import { formatCents } from "@/lib/pricing";
 import StatusBadge from "@/components/admin/StatusBadge";
 import RowActions from "./RowActions";
 import BackupControls from "./BackupControls";
+import { requireSectionAccess } from "@/lib/auth/access";
 
 export const dynamic = "force-dynamic";
 
@@ -14,6 +15,7 @@ export default async function AdminRegistrationsPage({
 }: {
   searchParams: Promise<{ status?: string; q?: string }>;
 }) {
+  await requireSectionAccess("registrations");
   const { status, q } = await searchParams;
   const session = await getSession();
   const backupEmail = await getConfig<string>("backup_email");

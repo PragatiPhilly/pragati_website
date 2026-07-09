@@ -6,6 +6,7 @@
 import { eq } from "drizzle-orm";
 import { getDb, schema } from "@/db/client";
 import { getActiveEvent, type EventDay } from "@/lib/queries/events";
+import { requireSectionAccess } from "@/lib/auth/access";
 
 export const dynamic = "force-dynamic";
 
@@ -16,6 +17,7 @@ const FOODS = [
 ] as const;
 
 export default async function KitchenPage() {
+  await requireSectionAccess("kitchen");
   const db = getDb();
   const event = await getActiveEvent();
   if (!event) return <p style={{ color: "var(--ink-soft)" }}>No active event.</p>;

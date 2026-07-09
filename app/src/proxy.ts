@@ -23,11 +23,12 @@ export default async function proxy(req: NextRequest) {
     const { payload } = await jwtVerify(token, secret);
     const role = payload.role as string;
     if (needsAdmin) {
-      const fullAdmin = role === "admin" || role === "super_admin";
-      // volunteers may use ONLY the check-in desk
-      const volunteerAllowed = role === "volunteer" && pathname.startsWith("/admin/checkin");
-      if (!fullAdmin && !volunteerAllowed) {
-        return NextResponse.redirect(new URL(role === "volunteer" ? "/admin/checkin" : "/", req.url));
+      // Coarse gate only: any staff role may enter /admin. Which SECTIONS a
+      // role can open is decided per-page by requireSectionAccess() using the
+      // matrix in Roles & access (the DB isn't reachable from this proxy).
+      const isStaff = role === "admin" || role === "super_admin" || role === "volunteer";
+      if (!isStaff) {
+        return NextResponse.redirect(new URL("/", req.url));
       }
     }
     return NextResponse.next();

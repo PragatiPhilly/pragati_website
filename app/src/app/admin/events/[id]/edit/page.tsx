@@ -2,6 +2,7 @@ import { asc, eq } from "drizzle-orm";
 import { notFound } from "next/navigation";
 import { getDb, schema } from "@/db/client";
 import EventForm from "../../EventForm";
+import { requireSectionAccess } from "@/lib/auth/access";
 
 export const dynamic = "force-dynamic";
 export const metadata = { title: "Edit event" };
@@ -12,6 +13,7 @@ function toLocalInput(d: Date) {
 }
 
 export default async function EditEventPage({ params }: { params: Promise<{ id: string }> }) {
+  await requireSectionAccess("events");
   const { id } = await params;
   const db = getDb();
   const [ev] = await db.select().from(schema.events).where(eq(schema.events.id, id));

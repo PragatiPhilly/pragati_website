@@ -3,10 +3,12 @@ import { getDb, schema } from "@/db/client";
 import { getSession } from "@/lib/auth/session";
 import { listAllMedia } from "@/lib/media/queries";
 import MediaLibrary from "./MediaLibrary";
+import { requireSectionAccess } from "@/lib/auth/access";
 
 export const dynamic = "force-dynamic";
 
 export default async function AdminMediaPage() {
+  await requireSectionAccess("media");
   const session = await getSession();
   const isAdmin = session && (session.role === "admin" || session.role === "super_admin");
   if (!isAdmin) {

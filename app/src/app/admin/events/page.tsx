@@ -4,10 +4,12 @@ import { getDb, schema } from "@/db/client";
 import { formatCents } from "@/lib/pricing";
 import { getConfig } from "@/lib/system-config";
 import SetActiveButton from "./SetActiveButton";
+import { requireSectionAccess } from "@/lib/auth/access";
 
 export const dynamic = "force-dynamic";
 
 export default async function AdminEventsPage() {
+  await requireSectionAccess("events");
   const db = getDb();
   const events = await db.select().from(schema.events).orderBy(desc(schema.events.startsAt));
   const allTypes = await db.select().from(schema.ticketTypes);

@@ -4,10 +4,12 @@ import { getDb, schema } from "@/db/client";
 import { formatCents } from "@/lib/pricing";
 import { getActiveEvent } from "@/lib/queries/events";
 import StatusBadge from "@/components/admin/StatusBadge";
+import { requireSectionAccess } from "@/lib/auth/access";
 
 export const dynamic = "force-dynamic";
 
 export default async function AdminDashboard() {
+  await requireSectionAccess("dashboard");
   const db = getDb();
   const { sweepExpiredReservations } = await import("@/lib/sweeper");
   await sweepExpiredReservations(); // opportunistic cleanup of expired holds

@@ -3,35 +3,16 @@ import { eq } from "drizzle-orm";
 import { getDb, schema } from "@/db/client";
 import { getSession } from "@/lib/auth/session";
 import { logoutAction } from "@/lib/auth/actions";
+import { SECTIONS, sectionsForRole } from "@/lib/auth/access";
 
 export const dynamic = "force-dynamic";
 
-const NAV = [
-  { href: "/admin", label: "Dashboard", icon: "◫" },
-  { href: "/admin/payments/pending-zelle", label: "Zelle queue", icon: "⏳" },
-  { href: "/admin/registrations", label: "Registrations", icon: "🎟" },
-  { href: "/admin/donations", label: "Donations", icon: "🎁" },
-  { href: "/admin/members", label: "Members", icon: "👪" },
-  { href: "/admin/events", label: "Events", icon: "📅" },
-  { href: "/admin/checkin", label: "Scan desk", icon: "✅" },
-  { href: "/admin/scans", label: "Scan setup", icon: "📲" },
-  { href: "/admin/kitchen", label: "Kitchen", icon: "🍛" },
-  { href: "/admin/media", label: "Photos", icon: "🖼" },
-  { href: "/admin/magazines", label: "Magazines", icon: "📖" },
-  { href: "/admin/messages", label: "Messages", icon: "✉" },
-  { href: "/admin/emails", label: "Email log", icon: "📧" },
-  { href: "/admin/audit", label: "Audit log", icon: "📜" },
-  { href: "/admin/roles", label: "Roles & access", icon: "🔑" },
-  { href: "/admin/settings", label: "Settings", icon: "⚙" },
-];
-
 export default async function AdminLayout({ children }: { children: React.ReactNode }) {
   const session = await getSession();
-  const isVolunteer = session?.role === "volunteer";
-  const isSuper = session?.role === "super_admin";
-  const nav = isVolunteer
-    ? NAV.filter((n) => n.href === "/admin/checkin")
-    : NAV.filter((n) => (n.href === "/admin/roles" || n.href === "/admin/audit" ? isSuper : true));
+  // Nav = the sections this role may open (matrix set in Roles & access;
+  // super admins see everything; each page enforces its own access too).
+  const allowed = session ? await sectionsForRole(session.role) : [];
+  const nav = SECTIONS.filter((s) => allowed.includes(s.key));
   const db = getDb();
   const pendingZelle = await db
     .select({ id: schema.registrations.id })

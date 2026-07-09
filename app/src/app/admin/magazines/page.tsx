@@ -2,18 +2,15 @@
  * Admin → Magazines. Upload the yearly publication PDF; visitors download it
  * from the magazine section on the homepage (year-picker popup).
  */
-import { getSession } from "@/lib/auth/session";
 import { listMagazines } from "@/lib/magazines";
 import MagazineManager from "./MagazineManager";
+import { requireSectionAccess } from "@/lib/auth/access";
 
 export const dynamic = "force-dynamic";
 export const metadata = { title: "Magazines" };
 
 export default async function MagazinesPage() {
-  const session = await getSession();
-  const isAdmin = session && ["admin", "super_admin"].includes(session.role);
-  if (!isAdmin) return <p style={{ color: "var(--ink-soft)" }}>Admin access required.</p>;
-
+  await requireSectionAccess("magazines"); // matrix decides who opens this page
   const magazines = await listMagazines();
   const blobConfigured = !!process.env.BLOB_READ_WRITE_TOKEN;
 

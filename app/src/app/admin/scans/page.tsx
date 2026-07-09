@@ -7,18 +7,15 @@
  */
 import { isNotNull, sql } from "drizzle-orm";
 import { getDb, schema } from "@/db/client";
-import { getSession } from "@/lib/auth/session";
 import { getScanState } from "./actions";
 import ScanSetup from "./ScanSetup";
+import { requireSectionAccess } from "@/lib/auth/access";
 
 export const dynamic = "force-dynamic";
 export const metadata = { title: "Scan setup" };
 
 export default async function ScansPage() {
-  const session = await getSession();
-  const isAdmin = session && ["admin", "super_admin"].includes(session.role);
-  if (!isAdmin) return <p style={{ color: "var(--ink-soft)" }}>Admin access required.</p>;
-
+  await requireSectionAccess("scans"); // matrix decides who opens this page
   const state = await getScanState();
   if (!state) return <p style={{ color: "var(--ink-soft)" }}>No active event — set one in Settings.</p>;
 

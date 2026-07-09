@@ -2,10 +2,12 @@ import { desc } from "drizzle-orm";
 import { getDb, schema } from "@/db/client";
 import StatusBadge from "@/components/admin/StatusBadge";
 import MemberActions from "./MemberActions";
+import { requireSectionAccess } from "@/lib/auth/access";
 
 export const dynamic = "force-dynamic";
 
 export default async function AdminMembersPage() {
+  await requireSectionAccess("members");
   const db = getDb();
   const members = await db.select().from(schema.members).orderBy(desc(schema.members.createdAt));
   const users = await db.select().from(schema.users);

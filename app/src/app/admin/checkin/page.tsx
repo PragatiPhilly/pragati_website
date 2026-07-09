@@ -3,10 +3,12 @@ import { getDb, schema } from "@/db/client";
 import { getSession } from "@/lib/auth/session";
 import { getScanState } from "../scans/actions";
 import CheckinForm from "./CheckinForm";
+import { requireSectionAccess } from "@/lib/auth/access";
 
 export const dynamic = "force-dynamic";
 
 export default async function CheckinPage() {
+  await requireSectionAccess("checkin");
   const db = getDb();
   const [total] = await db.select({ n: sql<number>`count(*)` }).from(schema.tickets);
   const [checked] = await db

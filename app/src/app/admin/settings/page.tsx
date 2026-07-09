@@ -1,6 +1,7 @@
 import { getAllConfig } from "@/lib/system-config";
 import { getSession } from "@/lib/auth/session";
 import SettingsForm from "./SettingsForm";
+import { requireSectionAccess } from "@/lib/auth/access";
 
 export const dynamic = "force-dynamic";
 
@@ -44,6 +45,7 @@ const GROUPS: { title: string; note?: string; keys: { key: string; label: string
 ];
 
 export default async function SettingsPage() {
+  await requireSectionAccess("settings");
   const session = await getSession();
   const config = await getAllConfig();
   const isSuper = session?.role === "super_admin";
