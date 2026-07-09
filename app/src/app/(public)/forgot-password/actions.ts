@@ -25,7 +25,7 @@ export async function forgotPasswordAction(_p: ForgotState, formData: FormData):
       resetUrl: `${process.env.NEXT_PUBLIC_SITE_URL}/reset-password?token=${raw}`,
       orgName,
     });
-    await sendMail({ to: email, ...mail, template: "password_reset", relatedUserId: user.id });
+    await sendMail({ to: email, ...mail, template: "password_reset", relatedUserId: user.id, priority: 1 });
   }
   return { done: true };
 }

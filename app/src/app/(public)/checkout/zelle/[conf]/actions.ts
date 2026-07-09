@@ -30,7 +30,7 @@ export async function zelleSentAction(conf: string, kind: "registration" | "dona
     slaHours: sla,
     orgName,
   });
-  await sendMail({ to: don.donorEmail, ...ack, template: "zelle_ack" });
+  await sendMail({ to: don.donorEmail, ...ack, template: "zelle_ack", priority: 1 });
   const alert = T.treasurerAlertEmail({
     conf,
     buyerName: don.donorName,
@@ -38,5 +38,5 @@ export async function zelleSentAction(conf: string, kind: "registration" | "dona
     kind: "donation",
     adminUrl: `${process.env.NEXT_PUBLIC_SITE_URL}/admin/payments/pending-zelle`,
   });
-  await sendMail({ to: treasurerEmail, ...alert, template: "admin_alert" });
+  await sendMail({ to: treasurerEmail, ...alert, template: "admin_alert", priority: 3, digestKey: "zelle-alerts" });
 }

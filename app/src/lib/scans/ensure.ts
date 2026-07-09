@@ -64,6 +64,24 @@ export function ensureScanTables(): Promise<void> {
     await db.execute(sql`
       CREATE UNIQUE INDEX IF NOT EXISTS magazines_year_idx ON magazines (year);
     `);
+    await db.execute(sql`
+      CREATE TABLE IF NOT EXISTS email_outbox (
+        id text PRIMARY KEY,
+        priority integer NOT NULL DEFAULT 2,
+        digest_key text,
+        payload jsonb NOT NULL,
+        status text NOT NULL DEFAULT 'queued',
+        attempts integer NOT NULL DEFAULT 0,
+        next_attempt_at timestamptz NOT NULL DEFAULT now(),
+        last_error text,
+        sent_at timestamptz,
+        created_at timestamptz NOT NULL DEFAULT now()
+      );
+    `);
+    await db.execute(sql`
+      CREATE INDEX IF NOT EXISTS email_outbox_drain_idx
+        ON email_outbox (status, next_attempt_at, priority);
+    `);
   })().catch((e) => {
     ensured = null; // transient failure → retry on next call
     throw e;

@@ -249,7 +249,7 @@ export async function zelleSentClicked(confirmationNumber: string): Promise<void
     slaHours: sla,
     orgName,
   });
-  await sendMail({ to: reg.buyerEmail, ...ack, template: "zelle_ack", relatedRegistrationId: reg.id });
+  await sendMail({ to: reg.buyerEmail, ...ack, template: "zelle_ack", relatedRegistrationId: reg.id, priority: 1 });
 
   const alert = T.treasurerAlertEmail({
     conf: confirmationNumber,
@@ -258,7 +258,7 @@ export async function zelleSentClicked(confirmationNumber: string): Promise<void
     kind: "registration",
     adminUrl: `${process.env.NEXT_PUBLIC_SITE_URL}/admin/payments/pending-zelle`,
   });
-  await sendMail({ to: treasurerEmail, ...alert, template: "admin_alert", relatedRegistrationId: reg.id });
+  await sendMail({ to: treasurerEmail, ...alert, template: "admin_alert", relatedRegistrationId: reg.id, priority: 3, digestKey: "zelle-alerts" });
 }
 
 /** Source of truth for flipping a registration to paid (webhook or admin). */
@@ -317,7 +317,7 @@ export async function sendTicketsEmail(registrationId: string, opts: { resend?: 
     orgName,
     resend: opts.resend,
   });
-  await sendMail({ to: reg.buyerEmail, ...mail, template: opts.resend ? "ticket_resend" : "ticket", relatedRegistrationId: reg.id });
+  await sendMail({ to: reg.buyerEmail, ...mail, template: opts.resend ? "ticket_resend" : "ticket", relatedRegistrationId: reg.id, priority: 1 });
   return true;
 }
 

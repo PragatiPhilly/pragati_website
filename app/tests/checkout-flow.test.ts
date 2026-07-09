@@ -100,6 +100,11 @@ describe("Zelle rail", () => {
     expect(reg3.status).toBe("paid");
     expect(reg3.zelleVerifiedBy).toBe("admin-1");
 
+    // treasurer alerts are digestable now — they wait in the outbox and go
+    // out on the next drain (max 15 min in production), batched if several
+    const { drainOutbox } = await import("../src/lib/email");
+    await drainOutbox();
+
     const emails = await db.select().from(schema.emailLog);
     const templates = emails.map((e) => e.template);
     expect(templates).toContain("zelle_ack");

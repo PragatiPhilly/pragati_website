@@ -400,6 +400,24 @@ export const emailLog = pgTable(
   (t) => [index("email_to_idx").on(t.toEmail, t.sentAt)]
 );
 
+// ── email outbox (priority queue — see src/lib/email/outbox.ts) ─
+export const emailOutbox = pgTable(
+  "email_outbox",
+  {
+    id: id(),
+    priority: integer("priority").notNull().default(2), // 1 critical · 2 normal · 3 digestable
+    digestKey: text("digest_key"), // alerts sharing a key get combined into one email
+    payload: jsonb("payload").notNull(), // the Mail object
+    status: text("status").notNull().default("queued"), // queued | sent | failed
+    attempts: integer("attempts").notNull().default(0),
+    nextAttemptAt: timestamp("next_attempt_at", { withTimezone: true }).notNull().defaultNow(),
+    lastError: text("last_error"),
+    sentAt: timestamp("sent_at", { withTimezone: true }),
+    createdAt: createdAt(),
+  },
+  (t) => [index("email_outbox_drain_idx").on(t.status, t.nextAttemptAt, t.priority)]
+);
+
 export const systemConfig = pgTable("system_config", {
   key: text("key").primaryKey(),
   value: jsonb("value"),

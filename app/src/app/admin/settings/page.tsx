@@ -31,6 +31,9 @@ const GROUPS: { title: string; note?: string; keys: { key: string; label: string
       { key: "system_email_reply_to", label: "Reply-to address" },
       { key: "treasurer_notification_email", label: "Treasurer alerts go to" },
       { key: "admin_alert_email", label: "Deletion & security alerts go to" },
+      { key: "zelle_alert_minutes", label: "Zelle alert frequency (minutes between alert emails; several claims batch into one digest)", type: "number" },
+      { key: "email_daily_budget", label: "Daily email budget (protects the free-tier limit; tickets always send)", type: "number" },
+      { key: "backup_email", label: "Nightly backup CSVs go to" },
     ],
   },
   {

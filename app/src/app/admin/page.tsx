@@ -60,6 +60,18 @@ export default async function AdminDashboard() {
     .select({ n: sql<number>`count(*)` })
     .from(schema.emailLog)
     .where(eq(schema.emailLog.status, "failed"));
+  const { ensureScanTables } = await import("@/lib/scans/ensure");
+  await ensureScanTables();
+  const [queuedMail] = await db
+    .select({ n: sql<number>`count(*)` })
+    .from(schema.emailOutbox)
+    .where(eq(schema.emailOutbox.status, "queued"));
+  const [deadMail] = await db
+    .select({ n: sql<number>`count(*)` })
+    .from(schema.emailOutbox)
+    .where(eq(schema.emailOutbox.status, "failed"));
+  const { sentToday } = await import("@/lib/email");
+  const emailsUsed = await sentToday();
   const healthWarnings = [
     paused && "⏸ Registration is PAUSED (re-enable in Settings)",
     squareOff && "💳 Card payments disabled (Settings)",
@@ -68,7 +80,9 @@ export default async function AdminDashboard() {
     paymentsMode !== "live" && "🧪 Payments in TEST mode — no real money moves",
     lastBackup?.status === "failed" && "🛟 Last backup email FAILED — check Email log",
     !lastBackup && "🛟 No backup email sent yet — try “Email backup now” on Registrations",
-    Number(failedMail?.n ?? 0) > 0 && `✉ ${failedMail.n} failed email(s) — retry from Email log`,
+    Number(failedMail?.n ?? 0) > 0 && `✉ ${failedMail.n} failed email send(s) — being retried automatically; see Email log`,
+    Number(queuedMail?.n ?? 0) > 5 && `📬 ${queuedMail.n} emails queued (digests/deferred) — sending via the 15-min drain`,
+    Number(deadMail?.n ?? 0) > 0 && `📪 ${deadMail.n} email(s) gave up after 10 retries — investigate Email log`,
   ].filter(Boolean) as string[];
 
   const stat = (label: string, value: string, sub?: string, href?: string, alert?: boolean) => {
@@ -102,7 +116,9 @@ export default async function AdminDashboard() {
             {healthWarnings.length === 0 ? "🟢 All systems normal" : `🟡 System health — ${healthWarnings.length} thing${healthWarnings.length > 1 ? "s" : ""} to know`}
           </p>
           <p className="text-xs" style={{ color: "var(--ink-soft)" }}>
-            last backup: {lastBackup ? `${lastBackup.status} · ${lastBackup.createdAt.toLocaleString("en-US", { timeZone: "America/New_York", month: "short", day: "numeric", hour: "numeric", minute: "2-digit" })}` : "never"}
+            emails: {emailsUsed} sent / 24h
+            {Number(queuedMail?.n ?? 0) > 0 && ` · ${queuedMail.n} queued`} · last backup:{" "}
+            {lastBackup ? `${lastBackup.status} · ${lastBackup.createdAt.toLocaleString("en-US", { timeZone: "America/New_York", month: "short", day: "numeric", hour: "numeric", minute: "2-digit" })}` : "never"}
           </p>
         </div>
         {healthWarnings.length > 0 && (

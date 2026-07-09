@@ -106,7 +106,7 @@ export async function inviteUserAction(rawEmail: string, role: Role): Promise<{ 
     setupUrl: `${process.env.NEXT_PUBLIC_SITE_URL}/reset-password?token=${raw}`,
     orgName,
   });
-  await sendMail({ to: email, ...mail, template: "invite", relatedUserId: user.id });
+  await sendMail({ to: email, ...mail, template: "invite", relatedUserId: user.id, priority: 1 });
 
   await db.insert(schema.auditLog).values({
     userId: me.userId,
@@ -135,7 +135,7 @@ export async function sendResetLinkAction(userId: string): Promise<{ ok: boolean
     resetUrl: `${process.env.NEXT_PUBLIC_SITE_URL}/reset-password?token=${raw}`,
     orgName,
   });
-  await sendMail({ to: user.email, ...mail, template: "password_reset", relatedUserId: user.id });
+  await sendMail({ to: user.email, ...mail, template: "password_reset", relatedUserId: user.id, priority: 1 });
   await db.insert(schema.auditLog).values({ userId: me.userId, action: "send_reset_link", entityType: "users", entityId: userId });
   return { ok: true, message: `Reset link emailed to ${user.email} ✓` };
 }

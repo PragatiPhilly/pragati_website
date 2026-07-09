@@ -36,6 +36,15 @@ export const systemConfigDefaults: Record<string, unknown> = {
   payments_square_enabled: "yes", // no = hide/refuse card payments (e.g. Square outage)
   payments_zelle_enabled: "yes", // no = hide/refuse Zelle
 
+  // ── Zelle alert frequency: at most one treasurer alert email per this many
+  //    minutes; claims arriving in between are batched into one digest.
+  zelle_alert_minutes: 5,
+
+  // ── email sending budget (per rolling 24h — protects free-tier limits;
+  //    Brevo free = 300/day, so 280 leaves headroom. Critical mail like
+  //    tickets always sends; see src/lib/email/index.ts)
+  email_daily_budget: 280,
+
   // ── daily registration backup (CSV email — see src/lib/backup.ts)
   backup_email: "pragati.management@gmail.com",
   backup_enabled: "yes", // yes | no

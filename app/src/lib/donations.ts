@@ -88,7 +88,7 @@ export async function markDonationPaid(donationId: string, via: { method: "squar
     orgName,
     orgAddress,
   });
-  await sendMail({ to: don.donorEmail, ...receipt, template: "donation_receipt" });
+  await sendMail({ to: don.donorEmail, ...receipt, template: "donation_receipt", priority: 1 });
 
   if (don.honoreeNotifyEmail && don.inHonorOrMemory !== "none") {
     await sendMail({

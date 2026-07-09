@@ -55,16 +55,24 @@ friendly pause note (editable via `registration_pause_message`), and the
 server rejects submissions from open tabs. Nothing is deleted; flip back
 when ready. Already-paid tickets are unaffected.
 
-### 📧 Emails aren't sending (Resend outage / quota hit)
+### 📧 Emails aren't sending (provider outage / quota hit)
 
-1. Nothing is lost: every email is stored in **Admin → Email log** with a
-   `failed` status and the full text.
-2. Registrations and payments **keep working** — email failure never blocks
-   a purchase.
-3. When the provider recovers, open Email log → expand the failed entry →
-   **↻ Re-send**. For a failed nightly backup, use "Email backup now" on the
-   Registrations page instead (attachments aren't stored in the log).
-4. Meanwhile, an admin can read any confirmation from the log to a caller,
+Mostly self-healing now:
+
+1. Two providers, automatic failover: Brevo (300/day free) is primary,
+   Resend (100/day free) takes over the moment a Brevo send fails.
+2. If BOTH fail, the email goes into the **outbox** and is retried
+   automatically with backoff (every 5 min via cron, for up to 10 tries) —
+   mail is delayed, not lost. The dashboard health card shows queued and
+   given-up counts.
+3. A daily send budget (`email_daily_budget` setting, default 280) protects
+   the free-tier limits: ticket/receipt/password emails ALWAYS send
+   immediately; less-urgent mail waits for the next day if the budget runs
+   dry; Zelle treasurer alerts batch into one digest per `zelle_alert_minutes` window (default 5).
+4. Registrations and payments **keep working** — email failure never blocks
+   a purchase, and manual **↻ Re-send** in Admin → Email log still exists
+   for anything logged as failed.
+5. Meanwhile, an admin can read any confirmation from the log to a caller,
    and the Lookup page (`/lookup`) still shows guests their tickets.
 
 ### 🗄 Database is down (Neon outage / connection failure)
@@ -123,6 +131,8 @@ can re-send the original confirmation.
 | `payments_zelle_enabled` | yes / no | Show/refuse Zelle (register + donate) |
 | `backup_email` | email | Where nightly backup CSVs go |
 | `backup_enabled` | yes / no | Nightly backup on/off |
+| `zelle_alert_minutes` | number | Min minutes between Zelle alert emails (claims in between batch into one digest) |
+| `email_daily_budget` | number | Daily send cap protecting the free email tier (tickets always send) |
 
 All take effect immediately — no redeploy, and server-side enforcement means
 open browser tabs can't bypass them.
@@ -132,7 +142,7 @@ open browser tabs can't bypass them.
 - Email failures never block payments (send errors are logged, not thrown).
 - Square webhooks are signature-verified and idempotent — replays/dupes can't
   double-mark or forge payments.
-- Expired unpaid reservations auto-release every 15 minutes (cron + on
+- Expired unpaid reservations auto-release every 5 minutes (cron + on
   dashboard loads), so a payment-rail outage doesn't strand inventory.
 - Meal scans are enforced by a database unique index — two volunteers
   scanning the same QR at the same instant still serve one plate.

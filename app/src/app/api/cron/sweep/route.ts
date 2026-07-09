@@ -14,5 +14,8 @@ export async function GET(req: Request) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
   const released = await sweepExpiredReservations();
-  return NextResponse.json({ ok: true, released });
+  // drain the email outbox: send queued/deferred mail, combine alert digests
+  const { drainOutbox } = await import("@/lib/email");
+  const outbox = await drainOutbox();
+  return NextResponse.json({ ok: true, released, outbox });
 }

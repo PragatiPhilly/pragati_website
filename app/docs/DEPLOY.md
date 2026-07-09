@@ -12,7 +12,7 @@ simulated payments, files in `public/`).
 | `SESSION_SECRET` | `openssl rand -base64 32`. The app hard-fails in production without it (the dev fallback would let anyone forge admin sessions). |
 | `NEXT_PUBLIC_SITE_URL` | `https://your-domain.org` — used in emails, QR links, Square redirects, webhook signature checks. |
 | `APP_ENV` | `production` (turns off the test email override). |
-| `RESEND_API_KEY` + `RESEND_FROM_EMAIL` | Emails silently log to console without it. Verify the org domain in Resend so mail isn't sent from `onboarding@resend.dev`. |
+| `EMAIL_PROVIDER=live` + `BREVO_API_KEY` (+ optional `RESEND_API_KEY` fallback) + `EMAIL_FROM` | Provider chain: Brevo (300/day free) first, Resend (100/day) as automatic fallback; `EMAIL_PROVIDER=console` logs instead of sending. `EMAIL_FROM` must be a verified Brevo sender. A priority outbox defers non-critical mail when the daily budget (`email_daily_budget` setting, default 280) runs low — tickets always send instantly; Zelle treasurer alerts batch into digests (frequency: `zelle_alert_minutes` setting, default 5 min). |
 | `BLOB_READ_WRITE_TOKEN` | Vercel dashboard → Storage → Blob → connect store to the project (token is injected automatically). Needed for photo uploads and magazine PDFs — the Vercel filesystem is read-only. |
 | `PAYMENTS_MODE` | `live` for real payments. Keep `test` on preview deployments; the simulator page 404s automatically in live mode. |
 | `SQUARE_ACCESS_TOKEN`, `SQUARE_LOCATION_ID`, `SQUARE_ENV=production` | Live Square Payment Links. |
@@ -44,7 +44,7 @@ into `SQUARE_WEBHOOK_SIGNATURE_KEY`.
 
 `vercel.json` schedules two jobs (nothing to do beyond setting `CRON_SECRET`):
 
-- `/api/cron/sweep` every 15 minutes — releases expired Zelle/Square reservations.
+- `/api/cron/sweep` every 5 minutes — releases expired reservations and drains the email outbox (deferred mail, Zelle alert digests, retries).
 - `/api/cron/backup` at 03:00 UTC (11 PM Eastern in summer, 10 PM in winter —
   Vercel crons run in UTC) — emails the full registration dataset as a CSV to
   the `backup_email` address (Admin → Settings; default
