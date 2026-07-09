@@ -47,7 +47,7 @@ export async function GET() {
         d: t.dayKey ?? "all", // day
         f: t.foodPref ?? "none", // food
         q: t.qrCode.slice(-8), // QR tail for spot-matching against a shown pass
-        in: t.checkedInAt ? t.checkedInAt.toISOString().slice(11, 16) + " UTC" : "",
+        in: t.checkedInAt ? t.checkedInAt.toLocaleTimeString("en-US", { timeZone: "America/New_York", hour: "numeric", minute: "2-digit" }) : "",
       };
     })
     .sort((a, b) => a.n.localeCompare(b.n));

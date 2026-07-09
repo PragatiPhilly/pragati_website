@@ -49,12 +49,12 @@ function buildDays(startsAt: Date, endsAt: Date) {
   const end = new Date(endsAt);
   const seen = new Set<string>();
   while (d <= end && days.length < 7) {
-    let key = d.toLocaleDateString("en-US", { weekday: "short" }).toLowerCase();
+    let key = d.toLocaleDateString("en-US", { timeZone: "America/New_York", weekday: "short" }).toLowerCase();
     while (seen.has(key)) key = `${key}2`;
     seen.add(key);
     days.push({
       key,
-      label: d.toLocaleDateString("en-US", { weekday: "long", month: "short", day: "numeric" }),
+      label: d.toLocaleDateString("en-US", { timeZone: "America/New_York", weekday: "long", month: "short", day: "numeric" }),
       date: d.toISOString().slice(0, 10),
     });
     d.setDate(d.getDate() + 1);

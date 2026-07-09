@@ -27,8 +27,8 @@ export default async function EventDetailPage({ params }: { params: Promise<{ sl
     <div className="mx-auto max-w-5xl px-5 py-14">
       <Reveal>
         <p className="text-xs uppercase tracking-[0.2em] font-semibold mb-3" style={{ color: "var(--accent)" }}>
-          {new Date(event.startsAt).toLocaleDateString("en-US", { month: "long", day: "numeric" })} –{" "}
-          {new Date(event.endsAt).toLocaleDateString("en-US", { month: "long", day: "numeric", year: "numeric" })}
+          {new Date(event.startsAt).toLocaleDateString("en-US", { timeZone: "America/New_York", month: "long", day: "numeric" })} –{" "}
+          {new Date(event.endsAt).toLocaleDateString("en-US", { timeZone: "America/New_York", month: "long", day: "numeric", year: "numeric" })}
         </p>
         <h1 className="font-[family-name:var(--font-display)] text-4xl md:text-6xl font-black">
           {event.name}

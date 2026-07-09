@@ -19,7 +19,7 @@ export default async function EventsPage() {
           style={{ background: "var(--accent-soft)", color: "var(--accent)" }}
         >
           <span className="text-xs font-bold uppercase">
-            {new Date(e.startsAt).toLocaleDateString("en-US", { month: "short" })}
+            {new Date(e.startsAt).toLocaleDateString("en-US", { timeZone: "America/New_York", month: "short" })}
           </span>
           <span className="font-[family-name:var(--font-display)] text-2xl font-black leading-none">
             {new Date(e.startsAt).getDate()}
@@ -28,8 +28,8 @@ export default async function EventsPage() {
         <div className="flex-1">
           <p className="font-[family-name:var(--font-display)] text-xl font-bold">{e.name}</p>
           <p className="text-sm mt-1" style={{ color: "var(--ink-soft)" }}>
-            {e.venueName} · {new Date(e.startsAt).toLocaleDateString("en-US", { month: "long", day: "numeric" })}–
-            {new Date(e.endsAt).toLocaleDateString("en-US", { day: "numeric", year: "numeric" })}
+            {e.venueName} · {new Date(e.startsAt).toLocaleDateString("en-US", { timeZone: "America/New_York", month: "long", day: "numeric" })}–
+            {new Date(e.endsAt).toLocaleDateString("en-US", { timeZone: "America/New_York", day: "numeric", year: "numeric" })}
           </p>
         </div>
         <span className="btn-secondary !py-2 !px-5 text-sm w-fit">

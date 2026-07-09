@@ -411,8 +411,8 @@ export default async function HomePage() {
                     {featured.name}
                   </h3>
                   <p className="mt-2 text-sm" style={{ color: "rgba(251,246,236,0.85)" }}>
-                    {featured.startsAt.toLocaleDateString("en-US", { month: "short", day: "numeric" })}–
-                    {featured.endsAt.toLocaleDateString("en-US", { day: "numeric" })} · {featured.venueName}
+                    {featured.startsAt.toLocaleDateString("en-US", { timeZone: "America/New_York", month: "short", day: "numeric" })}–
+                    {featured.endsAt.toLocaleDateString("en-US", { timeZone: "America/New_York", day: "numeric" })} · {featured.venueName}
                   </p>
                 </div>
               </Link>
@@ -435,7 +435,7 @@ export default async function HomePage() {
                     {e.name}
                   </h3>
                   <p className="mt-1 text-xs" style={{ color: "rgba(251,246,236,0.8)" }}>
-                    {e.startsAt.toLocaleDateString("en-US", { month: "long", day: "numeric", year: "numeric" })}
+                    {e.startsAt.toLocaleDateString("en-US", { timeZone: "America/New_York", month: "long", day: "numeric", year: "numeric" })}
                   </p>
                 </div>
               </Link>

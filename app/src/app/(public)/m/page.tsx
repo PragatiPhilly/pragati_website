@@ -55,7 +55,7 @@ export default async function MemberDashboard() {
           <p className="text-xs uppercase tracking-[0.2em] mb-1 opacity-85">Coming up</p>
           <p className="font-[family-name:var(--font-display)] text-2xl font-black">{active.name}</p>
           <p className="text-sm mt-1 opacity-90">
-            {active.startsAt.toLocaleDateString("en-US", { month: "long", day: "numeric" })} · {active.venueName}
+            {active.startsAt.toLocaleDateString("en-US", { timeZone: "America/New_York", month: "long", day: "numeric" })} · {active.venueName}
           </p>
           <Link href="/register" className="inline-block mt-5 rounded-full px-6 py-2.5 font-semibold text-sm" style={{ background: "var(--cream)", color: "var(--sindoor)" }}>
             Register your family →

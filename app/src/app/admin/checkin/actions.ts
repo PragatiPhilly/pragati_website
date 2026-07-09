@@ -85,7 +85,7 @@ export async function lookupTicketsAction(rawQuery: string): Promise<CheckinTick
         day: t.dayKey ?? "all",
         food: t.foodPref,
         checkedInAt: t.checkedInAt
-          ? t.checkedInAt.toLocaleTimeString("en-US", { hour: "numeric", minute: "2-digit" })
+          ? t.checkedInAt.toLocaleTimeString("en-US", { timeZone: "America/New_York", hour: "numeric", minute: "2-digit" })
           : null,
       };
     });
@@ -123,7 +123,7 @@ export async function entryScanAction(rawQuery: string): Promise<EntryScanResult
       kind: "duplicate",
       attendee,
       conf: reg.confirmationNumber,
-      checkedInAt: ticket.checkedInAt.toLocaleTimeString("en-US", { hour: "numeric", minute: "2-digit" }),
+      checkedInAt: ticket.checkedInAt.toLocaleTimeString("en-US", { timeZone: "America/New_York", hour: "numeric", minute: "2-digit" }),
     };
   }
 

@@ -42,7 +42,7 @@ export default async function AdminDonationsPage() {
                 <td className="px-4 py-3">{d.paymentMethod}</td>
                 <td className="px-4 py-3"><StatusBadge status={d.status} /></td>
                 <td className="px-4 py-3 text-xs" style={{ color: "var(--ink-soft)" }}>
-                  {d.createdAt.toLocaleDateString("en-US", { month: "short", day: "numeric" })}
+                  {d.createdAt.toLocaleDateString("en-US", { timeZone: "America/New_York", month: "short", day: "numeric" })}
                 </td>
               </tr>
             ))}

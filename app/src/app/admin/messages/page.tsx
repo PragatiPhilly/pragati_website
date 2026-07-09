@@ -76,7 +76,7 @@ export default async function AdminMessagesPage() {
                   </div>
                 </div>
                 <span className="text-xs shrink-0" style={{ color: "var(--ink-soft)" }}>
-                  {new Date(m.createdAt).toLocaleString("en-US", { dateStyle: "medium", timeStyle: "short" })}
+                  {new Date(m.createdAt).toLocaleString("en-US", { timeZone: "America/New_York", dateStyle: "medium", timeStyle: "short" })}
                 </span>
               </div>
 

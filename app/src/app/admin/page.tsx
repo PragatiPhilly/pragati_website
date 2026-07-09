@@ -100,7 +100,7 @@ export default async function AdminDashboard() {
             {healthWarnings.length === 0 ? "🟢 All systems normal" : `🟡 System health — ${healthWarnings.length} thing${healthWarnings.length > 1 ? "s" : ""} to know`}
           </p>
           <p className="text-xs" style={{ color: "var(--ink-soft)" }}>
-            last backup: {lastBackup ? `${lastBackup.status} · ${lastBackup.createdAt.toLocaleString("en-US", { month: "short", day: "numeric", hour: "numeric", minute: "2-digit" })}` : "never"}
+            last backup: {lastBackup ? `${lastBackup.status} · ${lastBackup.createdAt.toLocaleString("en-US", { timeZone: "America/New_York", month: "short", day: "numeric", hour: "numeric", minute: "2-digit" })}` : "never"}
           </p>
         </div>
         {healthWarnings.length > 0 && (
@@ -146,7 +146,7 @@ export default async function AdminDashboard() {
                   <StatusBadge status={r.status} />
                 </td>
                 <td className="px-4 py-3" style={{ color: "var(--ink-soft)" }}>
-                  {r.createdAt.toLocaleString("en-US", { month: "short", day: "numeric", hour: "numeric", minute: "2-digit" })}
+                  {r.createdAt.toLocaleString("en-US", { timeZone: "America/New_York", month: "short", day: "numeric", hour: "numeric", minute: "2-digit" })}
                 </td>
               </tr>
             ))}

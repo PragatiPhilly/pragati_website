@@ -38,7 +38,7 @@ export default async function MagazinesPage() {
           year: m.year,
           title: m.title,
           bytes: m.bytes,
-          uploadedAt: m.createdAt.toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" }),
+          uploadedAt: m.createdAt.toLocaleDateString("en-US", { timeZone: "America/New_York", month: "short", day: "numeric", year: "numeric" }),
         }))}
       />
     </div>

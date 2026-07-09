@@ -29,7 +29,7 @@ export default async function AdminEmailsPage() {
                 <p className="font-semibold text-sm truncate">{e.subject}</p>
                 <p className="text-xs mt-0.5" style={{ color: "var(--ink-soft)" }}>
                   to {e.originalToEmail ?? e.toEmail} · {e.template} ·{" "}
-                  {e.createdAt.toLocaleString("en-US", { month: "short", day: "numeric", hour: "numeric", minute: "2-digit" })}
+                  {e.createdAt.toLocaleString("en-US", { timeZone: "America/New_York", month: "short", day: "numeric", hour: "numeric", minute: "2-digit" })}
                 </p>
               </div>
               <span

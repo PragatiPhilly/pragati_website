@@ -89,7 +89,7 @@ export default async function AdminRegistrationsPage({
                 <td className="px-4 py-3">{r.paymentMethod}</td>
                 <td className="px-4 py-3"><StatusBadge status={r.status} /></td>
                 <td className="px-4 py-3 text-xs" style={{ color: "var(--ink-soft)" }}>
-                  {r.createdAt.toLocaleString("en-US", { month: "short", day: "numeric", hour: "numeric", minute: "2-digit" })}
+                  {r.createdAt.toLocaleString("en-US", { timeZone: "America/New_York", month: "short", day: "numeric", hour: "numeric", minute: "2-digit" })}
                 </td>
                 <td className="px-4 py-3">
                   <RowActions

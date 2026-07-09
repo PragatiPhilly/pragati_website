@@ -43,8 +43,8 @@ export default async function AdminEventsPage() {
                   </p>
                   <p className="text-sm mt-1" style={{ color: "var(--ink-soft)" }}>
                     /{e.slug} · theme: {e.theme} ·{" "}
-                    {e.startsAt.toLocaleDateString("en-US", { month: "short", day: "numeric" })}–
-                    {e.endsAt.toLocaleDateString("en-US", { day: "numeric", year: "numeric" })} · {e.venueName}
+                    {e.startsAt.toLocaleDateString("en-US", { timeZone: "America/New_York", month: "short", day: "numeric" })}–
+                    {e.endsAt.toLocaleDateString("en-US", { timeZone: "America/New_York", day: "numeric", year: "numeric" })} · {e.venueName}
                   </p>
                 </div>
                 <div className="flex gap-2">

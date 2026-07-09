@@ -127,7 +127,7 @@ export async function deleteRegistrationAction(registrationId: string): Promise<
     text: `An admin deleted a registration. Full snapshot for your records:
 
 Deleted by: ${admin.email}
-When: ${new Date().toLocaleString("en-US")}
+When: ${new Date().toLocaleString("en-US", { timeZone: "America/New_York" })}
 
 Confirmation: ${snapshot.confirmationNumber}
 Event: ${snapshot.event}

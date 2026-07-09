@@ -40,7 +40,7 @@ export default async function RolesPage() {
               email: u.email,
               role: u.role,
               name: m ? `${m.primaryFirstName} ${m.primaryLastName}` : null,
-              lastLoginAt: u.lastLoginAt ? u.lastLoginAt.toLocaleDateString("en-US", { month: "short", day: "numeric" }) : "never",
+              lastLoginAt: u.lastLoginAt ? u.lastLoginAt.toLocaleDateString("en-US", { timeZone: "America/New_York", month: "short", day: "numeric" }) : "never",
             };
           })}
       />

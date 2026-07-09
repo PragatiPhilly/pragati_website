@@ -196,7 +196,7 @@ export async function serveTicketAction(sessionId: string, ticketId: string): Pr
       conf: reg.confirmationNumber,
       sessionLabel: sess.label,
       scannedAt:
-        prev?.scannedAt.toLocaleTimeString("en-US", { hour: "numeric", minute: "2-digit" }) ?? "earlier",
+        prev?.scannedAt.toLocaleTimeString("en-US", { timeZone: "America/New_York", hour: "numeric", minute: "2-digit" }) ?? "earlier",
     };
   }
 
@@ -265,7 +265,7 @@ export async function mealLookupAction(sessionId: string, rawQuery: string): Pro
       day: t.day,
       food: t.food ?? "none",
       servedAt: scan
-        ? scan.scannedAt.toLocaleTimeString("en-US", { hour: "numeric", minute: "2-digit" })
+        ? scan.scannedAt.toLocaleTimeString("en-US", { timeZone: "America/New_York", hour: "numeric", minute: "2-digit" })
         : null,
       eligible: covered,
       reason: covered ? undefined : `Pass is for ${t.day.toUpperCase()} only`,

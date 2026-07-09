@@ -62,7 +62,7 @@ export default async function TicketPage({ params }: { params: Promise<{ code: s
           servedAt:
             scanBySession
               .get(s.id)
-              ?.scannedAt.toLocaleTimeString("en-US", { hour: "numeric", minute: "2-digit" }) ?? null,
+              ?.scannedAt.toLocaleTimeString("en-US", { timeZone: "America/New_York", hour: "numeric", minute: "2-digit" }) ?? null,
         }));
       foodColors = {
         veg: await getConfig<string>("food_color_veg"),
@@ -75,7 +75,7 @@ export default async function TicketPage({ params }: { params: Promise<{ code: s
   const status = !paid
     ? { label: "NOT VALID — payment pending", bg: "rgba(200,16,46,0.12)", fg: "var(--sindoor)", icon: "⛔" }
     : checkedIn
-      ? { label: `Already checked in · ${ticket.checkedInAt!.toLocaleTimeString("en-US", { hour: "numeric", minute: "2-digit" })}`, bg: "rgba(232,169,60,0.2)", fg: "var(--terracotta-deep)", icon: "🔁" }
+      ? { label: `Already checked in · ${ticket.checkedInAt!.toLocaleTimeString("en-US", { timeZone: "America/New_York", hour: "numeric", minute: "2-digit" })}`, bg: "rgba(232,169,60,0.2)", fg: "var(--terracotta-deep)", icon: "🔁" }
       : { label: "VALID — ready to check in", bg: "rgba(92,138,58,0.15)", fg: "var(--leaf-deep)", icon: "✅" };
 
   return (
@@ -140,7 +140,7 @@ export default async function TicketPage({ params }: { params: Promise<{ code: s
 
           {isAdmin && checkedIn && (
             <p className="mt-6 text-sm rounded-xl px-4 py-3" style={{ background: "var(--accent-soft)" }}>
-              This pass was already used{ticket.checkedInAt && ` at ${ticket.checkedInAt.toLocaleTimeString("en-US", { hour: "numeric", minute: "2-digit" })}`}. If the person in front of you hasn&apos;t entered yet, someone else scanned their ticket — check a photo ID against the booking name.
+              This pass was already used{ticket.checkedInAt && ` at ${ticket.checkedInAt.toLocaleTimeString("en-US", { timeZone: "America/New_York", hour: "numeric", minute: "2-digit" })}`}. If the person in front of you hasn&apos;t entered yet, someone else scanned their ticket — check a photo ID against the booking name.
             </p>
           )}
 

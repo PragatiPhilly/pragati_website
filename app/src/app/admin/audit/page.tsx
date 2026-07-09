@@ -33,7 +33,7 @@ export default async function AdminAuditPage() {
             {rows.map((r) => (
               <tr key={r.id} className="border-t align-top" style={{ borderColor: "var(--line)" }}>
                 <td className="px-4 py-3 text-xs whitespace-nowrap" style={{ color: "var(--ink-soft)" }}>
-                  {r.createdAt.toLocaleString("en-US", { month: "short", day: "numeric", hour: "numeric", minute: "2-digit" })}
+                  {r.createdAt.toLocaleString("en-US", { timeZone: "America/New_York", month: "short", day: "numeric", hour: "numeric", minute: "2-digit" })}
                 </td>
                 <td className="px-4 py-3">{who(r.userId)}</td>
                 <td className="px-4 py-3 font-semibold">{r.action}</td>
