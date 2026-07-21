@@ -10,6 +10,7 @@ import { getDb, schema } from "@/db/client";
 import { verifySquareSignature } from "@/lib/payments/square";
 import { markRegistrationPaid } from "@/lib/checkout";
 import { markDonationPaid } from "@/lib/donations";
+import { activateMembershipPaid } from "@/lib/membership";
 
 export async function POST(req: NextRequest) {
   const rawBody = await req.text();
@@ -62,6 +63,12 @@ export async function POST(req: NextRequest) {
         if (don) {
           await markDonationPaid(don.id, { method: "square", squarePaymentId: payment.id });
           handled = true;
+        } else {
+          const [mem] = await db.select().from(schema.members).where(eq(schema.members.id, refId));
+          if (mem) {
+            await activateMembershipPaid(mem.id, { squarePaymentId: payment.id });
+            handled = true;
+          }
         }
       }
     }

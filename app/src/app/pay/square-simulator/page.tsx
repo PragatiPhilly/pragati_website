@@ -13,10 +13,10 @@ export const metadata = { title: "Square Sandbox Checkout" };
 export default async function SquareSimulatorPage({
   searchParams,
 }: {
-  searchParams: Promise<{ ref?: string; conf?: string; amount?: string; desc?: string }>;
+  searchParams: Promise<{ ref?: string; conf?: string; amount?: string; desc?: string; redirect?: string }>;
 }) {
   if ((process.env.PAYMENTS_MODE ?? "test") === "live") notFound();
-  const { ref, conf, amount, desc } = await searchParams;
+  const { ref, conf, amount, desc, redirect } = await searchParams;
   const amountCents = parseInt(amount ?? "0", 10);
 
   return (
@@ -32,7 +32,7 @@ export default async function SquareSimulatorPage({
         <p className="text-xs text-neutral-500 mb-6">Simulated hosted checkout — no real money moves.</p>
         <p className="text-sm text-neutral-600">{desc}</p>
         <p className="text-3xl font-bold mt-1 mb-6">{formatCents(amountCents)}</p>
-        <SimulatorForm refId={ref ?? ""} conf={conf ?? ""} />
+        <SimulatorForm refId={ref ?? ""} conf={conf ?? ""} redirect={redirect} />
       </div>
     </div>
   );

@@ -73,7 +73,7 @@ export default function PhotoSlideshow({
         className="absolute bottom-5 left-1/2 -translate-x-1/2 text-xs font-bold tracking-wide rounded-full px-4 py-2 whitespace-nowrap z-[3]"
         style={{ background: "var(--card)", color: "var(--terracotta)", boxShadow: "0 6px 18px rgba(0,0,0,0.12)" }}
       >
-        <span className="font-[family-name:var(--font-bangla)]">প্রতিষ্ঠা ২০১২</span> · Est. {site.foundedYear}
+        <span className="font-[family-name:var(--font-bangla)]">প্রতিষ্ঠা ১৯৭২</span> · Est. {site.foundedYear}
       </div>
     </div>
   );

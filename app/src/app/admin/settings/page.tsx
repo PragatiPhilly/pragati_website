@@ -5,7 +5,15 @@ import { requireSectionAccess } from "@/lib/auth/access";
 
 export const dynamic = "force-dynamic";
 
-const GROUPS: { title: string; note?: string; keys: { key: string; label: string; type?: "number" | "text" }[] }[] = [
+const GROUPS: { title: string; note?: string; keys: { key: string; label: string; type?: "number" | "text" | "toggle" }[] }[] = [
+  {
+    title: "Payments — methods",
+    note: "Card (Square) is always available to buyers. Turn Zelle on only when you also want to accept bank transfers — it's off by default. Super-admin only.",
+    keys: [
+      { key: "payments_square_enabled", label: "Accept card payments (Square)", type: "toggle" },
+      { key: "payments_zelle_enabled", label: "Accept Zelle payments", type: "toggle" },
+    ],
+  },
   {
     title: "Payments — Zelle",
     note: "Currently pointed at the TEST email. Switch to the org's Zelle-registered email before launch — takes effect immediately, no redeploy.",

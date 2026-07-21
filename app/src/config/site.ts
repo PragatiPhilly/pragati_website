@@ -12,7 +12,7 @@ export const site = {
   contactEmail: "pragati.management@gmail.com",
   address: "127 Lotus Lane, Malvern, PA 19355",
   phone: "610.570.2756",
-  foundedYear: 2012,
+  foundedYear: 1972,
   nav: [
     { label: "Events", bn: "উৎসব", href: "/events" },
     { label: "About", bn: "আমরা", href: "/about" },

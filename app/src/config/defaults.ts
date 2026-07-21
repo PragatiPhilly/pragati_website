@@ -34,7 +34,7 @@ export const systemConfigDefaults: Record<string, unknown> = {
   registration_pause_message:
     "Online registration is briefly paused — please check back in a little while.",
   payments_square_enabled: "yes", // no = hide/refuse card payments (e.g. Square outage)
-  payments_zelle_enabled: "yes", // no = hide/refuse Zelle
+  payments_zelle_enabled: "no", // yes = also offer Zelle (card is always available); off by default
 
   // ── Zelle alert frequency: at most one treasurer alert email per this many
   //    minutes; claims arriving in between are batched into one digest.

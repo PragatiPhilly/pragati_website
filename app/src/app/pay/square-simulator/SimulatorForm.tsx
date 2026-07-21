@@ -4,7 +4,7 @@ import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { simulateSquarePayment } from "./actions";
 
-export default function SimulatorForm({ refId, conf }: { refId: string; conf: string }) {
+export default function SimulatorForm({ refId, conf, redirect }: { refId: string; conf: string; redirect?: string }) {
   const router = useRouter();
   const [card, setCard] = useState("4111 1111 1111 1111");
   const [state, setState] = useState<"idle" | "busy" | "declined">("idle");
@@ -40,7 +40,7 @@ export default function SimulatorForm({ refId, conf }: { refId: string; conf: st
           if (card.replaceAll(" ", "").endsWith("0002")) return setState("declined");
           setState("busy");
           await simulateSquarePayment(refId);
-          router.push(`/checkout/success?conf=${encodeURIComponent(conf)}`);
+          router.push(redirect || `/checkout/success?conf=${encodeURIComponent(conf)}`);
         }}
       >
         {state === "busy" ? "Processing…" : "Pay now"}

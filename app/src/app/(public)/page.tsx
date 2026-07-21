@@ -5,14 +5,14 @@ import Countdown from "@/components/site/Countdown";
 import Reveal from "@/components/site/Reveal";
 import AlponaDivider from "@/components/site/AlponaDivider";
 import AlponaSpine from "@/components/site/AlponaSpine";
+import ScrollParallax from "@/components/site/ScrollParallax";
 import CountUp from "@/components/site/CountUp";
-import DurgaSceneJamini from "@/components/scenes/DurgaSceneJamini";
+import HeroParallax from "@/components/site/HeroParallax";
 import KaliScene from "@/components/scenes/KaliScene";
 import SaraswatiScene from "@/components/scenes/SaraswatiScene";
 import DhunuchiVignette from "@/components/scenes/DhunuchiVignette";
 import DhakiVignette from "@/components/scenes/DhakiVignette";
 import DoshomiVignette from "@/components/scenes/DoshomiVignette";
-import KalashVignette from "@/components/scenes/KalashVignette";
 import KolaBou from "@/components/scenes/KolaBou";
 import RegisterPreview from "@/components/site/RegisterPreview";
 import ScrollLink from "@/components/site/ScrollLink";
@@ -21,7 +21,8 @@ import PetalTrail from "@/components/site/PetalTrail";
 import DhaakButton from "@/components/site/DhaakButton";
 import PhotoCarousel from "@/components/site/PhotoCarousel";
 import PhotoSlideshow from "@/components/site/PhotoSlideshow";
-import { getCarouselImages, getSlideshowImages, type MediaImage } from "@/lib/media/queries";
+import PosterPanels from "@/components/site/PosterPanels";
+import { getCarouselImages, getSlideshowImages, getPosterImages, type MediaImage } from "@/lib/media/queries";
 import { listMagazines } from "@/lib/magazines";
 import MagazineShelf from "@/components/site/MagazineShelf";
 import { formatCents } from "@/lib/pricing";
@@ -52,16 +53,18 @@ function Eyebrow({ bn, en, center = false }: { bn: string; en: string; center?: 
 }
 
 export default async function HomePage() {
-  const [active, events, membershipPrice, carouselImages, slideshowImages, magazines] = await Promise.all([
+  const [active, events, membershipPrice, carouselImages, slideshowImages, posterImages, magazines] = await Promise.all([
     getActiveEvent(),
     listPublishedEvents(),
     getConfig<number>("membership_annual_price_cents"),
     getCarouselImages(),
     getSlideshowImages(),
+    getPosterImages(),
     listMagazines(),
   ]);
   const carouselPhotos = carouselImages.map(toPhoto);
   const slideshowPhotos = slideshowImages.map(toPhoto);
+  const posterPhotos = posterImages.map(toPhoto);
   const now = new Date();
   const upcoming = events.filter((e) => e.endsAt > now);
   const featured = active && active.status === "published" ? active : upcoming[0];
@@ -70,6 +73,7 @@ export default async function HomePage() {
 
   return (
     <div className="relative">
+      <ScrollParallax />
       <AlponaSpine />
       <Daypart />
       <PetalTrail targetId="hero" />
@@ -121,7 +125,7 @@ export default async function HomePage() {
           </>
         )}
 
-        <div className="mx-auto w-full max-w-6xl px-5 pt-5 pb-12 md:pt-6 md:pb-16 grid md:grid-cols-[1.05fr_0.95fr] gap-12 items-center relative z-[2]">
+        <div className="mx-auto w-full max-w-6xl px-5 pt-5 pb-12 md:pt-6 md:pb-16 grid md:grid-cols-[1fr_1.12fr] gap-8 items-center relative z-[2]">
           <div>
             <Reveal>
               <p
@@ -129,7 +133,7 @@ export default async function HomePage() {
                 style={{ background: "var(--accent-soft)", color: "var(--accent)" }}
               >
                 <span className="inline-block w-2 h-2 rounded-full animate-pulse" style={{ background: "var(--sindoor)" }} />
-                <span className="font-[family-name:var(--font-bangla)] normal-case tracking-normal text-sm">২০১২ থেকে</span>
+                <span className="font-[family-name:var(--font-bangla)] normal-case tracking-normal text-sm">১৯৭২ থেকে</span>
                 · Since {site.foundedYear} · a 501(c)(3) non-profit
               </p>
             </Reveal>
@@ -175,7 +179,7 @@ export default async function HomePage() {
             ) : theme === "saraswati" ? (
               <SaraswatiScene className="vignette max-w-md mx-auto" />
             ) : (
-              <DurgaSceneJamini />
+              <HeroParallax />
             )}
             {featured && (
               <div className="text-center mt-5">
@@ -215,6 +219,9 @@ export default async function HomePage() {
             </h2>
           </div>
         </Reveal>
+        {posterPhotos.length > 0 ? (
+          <PosterPanels photos={posterPhotos} />
+        ) : (
         <div className="grid md:grid-cols-2 gap-7 items-stretch">
           {[
             {
@@ -261,6 +268,7 @@ export default async function HomePage() {
             </Reveal>
           ))}
         </div>
+        )}
       </section>
 
       <AlponaDivider variant="lotus" />
@@ -276,12 +284,18 @@ export default async function HomePage() {
               style={{ background: "linear-gradient(165deg, var(--bg-soft) 0%, var(--marigold-pale) 100%)", boxShadow: "var(--shadow)" }}
             >
               <div className="marigold-string" />
-              <KalashVignette className="vignette w-full max-w-64" />
+              {/* eslint-disable-next-line @next/next/no-img-element */}
+              <img
+                src="/brand/pragati-square.png"
+                alt="Pragati"
+                className="w-full max-w-[240px] rounded-2xl"
+                style={{ boxShadow: "0 14px 34px rgba(0,0,0,0.28)" }}
+              />
               <div
                 className="absolute bottom-5 left-1/2 -translate-x-1/2 text-xs font-bold tracking-wide rounded-full px-4 py-2 whitespace-nowrap"
                 style={{ background: "var(--card)", color: "var(--terracotta)", boxShadow: "0 6px 18px rgba(0,0,0,0.12)" }}
               >
-                <span className="font-[family-name:var(--font-bangla)]">প্রতিষ্ঠা ২০১২</span> · Est. {site.foundedYear}
+                <span className="font-[family-name:var(--font-bangla)]">প্রতিষ্ঠা ১৯৭২</span> · Est. {site.foundedYear}
               </div>
             </div>
           )}
@@ -309,7 +323,7 @@ export default async function HomePage() {
           </p>
           <div className="flex gap-10 mt-8 flex-wrap">
             {[
-              { n: 13, label: "Years celebrating", bn: "তেরো বছর" },
+              { n: 54, label: "Years celebrating", bn: "৫৪ বছর" },
               { n: 80, label: "Founding families", bn: "আশি পরিবার" },
               { n: 200, label: "Active members", bn: "দুইশো সদস্য" },
             ].map((s) => (
@@ -397,12 +411,19 @@ export default async function HomePage() {
           {featured && (
             <Reveal className="md:row-span-2 md:col-span-2">
               <Link href={`/events/${featured.slug}`} className="event-card h-full min-h-[420px] block">
-                <div className={`img ${featured.theme === "kali" ? "img-kali" : featured.theme === "saraswati" ? "img-saraswati" : "img-durga"}`} />
+                {featured.theme === "durga" ? (
+                  <div
+                    className="img"
+                    style={{ backgroundImage: "url(/about/pandal-patachitra.jpg)", backgroundSize: "cover", backgroundPosition: "center" }}
+                  />
+                ) : (
+                  <div className={`img ${featured.theme === "kali" ? "img-kali" : featured.theme === "saraswati" ? "img-saraswati" : "img-durga"}`} />
+                )}
                 <div className="overlay" />
                 <div className="arrow-circle">↗</div>
                 <div className="relative z-[2] p-7 w-full">
                   <span className="chip">★ Featured</span>
-                  <h3 className="font-[family-name:var(--font-display)] text-3xl md:text-4xl font-black" style={{ color: "#FBF6EC" }}>
+                  <h3 className="font-[family-name:var(--font-display)] text-3xl md:text-4xl font-black" style={{ color: "#FBF6EC", textShadow: "0 2px 16px rgba(0,0,0,0.6)" }}>
                     {featured.nameBengali && (
                       <span className="font-[family-name:var(--font-bangla)] block text-xl font-normal" style={{ color: "var(--marigold-pale)" }}>
                         {featured.nameBengali}
@@ -410,7 +431,7 @@ export default async function HomePage() {
                     )}
                     {featured.name}
                   </h3>
-                  <p className="mt-2 text-sm" style={{ color: "rgba(251,246,236,0.85)" }}>
+                  <p className="mt-2 text-sm" style={{ color: "rgba(251,246,236,0.92)", textShadow: "0 1px 10px rgba(0,0,0,0.55)" }}>
                     {featured.startsAt.toLocaleDateString("en-US", { timeZone: "America/New_York", month: "short", day: "numeric" })}–
                     {featured.endsAt.toLocaleDateString("en-US", { timeZone: "America/New_York", day: "numeric" })} · {featured.venueName}
                   </p>
@@ -493,7 +514,7 @@ export default async function HomePage() {
           )}
           <div className={`grid grid-cols-2 md:grid-cols-4 gap-5 ${carouselPhotos.length > 0 ? "mt-10" : "mt-12"}`}>
             {[
-              { n: 13, label: "Years of community", bn: "তেরো বছর" },
+              { n: 54, label: "Years of community", bn: "৫৪ বছর" },
               { n: 80, label: "Founding families", bn: "আশি পরিবার" },
               { n: 200, label: "Active members", bn: "দুইশো সদস্য" },
               { n: 12, label: "Annual events", bn: "বারো উৎসব" },
@@ -507,6 +528,29 @@ export default async function HomePage() {
               </Reveal>
             ))}
           </div>
+
+          {/* Executive Committee — shown within the numbers section */}
+          <Reveal delay={0.1}>
+            <div className="mt-16">
+              <Eyebrow bn="কার্যকরী সমিতি" en="Executive Committee 2026–2027" center />
+              <h3 className="font-[family-name:var(--font-display)] text-2xl md:text-3xl font-black mt-1 mb-6">
+                The hands behind <em style={{ color: "var(--sindoor)" }}>Pragati</em>
+              </h3>
+              <div className="rounded-[24px] overflow-hidden max-w-4xl mx-auto" style={{ boxShadow: "var(--shadow)" }}>
+                {/* eslint-disable-next-line @next/next/no-img-element */}
+                <img
+                  src="/about/committee-2026.jpg"
+                  alt="Pragati Executive Committee 2026–2027 members"
+                  className="w-full h-auto block"
+                />
+              </div>
+              <div className="mt-6">
+                <Link href="/about" className="btn-secondary">
+                  Meet the committee →
+                </Link>
+              </div>
+            </div>
+          </Reveal>
         </div>
       </section>
 

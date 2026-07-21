@@ -14,6 +14,7 @@ type Img = {
   originalName: string | null;
   inCarousel: boolean;
   inSlideshow: boolean;
+  inPoster: boolean;
   eventSlug: string | null;
 };
 
@@ -38,6 +39,7 @@ function normalize(row: Record<string, unknown>): Img {
     originalName: (row.originalName as string) ?? null,
     inCarousel: !!row.inCarousel,
     inSlideshow: !!row.inSlideshow,
+    inPoster: !!row.inPoster,
     eventSlug: (row.eventSlug as string) ?? null,
   };
 }
@@ -197,6 +199,7 @@ function PlacementTags({ img }: { img: Img }) {
   const tags: string[] = [];
   if (img.inCarousel) tags.push("Carousel");
   if (img.inSlideshow) tags.push("Slideshow");
+  if (img.inPoster) tags.push("Poster");
   if (img.eventSlug) tags.push(`Event`);
   if (tags.length === 0) return <span className="text-[11px]" style={{ color: "var(--ink-soft)" }}>Unassigned</span>;
   return (
@@ -287,6 +290,7 @@ function AssignModal({
   const [draft, setDraft] = useState<Placements>({
     inCarousel: img.inCarousel,
     inSlideshow: img.inSlideshow,
+    inPoster: img.inPoster,
     eventSlug: img.eventSlug,
   });
   const [busy, setBusy] = useState(false);
@@ -326,6 +330,12 @@ function AssignModal({
               hint="The mission panel on the homepage"
               checked={draft.inSlideshow}
               onChange={(v) => setDraft((d) => ({ ...d, inSlideshow: v }))}
+            />
+            <Toggle
+              label="Event posters"
+              hint="Homepage two-panel poster slideshow (portrait works best)"
+              checked={draft.inPoster}
+              onChange={(v) => setDraft((d) => ({ ...d, inPoster: v }))}
             />
             <div className="rounded-xl p-3" style={{ background: "var(--bg-soft)" }}>
               <label className="text-sm font-semibold">Feature on an event page</label>

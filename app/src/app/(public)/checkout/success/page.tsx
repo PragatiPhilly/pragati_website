@@ -9,9 +9,31 @@ export const metadata = { title: "Payment successful" };
 export default async function CheckoutSuccessPage({
   searchParams,
 }: {
-  searchParams: Promise<{ conf?: string }>;
+  searchParams: Promise<{ conf?: string; membership?: string }>;
 }) {
-  const { conf } = await searchParams;
+  const { conf, membership } = await searchParams;
+
+  if (membership === "1") {
+    return (
+      <div className="mx-auto max-w-xl px-5 py-20 text-center">
+        <p className="text-6xl mb-5">🎉</p>
+        <h1 className="font-[family-name:var(--font-display)] text-4xl font-black mb-3">Welcome to Pragati!</h1>
+        {conf && (
+          <div className="rounded-2xl py-6 px-4 my-8 mx-auto max-w-sm" style={{ background: "var(--accent-soft)" }}>
+            <p className="text-xs uppercase tracking-widest mb-1" style={{ color: "var(--ink-soft)" }}>Confirmation</p>
+            <p className="font-[family-name:var(--font-display)] text-3xl font-black" style={{ color: "var(--sindoor)" }}>{conf}</p>
+          </div>
+        )}
+        <p style={{ color: "var(--ink-soft)" }}>
+          Your dues are paid and your membership is now active. A welcome email is on its way. 🪔
+        </p>
+        <Link href="/m" className="btn-primary mt-8 inline-flex">
+          Go to My Pragati →
+        </Link>
+      </div>
+    );
+  }
+
   const db = getDb();
   let reg: typeof schema.registrations.$inferSelect | undefined;
   let don: typeof schema.donations.$inferSelect | undefined;

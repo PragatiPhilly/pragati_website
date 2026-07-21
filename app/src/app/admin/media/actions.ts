@@ -10,6 +10,7 @@ import { deleteImageFiles } from "@/lib/media/process";
 export type Placements = {
   inCarousel: boolean;
   inSlideshow: boolean;
+  inPoster: boolean;
   eventSlug: string | null;
 };
 
@@ -33,6 +34,7 @@ export async function setPlacementsAction(
       .set({
         inCarousel: placements.inCarousel,
         inSlideshow: placements.inSlideshow,
+        inPoster: placements.inPoster,
         eventSlug: placements.eventSlug || null,
       })
       .where(eq(schema.mediaImages.id, id));

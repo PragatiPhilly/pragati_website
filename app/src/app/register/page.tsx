@@ -54,7 +54,7 @@ export default async function RegisterPage({
   // Emergency kill-switches (Admin → Settings, no redeploy needed)
   const paused = (await getConfig<string>("registration_paused")) === "yes";
   const squareEnabled = (await getConfig<string>("payments_square_enabled")) !== "no";
-  const zelleEnabled = (await getConfig<string>("payments_zelle_enabled")) !== "no";
+  const zelleEnabled = (await getConfig<string>("payments_zelle_enabled")) === "yes";
   if (paused) {
     const pauseMessage = await getConfig<string>("registration_pause_message");
     return (

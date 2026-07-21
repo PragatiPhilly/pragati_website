@@ -12,10 +12,11 @@ import { createHmac, timingSafeEqual } from "crypto";
 export type PaymentLink = { url: string; squareOrderId: string };
 
 export async function createSquarePaymentLink(p: {
-  referenceId: string; // our registration/donation id
+  referenceId: string; // our registration/donation/member id
   confirmationNumber: string;
   amountCents: number;
   description: string;
+  redirectPath?: string; // where Square returns the buyer (default: checkout success)
 }): Promise<PaymentLink> {
   const mode = process.env.PAYMENTS_MODE ?? "test";
 
@@ -40,7 +41,7 @@ export async function createSquarePaymentLink(p: {
         },
         payment_note: p.confirmationNumber,
         checkout_options: {
-          redirect_url: `${process.env.NEXT_PUBLIC_SITE_URL}/checkout/success?conf=${p.confirmationNumber}`,
+          redirect_url: `${process.env.NEXT_PUBLIC_SITE_URL}${p.redirectPath ?? `/checkout/success?conf=${p.confirmationNumber}`}`,
         },
       }),
     });
@@ -53,7 +54,9 @@ export async function createSquarePaymentLink(p: {
   const orderId = `SIM-ORDER-${p.referenceId.slice(0, 8)}`;
   const url = `/pay/square-simulator?ref=${encodeURIComponent(p.referenceId)}&conf=${encodeURIComponent(
     p.confirmationNumber
-  )}&amount=${p.amountCents}&desc=${encodeURIComponent(p.description)}`;
+  )}&amount=${p.amountCents}&desc=${encodeURIComponent(p.description)}${
+    p.redirectPath ? `&redirect=${encodeURIComponent(p.redirectPath)}` : ""
+  }`;
   return { url, squareOrderId: orderId };
 }
 

@@ -18,6 +18,7 @@ export type MediaImage = {
   originalName: string | null;
   inCarousel: boolean;
   inSlideshow: boolean;
+  inPoster: boolean;
   eventSlug: string | null;
   sortOrder: number;
   createdAt: Date;
@@ -35,6 +36,7 @@ function normalize(rows: (typeof schema.mediaImages.$inferSelect)[]): MediaImage
     originalName: r.originalName,
     inCarousel: r.inCarousel,
     inSlideshow: r.inSlideshow,
+    inPoster: r.inPoster,
     eventSlug: r.eventSlug,
     sortOrder: r.sortOrder ?? 0,
     createdAt: r.createdAt,
@@ -78,6 +80,21 @@ export async function getSlideshowImages(): Promise<MediaImage[]> {
       .select()
       .from(schema.mediaImages)
       .where(eq(schema.mediaImages.inSlideshow, true))
+      .orderBy(asc(schema.mediaImages.sortOrder), asc(schema.mediaImages.createdAt));
+    return normalize(rows);
+  } catch {
+    return [];
+  }
+}
+
+export async function getPosterImages(): Promise<MediaImage[]> {
+  try {
+    await ensureMediaTables();
+    const db = getDb();
+    const rows = await db
+      .select()
+      .from(schema.mediaImages)
+      .where(eq(schema.mediaImages.inPoster, true))
       .orderBy(asc(schema.mediaImages.sortOrder), asc(schema.mediaImages.createdAt));
     return normalize(rows);
   } catch {

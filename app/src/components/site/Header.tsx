@@ -15,19 +15,20 @@ export default async function Header() {
         style={{ background: "color-mix(in srgb, var(--bg) 85%, transparent)", borderColor: "var(--line)" }}
       >
         <div className="mx-auto max-w-6xl px-5 h-[72px] flex items-center justify-between gap-4">
-          <Link href="/" className="flex items-center gap-3 group min-w-0">
-            <div className="logo-mark" aria-hidden />
-            <div className="min-w-0">
-              <p className="font-[family-name:var(--font-display)] text-xl font-bold leading-none">
-                Pragati{" "}
-                <span className="font-[family-name:var(--font-bangla)] text-base font-normal" style={{ color: "var(--sindoor)" }}>
-                  প্রগতি
-                </span>
-              </p>
-              <p className="text-[10.5px] tracking-wide truncate" style={{ color: "var(--ink-soft)" }}>
-                Bengali Association of Greater Philadelphia · Since {site.foundedYear}
-              </p>
-            </div>
+          <Link href="/" className="group inline-flex flex-col justify-center min-w-0 leading-none" aria-label="Pragati — home">
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img
+              src="/brand/header-logo.png"
+              alt="Pragati"
+              className="shrink-0 transition-transform group-hover:scale-[1.03]"
+              style={{ height: 38, width: "auto" }}
+            />
+            <span
+              className="hidden sm:block text-[10px] tracking-wide mt-1 whitespace-nowrap"
+              style={{ color: "var(--ink-soft)" }}
+            >
+              The Bengali Association of Greater Philadelphia · since 1972
+            </span>
           </Link>
 
           <nav className="hidden md:flex items-center gap-6 text-sm font-medium">
