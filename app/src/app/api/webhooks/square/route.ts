@@ -8,6 +8,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { eq } from "drizzle-orm";
 import { getDb, schema } from "@/db/client";
 import { verifySquareSignature } from "@/lib/payments/square";
+import { siteUrl } from "@/lib/site-url";
 import { markRegistrationPaid } from "@/lib/checkout";
 import { markDonationPaid } from "@/lib/donations";
 import { activateMembershipPaid } from "@/lib/membership";
@@ -16,7 +17,7 @@ import { ensureMembershipColumn } from "@/lib/membership-ensure";
 export async function POST(req: NextRequest) {
   const rawBody = await req.text();
   const signature = req.headers.get("x-square-hmacsha256-signature");
-  const notificationUrl = `${process.env.NEXT_PUBLIC_SITE_URL}/api/webhooks/square`;
+  const notificationUrl = siteUrl("/api/webhooks/square");
 
   if (!verifySquareSignature(rawBody, signature, notificationUrl)) {
     return NextResponse.json({ error: "Bad signature" }, { status: 400 });

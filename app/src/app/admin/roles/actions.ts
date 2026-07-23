@@ -11,6 +11,7 @@ import { sendMail } from "@/lib/email";
 import { inviteEmail } from "@/lib/email/templates";
 import { randomBytes } from "crypto";
 import { CONFIGURABLE_SECTIONS, type RoleAccess, type SectionKey } from "@/lib/auth/access";
+import { siteUrl } from "@/lib/site-url";
 
 const ROLES = ["member", "volunteer", "admin", "super_admin"] as const;
 export type Role = (typeof ROLES)[number];
@@ -103,7 +104,7 @@ export async function inviteUserAction(rawEmail: string, role: Role): Promise<{ 
     email,
     role,
     invitedBy: me.email,
-    setupUrl: `${process.env.NEXT_PUBLIC_SITE_URL}/reset-password?token=${raw}`,
+    setupUrl: siteUrl(`/reset-password?token=${raw}`),
     orgName,
   });
   await sendMail({ to: email, ...mail, template: "invite", relatedUserId: user.id, priority: 1 });
@@ -132,7 +133,7 @@ export async function sendResetLinkAction(userId: string): Promise<{ ok: boolean
   const { resetPasswordEmail } = await import("@/lib/email/templates");
   const mail = resetPasswordEmail({
     name: member?.primaryFirstName ?? "friend",
-    resetUrl: `${process.env.NEXT_PUBLIC_SITE_URL}/reset-password?token=${raw}`,
+    resetUrl: siteUrl(`/reset-password?token=${raw}`),
     orgName,
   });
   await sendMail({ to: user.email, ...mail, template: "password_reset", relatedUserId: user.id, priority: 1 });

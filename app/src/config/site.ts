@@ -8,7 +8,7 @@ export const site = {
   fullName: "Pragati — Bengali Association of Greater Philadelphia",
   tagline: "A home for Bengali culture in Greater Philadelphia",
   taglineBengali: "প্রগতি",
-  url: process.env.NEXT_PUBLIC_SITE_URL ?? "http://localhost:3000",
+  url: (process.env.NEXT_PUBLIC_SITE_URL ?? "http://localhost:3000").replace(/\/+$/, ""),
   contactEmail: "pragati.management@gmail.com",
   address: "127 Lotus Lane, Malvern, PA 19355",
   phone: "610.570.2756",

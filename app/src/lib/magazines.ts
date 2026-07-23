@@ -10,8 +10,12 @@
 import { desc } from "drizzle-orm";
 import { getDb, schema } from "@/db/client";
 import { ensureScanTables } from "@/lib/scans/ensure";
+import { blobEnabled, putBlob, delBlobs } from "@/lib/blob";
 
 export type Magazine = typeof schema.magazines.$inferSelect;
+
+/** Marker prefix for a private-store blob whose bytes we stream ourselves. */
+export const BLOB_PATH_PREFIX = "blob:";
 
 export async function listMagazines(): Promise<Magazine[]> {
   await ensureScanTables();
@@ -19,18 +23,21 @@ export async function listMagazines(): Promise<Magazine[]> {
   return db.select().from(schema.magazines).orderBy(desc(schema.magazines.year));
 }
 
-const useBlob = () => !!process.env.BLOB_READ_WRITE_TOKEN;
+const useBlob = blobEnabled;
 
-/** Store a magazine PDF; returns its public URL. */
+/**
+ * Store a magazine PDF; returns a value for `magazines.file_url`:
+ *   • public store  → absolute CDN URL (the download route 307-redirects to it)
+ *   • private store → "blob:<pathname>" (the download route streams the bytes)
+ *   • local dev     → "/magazines/<name>.pdf" (served statically from public/)
+ */
 export async function storeMagazinePdf(year: number, buf: Buffer): Promise<string> {
   if (useBlob()) {
-    const { put } = await import("@vercel/blob");
-    const blob = await put(`magazines/pragati-magazine-${year}.pdf`, buf, {
-      access: "public",
+    const res = await putBlob(`magazines/pragati-magazine-${year}.pdf`, buf, {
       contentType: "application/pdf",
       addRandomSuffix: true, // re-uploads for the same year don't collide
     });
-    return blob.url;
+    return res.access === "private" ? `${BLOB_PATH_PREFIX}${res.pathname}` : res.url;
   }
   // local dev fallback — write into public/ so Next serves it statically
   const { mkdir, writeFile } = await import("fs/promises");
@@ -45,7 +52,9 @@ export async function storeMagazinePdf(year: number, buf: Buffer): Promise<strin
 /** Best-effort delete of the stored file (Blob only; local files are harmless). */
 export async function deleteMagazinePdf(fileUrl: string): Promise<void> {
   try {
-    if (useBlob() && fileUrl.startsWith("https://")) {
+    if (fileUrl.startsWith(BLOB_PATH_PREFIX)) {
+      await delBlobs([fileUrl.slice(BLOB_PATH_PREFIX.length)]);
+    } else if (useBlob() && fileUrl.startsWith("https://")) {
       const { del } = await import("@vercel/blob");
       await del(fileUrl);
     } else if (fileUrl.startsWith("/magazines/")) {

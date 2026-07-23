@@ -8,6 +8,7 @@
  * Spec: 05-payments.md.
  */
 import { createHmac, timingSafeEqual } from "crypto";
+import { siteUrl } from "@/lib/site-url";
 
 export type PaymentLink = { url: string; squareOrderId: string };
 
@@ -41,7 +42,7 @@ export async function createSquarePaymentLink(p: {
         },
         payment_note: p.confirmationNumber,
         checkout_options: {
-          redirect_url: `${process.env.NEXT_PUBLIC_SITE_URL}${p.redirectPath ?? `/checkout/success?conf=${p.confirmationNumber}`}`,
+          redirect_url: siteUrl(p.redirectPath ?? `/checkout/success?conf=${p.confirmationNumber}`),
         },
       }),
     });

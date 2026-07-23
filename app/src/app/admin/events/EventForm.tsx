@@ -109,90 +109,117 @@ export default function EventForm({ initial }: { initial: EventInput }) {
           One row per pass. Tick exactly the days it covers — a single day, any two-day combo, or every day — and set its
           member / non-member price. Use <strong>Duplicate</strong> to copy a row and just change the days or price.
         </p>
-        {ev.ticketTypes.map((t, i) => (
-          <div key={i} className="hairline rounded-2xl p-4 grid gap-3">
-            <div className="grid sm:grid-cols-[2fr_1fr] gap-3">
-              <input className="input" placeholder='Name, e.g. "Adult · Fri & Sat · with food"' value={t.name} onChange={(e) => setTicket(i, { name: e.target.value })} />
-              <select className="input" value={t.ageBand} onChange={(e) => setTicket(i, { ageBand: e.target.value })}>
-                <option value="adult">Adult</option>
-                <option value="child_5_12">Kid 5–12</option>
-                <option value="child_under_5">Under 5</option>
-                <option value="senior">Senior</option>
-                <option value="all">Everyone</option>
-              </select>
-            </div>
-            <div>
-              <p className="text-xs font-semibold mb-1.5" style={{ color: "var(--ink-soft)" }}>Days this pass covers</p>
-              {eventDays.length > 0 ? (
-                <div className="flex flex-wrap gap-2">
-                  {eventDays.map((d) => {
-                    const on = t.dayKeys.includes(d.key);
-                    return (
-                      <button
-                        type="button"
-                        key={d.key}
-                        onClick={() => setTicket(i, { dayKeys: on ? t.dayKeys.filter((k) => k !== d.key) : [...t.dayKeys, d.key] })}
-                        className="text-xs font-semibold rounded-full px-3 py-1.5 border transition-colors"
-                        style={{ background: on ? "var(--sindoor)" : "transparent", color: on ? "var(--cream)" : "var(--ink-soft)", borderColor: on ? "var(--sindoor)" : "var(--line)" }}
-                      >
-                        {d.label.split(",")[0]}
-                      </button>
-                    );
-                  })}
-                </div>
-              ) : (
-                <p className="text-xs" style={{ color: "var(--ink-soft)" }}>
-                  Set the event start &amp; end dates above, then pick the days for this pass.
-                </p>
-              )}
-            </div>
-            <label className="text-xs font-semibold" style={{ color: "var(--ink-soft)" }}>
-              Check-in opens (optional — e.g. a concert at 6:30 PM; blank = any time that day)
-              <input
-                type="time"
-                className="input mt-1 max-w-40"
-                value={t.checkInStart ?? ""}
-                onChange={(e) => setTicket(i, { checkInStart: e.target.value || null })}
-              />
-            </label>
-            <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 items-center">
-              <label className="flex items-center gap-2 text-sm">
-                <input type="checkbox" checked={t.withFood} onChange={(e) => setTicket(i, { withFood: e.target.checked })} className="accent-[var(--sindoor)] w-4 h-4" />
-                With food
-              </label>
-              <label className="text-xs font-semibold" style={{ color: "var(--ink-soft)" }}>
-                Member $
-                <input type="number" min={0} step="0.01" className="input mt-1" value={t.priceMember} onChange={(e) => setTicket(i, { priceMember: parseFloat(e.target.value) || 0 })} />
-              </label>
-              <label className="text-xs font-semibold" style={{ color: "var(--ink-soft)" }}>
-                Non-member $ (−1 = members only)
-                <input type="number" min={-1} step="0.01" className="input mt-1" value={t.priceNonmember} onChange={(e) => setTicket(i, { priceNonmember: parseFloat(e.target.value) || 0 })} />
-              </label>
-              <label className="text-xs font-semibold" style={{ color: "var(--ink-soft)" }}>
-                Capacity (blank = ∞)
-                <input type="number" min={0} className="input mt-1" value={t.capacity ?? ""} onChange={(e) => setTicket(i, { capacity: e.target.value === "" ? null : parseInt(e.target.value, 10) })} />
-              </label>
-            </div>
-            <div className="flex items-center justify-between gap-3 flex-wrap">
-              <p className="text-xs" style={{ color: "var(--ink-soft)" }}>
-                {t.dayKeys.length ? t.dayKeys.map((k) => k.toUpperCase()).join(" + ") : "every day"} · {t.withFood ? "with food" : "no food"} · Member ${t.priceMember || 0}
-                {t.priceNonmember < 0 ? " · members only" : ` / Non-member $${t.priceNonmember || 0}`}
-              </p>
-              <div className="flex gap-4">
+        {ev.ticketTypes.map((t, i) => {
+          const summary = `${t.dayKeys.length ? t.dayKeys.map((k) => k.toUpperCase()).join(" · ") : "Every day"} · ${t.withFood ? "with food" : "no food"} · $${t.priceMember || 0}${t.priceNonmember < 0 ? " members only" : ` / $${t.priceNonmember || 0}`}`;
+          return (
+            <div key={i} className="hairline rounded-2xl overflow-hidden">
+              {/* header strip: index · name preview · row actions */}
+              <div className="flex items-center gap-2 px-4 py-2.5" style={{ background: "var(--accent-soft)" }}>
+                <span
+                  className="grid place-items-center w-6 h-6 rounded-full text-xs font-bold shrink-0"
+                  style={{ background: "var(--sindoor)", color: "var(--cream)" }}
+                >
+                  {i + 1}
+                </span>
+                <span className="text-sm font-semibold truncate flex-1" style={{ color: "var(--ink)" }}>
+                  {t.name?.trim() || "Untitled pass"}
+                </span>
                 <button
                   type="button"
-                  className="text-xs underline opacity-60 hover:opacity-100"
+                  className="text-xs font-semibold px-2 py-1 rounded-lg opacity-70 hover:opacity-100 transition-opacity"
                   onClick={() => set({ ticketTypes: [...ev.ticketTypes.slice(0, i + 1), { ...t, id: undefined, name: t.name ? `${t.name} (copy)` : "" }, ...ev.ticketTypes.slice(i + 1)] })}
                 >
                   Duplicate
                 </button>
-                <button type="button" className="text-xs underline opacity-60 hover:opacity-100" onClick={() => set({ ticketTypes: ev.ticketTypes.filter((_, j) => j !== i) })}>
+                <button
+                  type="button"
+                  className="text-xs font-semibold px-2 py-1 rounded-lg opacity-70 hover:opacity-100 transition-opacity"
+                  style={{ color: "var(--sindoor)" }}
+                  onClick={() => set({ ticketTypes: ev.ticketTypes.filter((_, j) => j !== i) })}
+                >
                   Remove
                 </button>
               </div>
+
+              {/* body */}
+              <div className="p-4 grid gap-4">
+                <div className="grid sm:grid-cols-[2fr_1fr] gap-3">
+                  <label className="text-xs font-semibold grid gap-1" style={{ color: "var(--ink-soft)" }}>
+                    Pass name
+                    <input className="input" placeholder='e.g. "Adult · Fri & Sat · with food"' value={t.name} onChange={(e) => setTicket(i, { name: e.target.value })} />
+                  </label>
+                  <label className="text-xs font-semibold grid gap-1" style={{ color: "var(--ink-soft)" }}>
+                    Who it&apos;s for
+                    <select className="input" value={t.ageBand} onChange={(e) => setTicket(i, { ageBand: e.target.value })}>
+                      <option value="adult">Adult</option>
+                      <option value="child_5_12">Kid 5–12</option>
+                      <option value="child_under_5">Under 5</option>
+                      <option value="senior">Senior</option>
+                      <option value="all">Everyone</option>
+                    </select>
+                  </label>
+                </div>
+
+                <div>
+                  <p className="text-xs font-semibold mb-1.5" style={{ color: "var(--ink-soft)" }}>Days this pass covers</p>
+                  {eventDays.length > 0 ? (
+                    <div className="flex flex-wrap gap-2">
+                      {eventDays.map((d) => {
+                        const on = t.dayKeys.includes(d.key);
+                        return (
+                          <button
+                            type="button"
+                            key={d.key}
+                            onClick={() => setTicket(i, { dayKeys: on ? t.dayKeys.filter((k) => k !== d.key) : [...t.dayKeys, d.key] })}
+                            className="text-xs font-semibold rounded-full px-3 py-1.5 border transition-colors"
+                            style={{ background: on ? "var(--sindoor)" : "transparent", color: on ? "var(--cream)" : "var(--ink-soft)", borderColor: on ? "var(--sindoor)" : "var(--line)" }}
+                          >
+                            {d.label.split(",")[0]}
+                          </button>
+                        );
+                      })}
+                    </div>
+                  ) : (
+                    <p className="text-xs" style={{ color: "var(--ink-soft)" }}>
+                      Set the event start &amp; end dates above, then pick the days for this pass.
+                    </p>
+                  )}
+                </div>
+
+                <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+                  <label className="text-xs font-semibold grid gap-1" style={{ color: "var(--ink-soft)" }}>
+                    Member $
+                    <input type="number" min={0} step="0.01" className="input" value={t.priceMember} onChange={(e) => setTicket(i, { priceMember: parseFloat(e.target.value) || 0 })} />
+                  </label>
+                  <label className="text-xs font-semibold grid gap-1" style={{ color: "var(--ink-soft)" }}>
+                    Non-member $
+                    <input type="number" min={-1} step="0.01" className="input" value={t.priceNonmember} onChange={(e) => setTicket(i, { priceNonmember: parseFloat(e.target.value) || 0 })} />
+                    <span className="font-normal opacity-70">−1 = members only</span>
+                  </label>
+                  <label className="text-xs font-semibold grid gap-1" style={{ color: "var(--ink-soft)" }}>
+                    Capacity
+                    <input type="number" min={0} className="input" placeholder="∞" value={t.capacity ?? ""} onChange={(e) => setTicket(i, { capacity: e.target.value === "" ? null : parseInt(e.target.value, 10) })} />
+                  </label>
+                  <label className="text-xs font-semibold grid gap-1" style={{ color: "var(--ink-soft)" }}>
+                    Check-in opens
+                    <input type="time" className="input" value={t.checkInStart ?? ""} onChange={(e) => setTicket(i, { checkInStart: e.target.value || null })} />
+                    <span className="font-normal opacity-70">blank = any time</span>
+                  </label>
+                </div>
+
+                <div className="flex items-center justify-between gap-3 flex-wrap border-t pt-3" style={{ borderColor: "var(--line)" }}>
+                  <label className="flex items-center gap-2 text-sm font-medium cursor-pointer">
+                    <input type="checkbox" checked={t.withFood} onChange={(e) => setTicket(i, { withFood: e.target.checked })} className="accent-[var(--sindoor)] w-4 h-4" />
+                    Includes food
+                  </label>
+                  <span className="text-[11px] font-medium rounded-full px-2.5 py-1" style={{ background: "var(--accent-soft)", color: "var(--ink-soft)" }}>
+                    {summary}
+                  </span>
+                </div>
+              </div>
             </div>
-          </div>
-        ))}
+          );
+        })}
         <button type="button" className="btn-secondary !py-2 w-fit text-sm" onClick={() => set({ ticketTypes: [...ev.ticketTypes, emptyTicket(eventDays.map((d) => d.key))] })}>
           + Add ticket type
         </button>

@@ -9,6 +9,7 @@ import { nextConfirmationNumber, makeQrCode } from "@/lib/confirmation";
 import { priceQuote, attendeeGetsMemberPricing, cardProcessingFeeCents, type AttendeeInput, type TicketTypeInfo, formatCents } from "@/lib/pricing";
 import { sameDaySet, splitEven } from "@/lib/event-days";
 import { ensureExtraColumns } from "@/lib/schema-ensure";
+import { siteUrl } from "@/lib/site-url";
 import { getConfig } from "@/lib/system-config";
 import { createSquarePaymentLink } from "@/lib/payments/square";
 import { getZelleInstructions, type ZelleInstructions } from "@/lib/payments/zelle";
@@ -296,7 +297,7 @@ export async function zelleSentClicked(confirmationNumber: string): Promise<void
     buyerName: reg.buyerName,
     totalCents: reg.totalCents,
     kind: "registration",
-    adminUrl: `${process.env.NEXT_PUBLIC_SITE_URL}/admin/payments/pending-zelle`,
+    adminUrl: siteUrl("/admin/payments/pending-zelle"),
   });
   await sendMail({ to: treasurerEmail, ...alert, template: "admin_alert", relatedRegistrationId: reg.id, priority: 3, digestKey: "zelle-alerts" });
 }
@@ -344,7 +345,7 @@ export async function sendTicketsEmail(registrationId: string, opts: { resend?: 
   const typeName = (id: string) => types.find((t) => t.id === id)?.name ?? "Ticket";
   const [event] = await db.select().from(schema.events).where(eq(schema.events.id, reg.eventId));
   const orgName = await getConfig<string>("org_name");
-  const base = process.env.NEXT_PUBLIC_SITE_URL;
+  const base = siteUrl();
   const eventDays = (event?.days as { key: string; label?: string; date: string }[] | null) ?? [];
 
   const checkInNote = (t: (typeof tix)[number]): string | undefined => {

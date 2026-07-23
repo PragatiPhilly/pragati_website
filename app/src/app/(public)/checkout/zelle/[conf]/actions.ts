@@ -6,6 +6,7 @@ import { zelleSentClicked } from "@/lib/checkout";
 import { getConfig } from "@/lib/system-config";
 import { sendMail } from "@/lib/email";
 import * as T from "@/lib/email/templates";
+import { siteUrl } from "@/lib/site-url";
 
 export async function zelleSentAction(conf: string, kind: "registration" | "donation") {
   if (kind === "registration") {
@@ -36,7 +37,7 @@ export async function zelleSentAction(conf: string, kind: "registration" | "dona
     buyerName: don.donorName,
     totalCents: don.amountCents,
     kind: "donation",
-    adminUrl: `${process.env.NEXT_PUBLIC_SITE_URL}/admin/payments/pending-zelle`,
+    adminUrl: siteUrl("/admin/payments/pending-zelle"),
   });
   await sendMail({ to: treasurerEmail, ...alert, template: "admin_alert", priority: 3, digestKey: "zelle-alerts" });
 }

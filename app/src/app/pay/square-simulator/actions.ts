@@ -6,6 +6,7 @@
  * Square would send. The webhook does the actual work.
  */
 import { signSquareWebhook } from "@/lib/payments/square";
+import { siteUrl } from "@/lib/site-url";
 
 export async function simulateSquarePayment(referenceId: string) {
   if ((process.env.PAYMENTS_MODE ?? "test") !== "test") throw new Error("Simulator disabled outside test mode");
@@ -25,7 +26,7 @@ export async function simulateSquarePayment(referenceId: string) {
     },
   });
 
-  const url = `${process.env.NEXT_PUBLIC_SITE_URL}/api/webhooks/square`;
+  const url = siteUrl("/api/webhooks/square");
   const res = await fetch(url, {
     method: "POST",
     headers: {

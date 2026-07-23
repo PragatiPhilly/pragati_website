@@ -2,6 +2,7 @@ import Link from "next/link";
 import { eq } from "drizzle-orm";
 import { getDb, schema } from "@/db/client";
 import { formatCents } from "@/lib/pricing";
+import { getSession } from "@/lib/auth/session";
 
 export const dynamic = "force-dynamic";
 export const metadata = { title: "Payment successful" };
@@ -14,10 +15,19 @@ export default async function CheckoutSuccessPage({
   const { conf, membership } = await searchParams;
 
   if (membership === "1") {
+    const session = await getSession();
+    const db0 = getDb();
+    const member = session?.memberId
+      ? (await db0.select().from(schema.members).where(eq(schema.members.id, session.memberId)))[0]
+      : undefined;
+    const active = member?.membershipStatus === "active";
     return (
       <div className="mx-auto max-w-xl px-5 py-20 text-center">
-        <p className="text-6xl mb-5">🎉</p>
-        <h1 className="font-[family-name:var(--font-display)] text-4xl font-black mb-3">Welcome to Pragati!</h1>
+        {!active && <meta httpEquiv="refresh" content="4" />}
+        <p className="text-6xl mb-5">{active ? "🎉" : "⏳"}</p>
+        <h1 className="font-[family-name:var(--font-display)] text-4xl font-black mb-3">
+          {active ? "Welcome to Pragati!" : "Confirming your payment…"}
+        </h1>
         {conf && (
           <div className="rounded-2xl py-6 px-4 my-8 mx-auto max-w-sm" style={{ background: "var(--accent-soft)" }}>
             <p className="text-xs uppercase tracking-widest mb-1" style={{ color: "var(--ink-soft)" }}>Confirmation</p>
@@ -25,7 +35,9 @@ export default async function CheckoutSuccessPage({
           </div>
         )}
         <p style={{ color: "var(--ink-soft)" }}>
-          Your dues are paid and your membership is now active. A welcome email is on its way. 🪔
+          {active
+            ? "Your dues are paid and your membership is now active. A welcome email is on its way. 🪔"
+            : "Your payment went through — we're finalizing your membership now. This page refreshes on its own; it usually takes a few seconds."}
         </p>
         <Link href="/m" className="btn-primary mt-8 inline-flex">
           Go to My Pragati →

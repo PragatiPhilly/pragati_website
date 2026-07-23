@@ -21,6 +21,11 @@ export default async function EditEventPage({ params }: { params: Promise<{ id: 
   const types = await db.select().from(schema.ticketTypes).where(eq(schema.ticketTypes.eventId, id)).orderBy(asc(schema.ticketTypes.displayOrder));
   const promos = await db.select().from(schema.promoCodes).where(eq(schema.promoCodes.eventId, id));
 
+  // The event's authoritative day-keys, derived from its current date range.
+  // We filter each ticket's stored dayKeys to this set so a stale key from an
+  // earlier date range (e.g. a dropped "thu") can't linger in the form / UI.
+  const eventDayKeys = new Set(Array.isArray(ev.days) ? (ev.days as { key: string }[]).map((d) => d.key) : []);
+
   return (
     <div>
       <h1 className="font-[family-name:var(--font-display)] text-3xl font-black mb-8">Edit: {ev.name}</h1>
@@ -42,11 +47,9 @@ export default async function EditEventPage({ params }: { params: Promise<{ id: 
             id: t.id,
             name: t.name,
             ageBand: t.ageBand,
-            dayKeys: Array.isArray(t.dayKeys)
-              ? (t.dayKeys as string[])
-              : Array.isArray(ev.days)
-                ? (ev.days as { key: string }[]).map((d) => d.key)
-                : [],
+            dayKeys: (Array.isArray(t.dayKeys) ? (t.dayKeys as string[]) : [...eventDayKeys]).filter(
+              (k) => eventDayKeys.size === 0 || eventDayKeys.has(k),
+            ),
             checkInStart: t.checkInStart ?? null,
             withFood: t.withFood,
             priceMember: t.priceMemberCents / 100,

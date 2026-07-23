@@ -18,7 +18,10 @@ import { randomBytes } from "crypto";
 import { mkdir, unlink, writeFile } from "fs/promises";
 import path from "path";
 import sharp from "sharp";
-import { getConfig, setConfig } from "@/lib/system-config";
+import { blobEnabled, putBlob, delBlobs, getBlobBaseUrl } from "@/lib/blob";
+
+// Re-export so existing importers (e.g. the /media route) keep working.
+export { getBlobBaseUrl };
 
 // Responsive widths we generate. Never upscale past the original.
 const WIDTHS = [480, 1024, 1920];
@@ -26,7 +29,7 @@ const WEBP_QUALITY = 80;
 
 export const MEDIA_DIR = path.join(process.cwd(), "public", "media");
 
-const useBlob = () => !!process.env.BLOB_READ_WRITE_TOKEN;
+const useBlob = blobEnabled;
 
 export type ProcessedImage = {
   fileBase: string;
@@ -45,12 +48,6 @@ export function variantUrl(fileBase: string, width: number) {
   return `/media/${variantName(fileBase, width)}`;
 }
 
-/** Blob store origin (e.g. https://xyz.public.blob.vercel-storage.com), learned on first upload. */
-export async function getBlobBaseUrl(): Promise<string | null> {
-  const v = await getConfig<string | undefined>("blob_base_url");
-  return v || null;
-}
-
 /** Dimensions after EXIF auto-rotation (sharp swaps for orientation 5–8). */
 async function orientedSize(input: Buffer): Promise<{ w: number; h: number }> {
   const meta = await sharp(input).metadata();
@@ -62,17 +59,13 @@ async function orientedSize(input: Buffer): Promise<{ w: number; h: number }> {
 
 async function storeVariant(fileBase: string, width: number, buf: Buffer): Promise<void> {
   if (useBlob()) {
-    const { put } = await import("@vercel/blob");
-    const res = await put(`media/${variantName(fileBase, width)}`, buf, {
-      access: "public",
+    // putBlob picks the right access for a public OR private store and records
+    // both the store origin and access mode for the /media/* serving route.
+    await putBlob(`media/${variantName(fileBase, width)}`, buf, {
       contentType: "image/webp",
-      addRandomSuffix: false, // deterministic path → simple redirect from /media/*
+      addRandomSuffix: false, // deterministic path → simple redirect / stream from /media/*
       cacheControlMaxAge: 60 * 60 * 24 * 365,
     });
-    // Remember the store origin so the /media/* redirect route can find files.
-    const origin = new URL(res.url).origin;
-    const known = await getConfig<string | undefined>("blob_base_url");
-    if (known !== origin) await setConfig("blob_base_url", origin);
     return;
   }
   await mkdir(MEDIA_DIR, { recursive: true });
@@ -114,10 +107,8 @@ export async function processImage(input: Buffer): Promise<ProcessedImage> {
 
 export async function deleteImageFiles(fileBase: string, variants: number[]): Promise<void> {
   if (useBlob()) {
-    const base = await getBlobBaseUrl();
-    if (!base) return;
-    const { del } = await import("@vercel/blob");
-    await del(variants.map((w) => `${base}/media/${variantName(fileBase, w)}`)).catch(() => {});
+    // Delete by pathname — works for both public and private stores.
+    await delBlobs(variants.map((w) => `media/${variantName(fileBase, w)}`));
     return;
   }
   await Promise.all(

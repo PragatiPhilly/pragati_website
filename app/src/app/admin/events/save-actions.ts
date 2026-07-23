@@ -58,6 +58,7 @@ export async function saveEventAction(input: EventInput): Promise<{ ok: boolean;
 
   const days = buildEventDays(input.startsAt, input.endsAt);
   const dayKeys = days.map((d) => d.key);
+  const validKeys = new Set(dayKeys);
 
   const values = {
     name: input.name.trim(),
@@ -90,11 +91,15 @@ export async function saveEventAction(input: EventInput): Promise<{ ok: boolean;
   const keptIds = new Set<string>();
   for (let i = 0; i < input.ticketTypes.length; i++) {
     const t = input.ticketTypes[i];
+    // Drop any stale day-keys that no longer belong to this event's date range
+    // (e.g. a "thu" left over from an earlier Thu–Sun draft). An empty result
+    // means "every day", matching the whole event.
+    const ticketDays = (t.dayKeys ?? []).filter((k) => validKeys.has(k));
     const row = {
       eventId,
       name: t.name.trim(),
       ageBand: t.ageBand,
-      dayKeys: t.dayKeys && t.dayKeys.length ? t.dayKeys : dayKeys,
+      dayKeys: ticketDays.length ? ticketDays : dayKeys,
       checkInStart: t.checkInStart || null,
       withFood: t.withFood,
       priceMemberCents: Math.round(t.priceMember * 100),

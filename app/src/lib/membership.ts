@@ -13,6 +13,7 @@ import { hashPassword } from "@/lib/auth/password";
 import { createResetToken } from "@/lib/auth/reset";
 import { ensureExtraColumns } from "@/lib/schema-ensure";
 import { ensureMembershipColumn } from "@/lib/membership-ensure";
+import { siteUrl } from "@/lib/site-url";
 
 export async function activateMembershipPaid(
   memberId: string,
@@ -147,7 +148,7 @@ export async function enrollMemberFromPaidRegistration(
   let loginUrl: string | undefined;
   if (isNewUser) {
     const token = await createResetToken(user.id, "invite");
-    loginUrl = `${process.env.NEXT_PUBLIC_SITE_URL}/reset-password?token=${token}`;
+    loginUrl = siteUrl(`/reset-password?token=${token}`);
   }
   const mail = welcomeEmail({ firstName: member.primaryFirstName, familyName: member.familyName, orgName, memberNumber, validUntil, loginUrl });
   await sendMail({ to: email, ...mail, template: "welcome", relatedUserId: user.id, priority: 1 });
