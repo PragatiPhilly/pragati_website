@@ -274,10 +274,6 @@ export default async function EventDetailPage({ params }: { params: Promise<{ sl
           <Link href={`/register?event=${event.slug}`} className="btn-primary text-lg !px-10 !py-4">
             Register — it takes 2 minutes →
           </Link>
-          <p className="text-sm" style={{ color: "var(--ink-soft)" }}>
-            No account needed · members get up to 30% off ·{" "}
-            <Link href="/login" className="underline underline-offset-4">sign in</Link> for member pricing
-          </p>
         </div>
       </Reveal>
     </div>
