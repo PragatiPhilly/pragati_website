@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { getActiveEvent, listPublishedEvents } from "@/lib/queries/events";
+import { getActiveEvent, listPublishedEvents, getConcertPasses } from "@/lib/queries/events";
 import { getConfig } from "@/lib/system-config";
 import Countdown from "@/components/site/Countdown";
 import Reveal from "@/components/site/Reveal";
@@ -65,6 +65,15 @@ export default async function HomePage() {
   const carouselPhotos = carouselImages.map(toPhoto);
   const slideshowPhotos = slideshowImages.map(toPhoto);
   const posterPhotos = posterImages.map(toPhoto);
+  // Concert passes drive the poster "Buy tickets" buttons (deep-link to a
+  // concert-only checkout for that day). Empty → the posters stay "coming soon".
+  const concertPasses = active ? await getConcertPasses(active.id) : [];
+  const concertBuy = (dayKey: string) => {
+    const pass = concertPasses.find((c) => Array.isArray(c.dayKeys) && (c.dayKeys as string[]).includes(dayKey));
+    if (!pass || !active) return null;
+    const price = pass.priceNonmemberCents >= 0 ? pass.priceNonmemberCents : pass.priceMemberCents;
+    return { href: `/register?event=${active.slug}&concert=${dayKey}`, price };
+  };
   const now = new Date();
   const upcoming = events.filter((e) => e.endsAt > now);
   const featured = active && active.status === "published" ? active : upcoming[0];
@@ -220,7 +229,27 @@ export default async function HomePage() {
           </div>
         </Reveal>
         {posterPhotos.length > 0 ? (
-          <PosterPanels photos={posterPhotos} />
+          <>
+            <PosterPanels photos={posterPhotos} />
+            {concertPasses.length > 0 && active && (
+              <div className="mt-7 flex flex-wrap justify-center gap-3">
+                {concertPasses.map((c) => {
+                  const day = Array.isArray(c.dayKeys) ? (c.dayKeys as string[])[0] : undefined;
+                  const price = c.priceNonmemberCents >= 0 ? c.priceNonmemberCents : c.priceMemberCents;
+                  return (
+                    <Link
+                      key={c.id}
+                      href={`/register?event=${active.slug}&concert=${day ?? ""}`}
+                      className="btn-primary !py-2.5 !px-6 text-sm"
+                      title={`Buy · ${formatCents(price)}`}
+                    >
+                      🎟 {c.name} · {formatCents(price)}
+                    </Link>
+                  );
+                })}
+              </div>
+            )}
+          </>
         ) : (
         <div className="grid md:grid-cols-2 gap-7 items-stretch">
           {[
@@ -231,6 +260,7 @@ export default async function HomePage() {
               venue: "Greater Philadelphia Expo Center",
               accent: "#e9c25d",
               bg: "#14100a",
+              dayKey: "sat",
             },
             {
               src: "/lineup/bhoomi.jpg",
@@ -239,8 +269,11 @@ export default async function HomePage() {
               venue: "Greater Philadelphia Expo Center",
               accent: "#9fc6e4",
               bg: "#080e1c",
+              dayKey: "sun",
             },
-          ].map((p, i) => (
+          ].map((p, i) => {
+            const buy = concertBuy(p.dayKey);
+            return (
             <Reveal key={p.src} delay={i * 0.1}>
               <div
                 className="group rounded-[26px] overflow-hidden flex flex-col h-full hover:-translate-y-1.5 transition-transform duration-300"
@@ -259,14 +292,27 @@ export default async function HomePage() {
                     <p className="font-black text-sm">{p.date}</p>
                     <p className="mt-0.5 opacity-80">{p.venue}</p>
                   </div>
-                  <div className="rounded-xl py-3 px-2 flex flex-col justify-center" style={{ background: "rgba(255,255,255,0.06)", border: `1px solid ${p.accent}40` }}>
-                    <p className="font-black text-sm">🎟 Tickets coming soon</p>
-                    <p className="mt-0.5 opacity-80">stay tuned</p>
-                  </div>
+                  {buy ? (
+                    <Link
+                      href={buy.href}
+                      title={`Buy tickets · ${formatCents(buy.price)}`}
+                      className="rounded-xl py-3 px-2 flex flex-col justify-center transition-transform hover:scale-[1.04]"
+                      style={{ background: p.accent, color: p.bg }}
+                    >
+                      <p className="font-black text-sm">🎟 Buy tickets</p>
+                      <p className="mt-0.5 font-black">{formatCents(buy.price)}</p>
+                    </Link>
+                  ) : (
+                    <div className="rounded-xl py-3 px-2 flex flex-col justify-center" style={{ background: "rgba(255,255,255,0.06)", border: `1px solid ${p.accent}40` }}>
+                      <p className="font-black text-sm">🎟 Tickets coming soon</p>
+                      <p className="mt-0.5 opacity-80">stay tuned</p>
+                    </div>
+                  )}
                 </div>
               </div>
             </Reveal>
-          ))}
+            );
+          })}
         </div>
         )}
       </section>

@@ -31,6 +31,7 @@ export type FlowEvent = {
     ageBand: string;
     dayKeys: string[] | null;
     withFood: boolean;
+    checkInStart: string | null;
     priceMemberCents: number;
     priceNonmemberCents: number;
   }[];
@@ -61,6 +62,7 @@ type Person = {
   days: string[];
   withFood: boolean;
   foodPref: "veg" | "non_veg" | "kid" | "none";
+  concertOnly: boolean;
 };
 
 type StepId = "welcome" | "you" | "party" | "days" | "food" | "membership" | "review" | "pay" | "done";
@@ -178,6 +180,18 @@ function passPrice(t: FlowEvent["ticketTypes"][number]): string {
   return `${formatCents(n)} / ${formatCents(m)}★`;
 }
 
+/** Drop the leading category token ("Adult : …") — the group header carries it. */
+function shortPassName(name: string): string {
+  return name.replace(/^(Adult|Youth[^:·-]*|Kid[^:·-]*|Little[^:·-]*|Under\s*5|Concert)\s*[:·\-—]\s*/i, "").trim() || name;
+}
+
+const PASS_GROUPS: { keys: string[]; label: string }[] = [
+  { keys: ["adult"], label: "Adult" },
+  { keys: ["child_5_18", "child_5_12"], label: "Youth 5–18" },
+  { keys: ["child_under_5"], label: "Under 5" },
+  { keys: ["concert"], label: "Concert" },
+];
+
 function OrderLines({ lines, promoApplied, promoCode, promoDiscount, membershipCents }: OrderData) {
   return (
     <div className="divide-y" style={{ borderColor: "var(--line)" }}>
@@ -187,14 +201,14 @@ function OrderLines({ lines, promoApplied, promoCode, promoDiscount, membershipC
         </p>
       ) : (
         lines.map((l) => (
-          <div key={l.person.id} className="flex items-start justify-between gap-3 py-2.5">
+          <div key={`${l.person.id}-${l.label}`} className="flex items-start justify-between gap-3 py-2.5">
             <div className="min-w-0">
               <p className="text-sm font-semibold truncate">
                 {l.person.isKid ? "🧒" : "🧑"} {l.person.firstName}
               </p>
               <p className="text-xs truncate" style={{ color: "var(--ink-soft)" }}>
                 {l.label}
-                {l.person.isKid ? " · kid meal" : l.person.withFood ? " · with food" : " · no food"}
+                {l.person.concertOnly ? " · concert" : l.person.isKid ? " · kid meal" : l.person.withFood ? " · with food" : " · no food"}
                 {l.memberPricing && " · member"}
               </p>
             </div>
@@ -220,23 +234,44 @@ function OrderLines({ lines, promoApplied, promoCode, promoDiscount, membershipC
 
 function PassList({ passes }: { passes: FlowEvent["ticketTypes"] }) {
   if (passes.length === 0) return null;
+  const known = new Set(PASS_GROUPS.flatMap((g) => g.keys));
+  const other = passes.filter((t) => !known.has(t.ageBand));
   return (
-    <details className="mt-4">
-      <summary className="text-sm font-semibold cursor-pointer select-none" style={{ color: "var(--sindoor)" }}>
-        All passes &amp; prices
-      </summary>
-      <p className="text-[11px] mt-1.5 mb-2" style={{ color: "var(--ink-soft)" }}>
-        Shown as non-member / member★
-      </p>
-      <div className="max-h-52 overflow-auto pr-1 grid gap-1.5">
-        {passes.map((t) => (
-          <div key={t.id} className="flex items-baseline justify-between gap-3 text-xs">
-            <span className="min-w-0 truncate" style={{ color: "var(--ink-soft)" }}>{t.name}</span>
-            <span className="whitespace-nowrap font-medium">{passPrice(t)}</span>
+    <div className="mt-4 pt-3 border-t" style={{ borderColor: "var(--line)" }}>
+      <p className="text-sm font-black">All passes &amp; prices</p>
+      <p className="text-[11px] mb-2.5" style={{ color: "var(--ink-soft)" }}>non-member / member★</p>
+      <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-1">
+        {PASS_GROUPS.map((g) => {
+          const items = passes.filter((t) => g.keys.includes(t.ageBand));
+          if (items.length === 0) return null;
+          return (
+            <div key={g.label}>
+              <p className="text-[11px] font-bold uppercase tracking-wide mb-1" style={{ color: "var(--terracotta)" }}>
+                {g.label}
+              </p>
+              <div className="grid gap-1">
+                {items.map((t) => (
+                  <div key={t.id} className="flex items-baseline justify-between gap-3 text-xs">
+                    <span className="min-w-0 truncate" style={{ color: "var(--ink-soft)" }}>{shortPassName(t.name)}</span>
+                    <span className="whitespace-nowrap font-medium">{passPrice(t)}</span>
+                  </div>
+                ))}
+              </div>
+            </div>
+          );
+        })}
+        {other.length > 0 && (
+          <div className="grid gap-1">
+            {other.map((t) => (
+              <div key={t.id} className="flex items-baseline justify-between gap-3 text-xs">
+                <span className="min-w-0 truncate" style={{ color: "var(--ink-soft)" }}>{t.name}</span>
+                <span className="whitespace-nowrap font-medium">{passPrice(t)}</span>
+              </div>
+            ))}
           </div>
-        ))}
+        )}
       </div>
-    </details>
+    </div>
   );
 }
 
@@ -321,6 +356,7 @@ export default function RegisterFlow({
   squareEnabled = true,
   zelleEnabled = true,
   membershipPriceCents = 3500,
+  concertDay = null,
 }: {
   event: FlowEvent;
   member: FlowMemberContext | null;
@@ -330,9 +366,27 @@ export default function RegisterFlow({
   squareEnabled?: boolean;
   zelleEnabled?: boolean;
   membershipPriceCents?: number;
+  concertDay?: string | null;
 }) {
   const router = useRouter();
   const dayCount = Math.max(event.days.length, 1);
+
+  // ── concert passes (ageBand "concert"): sold via their own opt-in, food-free ──
+  const concertPasses = useMemo(() => event.ticketTypes.filter((t) => t.ageBand === "concert"), [event.ticketTypes]);
+  const concertDays = useMemo(
+    () =>
+      event.days
+        .map((d) => {
+          const pass = concertPasses.find((t) => t.dayKeys == null || (t.dayKeys ?? []).includes(d.key));
+          return pass ? { key: d.key, label: d.label, passName: pass.name, time: pass.checkInStart ?? null } : null;
+        })
+        .filter((x): x is { key: string; label: string; passName: string; time: string | null } => x !== null),
+    [event.days, concertPasses]
+  );
+  const concertDayKeys = useMemo(() => concertDays.map((d) => d.key), [concertDays]);
+  const hasConcert = concertDays.length > 0;
+  // arriving from a poster "buy concert" link — start everyone in concert mode for that day
+  const initialConcertDay = concertDay && concertDayKeys.includes(concertDay) ? concertDay : null;
   const todayKey = useMemo(() => {
     const today = new Date().toISOString().slice(0, 10);
     return event.days.find((d) => d.date === today)?.key ?? event.days[0]?.key ?? "all";
@@ -342,7 +396,7 @@ export default function RegisterFlow({
   const canJoinMembership = !isMemberPurchase && !dayOfMode;
 
   // ── state ──
-  const [step, setStep] = useState<StepId>(member || dayOfMode ? "you" : "welcome");
+  const [step, setStep] = useState<StepId>(member || dayOfMode || initialConcertDay ? "you" : "welcome");
   const [direction, setDirection] = useState(1);
   const [buyerName, setBuyerName] = useState(member?.primaryName ?? "");
   const [buyerEmail, setBuyerEmail] = useState(member?.email ?? "");
@@ -399,16 +453,28 @@ export default function RegisterFlow({
   const quote = useMemo(() => {
     const lines: { person: Person; label: string; typeName: string; price: number; memberPricing: boolean }[] = [];
     for (const p of people) {
+      // Concert-only person: one concert-pass line per chosen concert day, no food.
+      if (p.concertOnly) {
+        for (const dayKey of p.days) {
+          const pass = concertPasses.find((t) => t.dayKeys == null || (t.dayKeys ?? []).includes(dayKey));
+          if (!pass) continue;
+          const memberPricing = wantsMembership || (isMemberPurchase && (p.isMemberFlagged || discountMode === "whole_family"));
+          const unit = memberPricing ? pass.priceMemberCents : pass.priceNonmemberCents;
+          const dLabel = event.days.find((d) => d.key === dayKey)?.label ?? dayKey.toUpperCase();
+          lines.push({ person: p, label: `🎶 ${dLabel}`, typeName: pass.name, price: unit < 0 ? 0 : unit, memberPricing });
+        }
+        continue;
+      }
       const band = p.isKid ? ((p.age ?? 6) < 5 ? "child_under_5" : "child_5_18") : "adult";
       const allDays = p.days.length >= dayCount;
       const cands = event.ticketTypes.filter((t) => {
+        if (t.ageBand === "concert") return false; // concert = dedicated flow, not auto-matched
         const bandOk =
           t.ageBand === band ||
           t.ageBand === "all" ||
-          t.ageBand === "concert" ||
           (band === "child_5_18" && t.ageBand === "child_5_12"); // legacy youth
         if (!bandOk) return false;
-        if (band === "adult" && t.ageBand !== "concert" && t.withFood !== p.withFood) return false;
+        if (band === "adult" && t.withFood !== p.withFood) return false;
         return true;
       });
       // exact day-combo (incl. full pass); else legacy per-day ticket (null dayKeys)
@@ -428,7 +494,7 @@ export default function RegisterFlow({
     }
     const subtotal = lines.reduce((s, l) => s + l.price, 0);
     return { lines, subtotal };
-  }, [people, event.ticketTypes, dayCount, isMemberPurchase, discountMode, wantsMembership]);
+  }, [people, event.ticketTypes, event.days, concertPasses, dayCount, isMemberPurchase, discountMode, wantsMembership]);
 
   const firstName = buyerName.trim().split(" ")[0] || "friend";
   const membershipCents = wantsMembership ? membershipPriceCents : 0;
@@ -461,14 +527,27 @@ export default function RegisterFlow({
           lastName: rest.join(" "),
           isKid: false,
           isMemberFlagged: isMemberPurchase,
-          days: dayOfMode ? [todayKey] : event.days.map((d) => d.key),
-          withFood: true,
-          foodPref: "non_veg",
+          days: initialConcertDay ? [initialConcertDay] : dayOfMode ? [todayKey] : event.days.map((d) => d.key),
+          withFood: !initialConcertDay,
+          foodPref: initialConcertDay ? "none" : "non_veg",
+          concertOnly: !!initialConcertDay,
         },
         ...prev,
       ];
     });
   };
+
+  // Flip one person (or everyone) between a full pujo pass and a concert-only ticket.
+  const applyConcert = (p: Person, on: boolean): Person => ({
+    ...p,
+    concertOnly: on,
+    days: on ? concertDayKeys : event.days.map((d) => d.key),
+    withFood: on ? false : p.isKid ? true : p.withFood,
+    foodPref: on ? "none" : p.isKid ? "kid" : p.foodPref === "none" ? "non_veg" : p.foodPref,
+  });
+  const togglePersonConcert = (id: string, on: boolean) =>
+    setPeople((prev) => prev.map((p) => (p.id === id ? applyConcert(p, on) : p)));
+  const setAllConcert = (on: boolean) => setPeople((prev) => prev.map((p) => applyConcert(p, on)));
 
   const addDraft = () => {
     if (!draftName.trim() || !draftKind) return;
@@ -482,9 +561,10 @@ export default function RegisterFlow({
         isKid: draftKind === "kid",
         age: draftKind === "kid" ? parseInt(draftAge || "8", 10) : undefined,
         isMemberFlagged: false,
-        days: dayOfMode ? [todayKey] : event.days.map((d) => d.key),
-        withFood: true,
-        foodPref: draftKind === "kid" ? "kid" : "non_veg",
+        days: initialConcertDay ? [initialConcertDay] : dayOfMode ? [todayKey] : event.days.map((d) => d.key),
+        withFood: !initialConcertDay,
+        foodPref: initialConcertDay ? "none" : draftKind === "kid" ? "kid" : "non_veg",
+        concertOnly: !!initialConcertDay,
       },
     ]);
     setDraftName("");
@@ -507,9 +587,10 @@ export default function RegisterFlow({
           isKid,
           age,
           isMemberFlagged: f.isMember,
-          days: dayOfMode ? [todayKey] : event.days.map((d) => d.key),
-          withFood: true,
-          foodPref: isKid ? "kid" : f.foodPref,
+          days: initialConcertDay ? [initialConcertDay] : dayOfMode ? [todayKey] : event.days.map((d) => d.key),
+          withFood: !initialConcertDay,
+          foodPref: initialConcertDay ? "none" : isKid ? "kid" : f.foodPref,
+          concertOnly: !!initialConcertDay,
         },
       ];
     });
@@ -537,8 +618,9 @@ export default function RegisterFlow({
         age: p.age,
         isMemberFlagged: p.isMemberFlagged,
         days: p.days,
-        withFood: p.withFood,
-        foodPref: p.isKid ? "kid" : p.withFood ? p.foodPref : "none",
+        withFood: p.concertOnly ? false : p.withFood,
+        foodPref: p.concertOnly ? "none" : p.isKid ? "kid" : p.withFood ? p.foodPref : "none",
+        concertOnly: p.concertOnly,
       })),
     });
     setBusy(false);
@@ -564,7 +646,7 @@ export default function RegisterFlow({
       <span className="petal-drop" style={{ left: "8%", animationDelay: "1s" }} aria-hidden />
       <span className="petal-drop pale" style={{ left: "88%", animationDelay: "5s" }} aria-hidden />
 
-      <div className={`mx-auto max-w-3xl px-5 py-8 md:py-10 ${showPanel ? "lg:max-w-6xl lg:grid lg:grid-cols-[minmax(0,1fr)_340px] lg:gap-10 lg:items-start" : ""}`}>
+      <div className={`mx-auto max-w-3xl px-5 py-8 md:py-10 ${showPanel ? "lg:max-w-[1280px] lg:grid lg:grid-cols-[minmax(0,1fr)_380px] lg:gap-10 lg:items-start" : ""}`}>
         <div className={`min-w-0 ${showPanel ? "pb-24 lg:pb-0" : ""}`}>
         {/* the Pujo Journey — your family walks to the pandal as you answer */}
         <JourneyScene step={step} people={people.map((p) => ({ isKid: p.isKid }))} />
@@ -718,35 +800,60 @@ export default function RegisterFlow({
           {step === "days" && (
             <Card k="days" direction={direction} onBack={stepIndex > 0 ? goBack : undefined}>
               <H>Which days?</H>
-              <Sub>Three days of pujo. Everyone can have their own plan — grandma can do Sunday only.</Sub>
-              <button
-                className="choice-chip w-full mb-6 justify-center !py-4 text-lg"
-                data-selected={people.every((p) => p.days.length === dayCount)}
-                onClick={() => setPeople((prev) => prev.map((p) => ({ ...p, days: event.days.map((d) => d.key) })))}
-              >
-                🎉 Everyone, all {dayCount} days
-              </button>
+              <Sub>Everyone can have their own plan — grandma can do Sunday only{hasConcert ? ", or come just for a concert" : ""}.</Sub>
+              <div className="grid gap-2.5 mb-6">
+                <button
+                  className="choice-chip w-full justify-center !py-4 text-lg"
+                  data-selected={people.length > 0 && people.every((p) => !p.concertOnly && p.days.length === dayCount)}
+                  onClick={() => setAllConcert(false)}
+                >
+                  🎉 Everyone, all {dayCount} days
+                </button>
+                {hasConcert && (
+                  <button
+                    className="choice-chip w-full justify-center !py-3.5"
+                    data-selected={people.length > 0 && people.every((p) => p.concertOnly)}
+                    onClick={() => setAllConcert(true)}
+                  >
+                    🎶 Everyone&apos;s here just for the concert
+                  </button>
+                )}
+              </div>
               <div className="grid gap-4">
-                {people.map((p) => (
-                  <PersonRow key={p.id} title={<>{p.isKid ? "🧒" : "🧑"} {p.firstName}</>}>
-                    <div className="flex flex-wrap gap-2.5">
-                      {event.days.map((d) => (
-                        <button
-                          key={d.key}
-                          className="choice-chip !py-2.5 !px-4 text-sm"
-                          data-selected={p.days.includes(d.key)}
-                          onClick={() =>
-                            updatePerson(p.id, {
-                              days: p.days.includes(d.key) ? p.days.filter((x) => x !== d.key) : [...p.days, d.key],
-                            })
-                          }
-                        >
-                          {d.label}
-                        </button>
-                      ))}
-                    </div>
-                  </PersonRow>
-                ))}
+                {people.map((p) => {
+                  const options = (p.concertOnly ? concertDays : event.days) as { key: string; label: string }[];
+                  return (
+                    <PersonRow key={p.id} title={<>{p.isKid ? "🧒" : "🧑"} {p.firstName}</>}>
+                      {hasConcert && (
+                        <label className="flex items-center gap-2 mb-3 text-sm font-medium cursor-pointer">
+                          <input
+                            type="checkbox"
+                            className="accent-[var(--sindoor)] w-4 h-4"
+                            checked={p.concertOnly}
+                            onChange={(e) => togglePersonConcert(p.id, e.target.checked)}
+                          />
+                          🎶 Concert only (no pujo pass, no meal)
+                        </label>
+                      )}
+                      <div className="flex flex-wrap gap-2.5">
+                        {options.map((d) => (
+                          <button
+                            key={d.key}
+                            className="choice-chip !py-2.5 !px-4 text-sm"
+                            data-selected={p.days.includes(d.key)}
+                            onClick={() =>
+                              updatePerson(p.id, {
+                                days: p.days.includes(d.key) ? p.days.filter((x) => x !== d.key) : [...p.days, d.key],
+                              })
+                            }
+                          >
+                            {p.concertOnly ? `🎶 ${d.label}` : d.label}
+                          </button>
+                        ))}
+                      </div>
+                    </PersonRow>
+                  );
+                })}
               </div>
               <NextBtn disabled={people.some((p) => p.days.length === 0)} onClick={goNext} />
             </Card>
@@ -760,7 +867,9 @@ export default function RegisterFlow({
               <div className="grid gap-4">
                 {people.map((p) => (
                   <PersonRow key={p.id} title={<>{p.isKid ? "🧒" : "🧑"} {p.firstName}</>}>
-                    {p.isKid ? (
+                    {p.concertOnly ? (
+                      <p style={{ color: "var(--ink-soft)" }}>🎶 Concert ticket — no meal</p>
+                    ) : p.isKid ? (
                       <p style={{ color: "var(--ink-soft)" }}>Kid&apos;s meal included 🍚</p>
                     ) : (
                       <div className="flex flex-wrap gap-2.5">
@@ -820,13 +929,13 @@ export default function RegisterFlow({
               <Sub>Check everything over — you can go back and change anything.</Sub>
               <div className="hairline rounded-2xl divide-y overflow-hidden" style={{ borderColor: "var(--line)" }}>
                 {quote.lines.map((l, i) => (
-                  <motion.div key={l.person.id} initial={{ opacity: 0, x: -14 }} animate={{ opacity: 1, x: 0 }} transition={{ delay: i * 0.08 }} className="flex items-center justify-between gap-3 px-5 py-4" style={{ borderColor: "var(--line)" }}>
+                  <motion.div key={`${l.person.id}-${l.label}`} initial={{ opacity: 0, x: -14 }} animate={{ opacity: 1, x: 0 }} transition={{ delay: i * 0.08 }} className="flex items-center justify-between gap-3 px-5 py-4" style={{ borderColor: "var(--line)" }}>
                     <div>
                       <p className="font-semibold text-[17px]">
                         {l.person.isKid ? "🧒" : "🧑"} {l.person.firstName} {l.person.lastName}
                       </p>
                       <p className="text-sm mt-0.5" style={{ color: "var(--ink-soft)" }}>
-                        {l.label} · {l.person.isKid ? "kid meal" : l.person.withFood ? `food: ${l.person.foodPref.replace("_", "-")}` : "no food"}
+                        {l.label} · {l.person.concertOnly ? "concert · no meal" : l.person.isKid ? "kid meal" : l.person.withFood ? `food: ${l.person.foodPref.replace("_", "-")}` : "no food"}
                         {l.memberPricing && (
                           <span className="ml-1.5 font-semibold" style={{ color: "var(--leaf-deep)" }}>
                             member price ✓

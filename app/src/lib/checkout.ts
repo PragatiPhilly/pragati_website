@@ -22,9 +22,10 @@ export type CheckoutAttendee = {
   isKid: boolean;
   age?: number;
   isMemberFlagged?: boolean;
-  days: string[]; // e.g. ['sat'] or ['fri','sat','sun']
+  days: string[]; // e.g. ['sat'] or ['fri','sat','sun'] — for concertOnly, the concert day(s)
   withFood: boolean;
   foodPref: "veg" | "non_veg" | "kid" | "none";
+  concertOnly?: boolean; // buys a concert pass per chosen day, no food, timed check-in
 };
 
 export type CheckoutInput = {
@@ -63,14 +64,15 @@ export function resolveTicketType(
   // "all" and legacy "child_5_12" are still honored for older data.
   const band = a.isKid ? (a.age !== undefined && a.age < 5 ? "child_under_5" : "child_5_18") : "adult";
   const candidates = types.filter((t) => {
+    // Concert passes are sold ONLY via the dedicated concert flow — never
+    // auto-matched here (that would mis-assign a day-pass buyer to a concert).
+    if (t.ageBand === "concert") return false;
     const bandOk =
       t.ageBand === band ||
       t.ageBand === "all" ||
-      t.ageBand === "concert" ||
       (band === "child_5_18" && t.ageBand === "child_5_12"); // legacy youth value
     if (!bandOk) return false;
-    // adults choose with/without food; concert passes aren't food-gated
-    if (band === "adult" && t.ageBand !== "concert" && t.withFood !== a.withFood) return false;
+    if (band === "adult" && t.withFood !== a.withFood) return false;
     return true;
   });
   // 1) exact day-combo match — a full pass is simply the combo covering every day
@@ -116,7 +118,30 @@ export async function createCheckout(input: CheckoutInput): Promise<CheckoutResu
   const effDiscountMode: "per_adult" | "whole_family" = wantsMembership ? "whole_family" : discountMode;
 
   const expanded: { attendee: AttendeeInput; day?: string }[] = [];
+  const concertPasses = types.filter((t) => t.ageBand === "concert");
   for (const a of input.attendees) {
+    // Concert-only attendee: one concert pass per chosen concert day, never food.
+    if (a.concertOnly) {
+      for (const day of a.days) {
+        const t =
+          concertPasses.find((tt) => Array.isArray(tt.dayKeys) && (tt.dayKeys as string[]).includes(day)) ??
+          concertPasses.find((tt) => tt.dayKeys == null);
+        if (!t) continue;
+        expanded.push({
+          attendee: {
+            firstName: a.firstName,
+            lastName: a.lastName,
+            isKid: a.isKid,
+            age: a.age,
+            isMemberFlagged: a.isMemberFlagged ?? false,
+            foodPref: "none",
+            ticketTypeId: t.id,
+          },
+          day,
+        });
+      }
+      continue;
+    }
     const { type, mode } = resolveTicketType(a, types, dayCount);
     const base: Omit<AttendeeInput, "ticketTypeId"> = {
       firstName: a.firstName,
@@ -365,6 +390,11 @@ export async function sendTicketsEmail(registrationId: string, opts: { resend?: 
     return `Check-in opens at ${nice}${day?.label ? ` on ${day.label}` : ""} — this pass won't scan before then.`;
   };
 
+  const fee = reg.processingFeeCents ?? 0;
+  const discount = reg.discountCents ?? 0;
+  const subtotal = reg.subtotalCents ?? 0;
+  const membership = Math.max(0, (reg.totalCents ?? 0) - (subtotal - discount)); // dues folded into total
+  const totalPaid = (reg.totalCents ?? 0) + fee; // card fee is on top of the grand total
   const mail = T.ticketsEmail({
     buyerName: reg.buyerName,
     conf: reg.confirmationNumber,
@@ -376,7 +406,11 @@ export async function sendTicketsEmail(registrationId: string, opts: { resend?: 
       passUrl: `${base}/t/${t.qrCode}`,
       note: checkInNote(t),
     })),
-    totalCents: reg.totalCents,
+    subtotalCents: subtotal,
+    discountCents: discount,
+    membershipCents: membership,
+    feeCents: fee,
+    totalPaidCents: totalPaid,
     lookupUrl: `${base}/lookup?email=${encodeURIComponent(reg.buyerEmail)}&conf=${reg.confirmationNumber}`,
     printUrl: `${base}/tickets/${reg.confirmationNumber}/print?email=${encodeURIComponent(reg.buyerEmail)}`,
     orgName,

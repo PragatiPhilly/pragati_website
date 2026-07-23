@@ -33,7 +33,11 @@ export function ticketsEmail(p: {
   conf: string;
   eventName: string;
   lines: { name: string; type: string; price: number; passUrl: string; note?: string }[];
-  totalCents: number;
+  subtotalCents: number;
+  discountCents: number;
+  membershipCents: number;
+  feeCents: number;
+  totalPaidCents: number;
   lookupUrl: string;
   printUrl: string;
   orgName: string;
@@ -46,6 +50,15 @@ export function ticketsEmail(p: {
         (l.note ? `\n     ⏰ ${l.note}` : "")
     )
     .join("\n\n");
+  const summary = [
+    `Subtotal:            ${formatCents(p.subtotalCents)}`,
+    p.discountCents > 0 ? `Discount:           −${formatCents(p.discountCents)}` : null,
+    p.membershipCents > 0 ? `Membership (1 yr):   ${formatCents(p.membershipCents)}` : null,
+    p.feeCents > 0 ? `Card processing fee: ${formatCents(p.feeCents)}` : null,
+    `Total paid:          ${formatCents(p.totalPaidCents)}`,
+  ]
+    .filter(Boolean)
+    .join("\n");
   return {
     subject: `${p.resend ? "(Resent) " : ""}Your tickets for ${p.eventName} 🎟 ${p.conf}`,
     text: `Namaskar ${p.buyerName},
@@ -54,7 +67,8 @@ ${p.resend ? `Here are your tickets again, as requested. ` : `Your payment is co
 
 ${lineText}
 
-Total paid: ${formatCents(p.totalCents)}
+── Payment summary ────────────────────────
+${summary}
 Confirmation number: ${p.conf}
 
 ── Your Pujo Pass ─────────────────────────

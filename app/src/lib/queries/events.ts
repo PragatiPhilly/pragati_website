@@ -21,6 +21,22 @@ export async function listPublishedEvents() {
     .orderBy(asc(schema.events.startsAt));
 }
 
+/** Concert-band passes for an event (homepage poster "buy" buttons). */
+export async function getConcertPasses(eventId: string) {
+  const db = getDb();
+  return db
+    .select()
+    .from(schema.ticketTypes)
+    .where(
+      and(
+        eq(schema.ticketTypes.eventId, eventId),
+        eq(schema.ticketTypes.ageBand, "concert"),
+        isNull(schema.ticketTypes.archivedAt)
+      )
+    )
+    .orderBy(asc(schema.ticketTypes.displayOrder));
+}
+
 export async function getEventBySlug(slug: string) {
   const db = getDb();
   const [event] = await db.select().from(schema.events).where(eq(schema.events.slug, slug));

@@ -13,9 +13,9 @@ export const metadata = { title: "Register" };
 export default async function RegisterPage({
   searchParams,
 }: {
-  searchParams: Promise<{ event?: string; mode?: string }>;
+  searchParams: Promise<{ event?: string; mode?: string; concert?: string }>;
 }) {
-  const { event: slugParam, mode } = await searchParams;
+  const { event: slugParam, mode, concert } = await searchParams;
   const base = slugParam ? { slug: slugParam } : await getActiveEvent();
   if (!base) notFound();
   const full = await getEventBySlug(base.slug);
@@ -84,6 +84,7 @@ export default async function RegisterPage({
       ageBand: t.ageBand,
       dayKeys: (t.dayKeys as string[] | null) ?? null,
       withFood: t.withFood,
+      checkInStart: t.checkInStart ?? null,
       priceMemberCents: t.priceMemberCents,
       priceNonmemberCents: t.priceNonmemberCents,
     })),
@@ -101,6 +102,7 @@ export default async function RegisterPage({
         squareEnabled={squareEnabled}
         zelleEnabled={zelleEnabled}
         membershipPriceCents={membershipPriceCents}
+        concertDay={concert ?? null}
       />
     </>
   );
