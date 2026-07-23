@@ -257,7 +257,7 @@ function TotalRow({ total, cardFee }: { total: number; cardFee: number }) {
       </div>
       {total > 0 && (
         <p className="text-[11px] mt-1.5" style={{ color: "var(--ink-soft)" }}>
-          +{formatCents(cardFee)} card processing fee if you pay by card.
+          +{formatCents(cardFee)} card processing fee.
         </p>
       )}
     </>
