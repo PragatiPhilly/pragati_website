@@ -151,11 +151,10 @@ export default function EventForm({ initial }: { initial: EventInput }) {
                   <label className="text-xs font-semibold grid gap-1" style={{ color: "var(--ink-soft)" }}>
                     Who it&apos;s for
                     <select className="input" value={t.ageBand} onChange={(e) => setTicket(i, { ageBand: e.target.value })}>
-                      <option value="adult">Adult</option>
-                      <option value="child_5_12">Kid 5–12</option>
+                      <option value="adult">Adult (18+)</option>
+                      <option value="child_5_18">Youth (5–18)</option>
                       <option value="child_under_5">Under 5</option>
-                      <option value="senior">Senior</option>
-                      <option value="all">Everyone</option>
+                      <option value="concert">Concert</option>
                     </select>
                   </label>
                 </div>

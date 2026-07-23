@@ -1,4 +1,4 @@
-import { asc, eq } from "drizzle-orm";
+import { and, asc, eq, isNull } from "drizzle-orm";
 import { notFound } from "next/navigation";
 import { getDb, schema } from "@/db/client";
 import EventForm from "../../EventForm";
@@ -18,8 +18,8 @@ export default async function EditEventPage({ params }: { params: Promise<{ id: 
   const db = getDb();
   const [ev] = await db.select().from(schema.events).where(eq(schema.events.id, id));
   if (!ev) notFound();
-  const types = await db.select().from(schema.ticketTypes).where(eq(schema.ticketTypes.eventId, id)).orderBy(asc(schema.ticketTypes.displayOrder));
-  const promos = await db.select().from(schema.promoCodes).where(eq(schema.promoCodes.eventId, id));
+  const types = await db.select().from(schema.ticketTypes).where(and(eq(schema.ticketTypes.eventId, id), isNull(schema.ticketTypes.archivedAt))).orderBy(asc(schema.ticketTypes.displayOrder));
+  const promos = await db.select().from(schema.promoCodes).where(and(eq(schema.promoCodes.eventId, id), isNull(schema.promoCodes.archivedAt)));
 
   // The event's authoritative day-keys, derived from its current date range.
   // We filter each ticket's stored dayKeys to this set so a stale key from an
@@ -46,7 +46,8 @@ export default async function EditEventPage({ params }: { params: Promise<{ id: 
           ticketTypes: types.map((t) => ({
             id: t.id,
             name: t.name,
-            ageBand: t.ageBand,
+            ageBand: t.ageBand === "child_5_12" ? "child_5_18" : t.ageBand, // legacy youth → new value
+
             dayKeys: (Array.isArray(t.dayKeys) ? (t.dayKeys as string[]) : [...eventDayKeys]).filter(
               (k) => eventDayKeys.size === 0 || eventDayKeys.has(k),
             ),

@@ -155,6 +155,163 @@ function PersonRow({ title, children }: { title: React.ReactNode; children: Reac
   );
 }
 
+/** ── live price panel (desktop side rail + mobile bottom sheet) ── */
+
+type QuoteLine = { person: Person; label: string; typeName: string; price: number; memberPricing: boolean };
+
+type OrderData = {
+  lines: QuoteLine[];
+  promoApplied: boolean;
+  promoCode: string;
+  promoDiscount: number;
+  membershipCents: number;
+  total: number;
+  cardFee: number;
+  passes: FlowEvent["ticketTypes"];
+};
+
+function passPrice(t: FlowEvent["ticketTypes"][number]): string {
+  const m = t.priceMemberCents;
+  const n = t.priceNonmemberCents;
+  if (m === 0 && n <= 0) return "Free";
+  if (n < 0) return `${formatCents(m)} · members`;
+  return `${formatCents(n)} / ${formatCents(m)}★`;
+}
+
+function OrderLines({ lines, promoApplied, promoCode, promoDiscount, membershipCents }: OrderData) {
+  return (
+    <div className="divide-y" style={{ borderColor: "var(--line)" }}>
+      {lines.length === 0 ? (
+        <p className="text-sm py-2.5" style={{ color: "var(--ink-soft)" }}>
+          Add people and pick days to see prices build up here.
+        </p>
+      ) : (
+        lines.map((l) => (
+          <div key={l.person.id} className="flex items-start justify-between gap-3 py-2.5">
+            <div className="min-w-0">
+              <p className="text-sm font-semibold truncate">
+                {l.person.isKid ? "🧒" : "🧑"} {l.person.firstName}
+              </p>
+              <p className="text-xs truncate" style={{ color: "var(--ink-soft)" }}>
+                {l.label}
+                {l.person.isKid ? " · kid meal" : l.person.withFood ? " · with food" : " · no food"}
+                {l.memberPricing && " · member"}
+              </p>
+            </div>
+            <p className="text-sm font-bold whitespace-nowrap">{l.price === 0 ? "Free" : formatCents(l.price)}</p>
+          </div>
+        ))
+      )}
+      {promoApplied && (
+        <div className="flex items-center justify-between py-2 text-sm font-semibold" style={{ color: "var(--leaf-deep)" }}>
+          <span>Promo {promoCode}</span>
+          <span>−{formatCents(promoDiscount)}</span>
+        </div>
+      )}
+      {membershipCents > 0 && (
+        <div className="flex items-center justify-between py-2 text-sm">
+          <span>🌟 Membership · 1 year</span>
+          <span className="font-semibold">{formatCents(membershipCents)}</span>
+        </div>
+      )}
+    </div>
+  );
+}
+
+function PassList({ passes }: { passes: FlowEvent["ticketTypes"] }) {
+  if (passes.length === 0) return null;
+  return (
+    <details className="mt-4">
+      <summary className="text-sm font-semibold cursor-pointer select-none" style={{ color: "var(--sindoor)" }}>
+        All passes &amp; prices
+      </summary>
+      <p className="text-[11px] mt-1.5 mb-2" style={{ color: "var(--ink-soft)" }}>
+        Shown as non-member / member★
+      </p>
+      <div className="max-h-52 overflow-auto pr-1 grid gap-1.5">
+        {passes.map((t) => (
+          <div key={t.id} className="flex items-baseline justify-between gap-3 text-xs">
+            <span className="min-w-0 truncate" style={{ color: "var(--ink-soft)" }}>{t.name}</span>
+            <span className="whitespace-nowrap font-medium">{passPrice(t)}</span>
+          </div>
+        ))}
+      </div>
+    </details>
+  );
+}
+
+function TotalRow({ total, cardFee }: { total: number; cardFee: number }) {
+  return (
+    <>
+      <div className="flex items-baseline justify-between mt-3 pt-3 border-t" style={{ borderColor: "var(--line)" }}>
+        <span className="font-bold">Total</span>
+        <motion.span
+          key={total}
+          initial={{ scale: 1.12 }}
+          animate={{ scale: 1 }}
+          className="font-[family-name:var(--font-display)] text-2xl font-black"
+          style={{ color: "var(--sindoor)" }}
+        >
+          {formatCents(total)}
+        </motion.span>
+      </div>
+      {total > 0 && (
+        <p className="text-[11px] mt-1.5" style={{ color: "var(--ink-soft)" }}>
+          +{formatCents(cardFee)} card processing fee if you pay by card.
+        </p>
+      )}
+    </>
+  );
+}
+
+function DesktopOrderRail(props: OrderData) {
+  return (
+    <aside className="hidden lg:block sticky top-6 self-start">
+      <div className="festive-card p-5">
+        <p className="font-[family-name:var(--font-display)] text-lg font-black mb-3">Your order</p>
+        <OrderLines {...props} />
+        <TotalRow total={props.total} cardFee={props.cardFee} />
+        <PassList passes={props.passes} />
+      </div>
+    </aside>
+  );
+}
+
+function MobileOrderBar(props: OrderData) {
+  const [open, setOpen] = useState(false);
+  return (
+    <div className="lg:hidden fixed inset-x-0 bottom-0 z-40">
+      {open && (
+        <div className="mx-auto max-w-3xl px-4">
+          <div className="festive-card p-4 mb-2 max-h-[55vh] overflow-auto" style={{ boxShadow: "var(--shadow)" }}>
+            <OrderLines {...props} />
+            <TotalRow total={props.total} cardFee={props.cardFee} />
+            <PassList passes={props.passes} />
+          </div>
+        </div>
+      )}
+      <div className="border-t" style={{ background: "var(--bg)", borderColor: "var(--line)" }}>
+        <div className="mx-auto max-w-3xl px-4 py-3 flex items-center justify-between gap-3">
+          <button
+            type="button"
+            onClick={() => setOpen((o) => !o)}
+            className="text-sm font-semibold inline-flex items-center gap-1.5"
+            style={{ color: "var(--sindoor)" }}
+          >
+            {open ? "Hide breakdown ▾" : "View breakdown ▴"}
+          </button>
+          <div className="text-right leading-none">
+            <p className="text-[10px] uppercase tracking-wider" style={{ color: "var(--ink-soft)" }}>Total so far</p>
+            <p className="font-[family-name:var(--font-display)] text-xl font-black mt-0.5" style={{ color: "var(--sindoor)" }}>
+              {formatCents(props.total)}
+            </p>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 export default function RegisterFlow({
   event,
   member,
@@ -242,11 +399,18 @@ export default function RegisterFlow({
   const quote = useMemo(() => {
     const lines: { person: Person; label: string; typeName: string; price: number; memberPricing: boolean }[] = [];
     for (const p of people) {
-      const band = p.isKid ? ((p.age ?? 6) < 5 ? "child_under_5" : "child_5_12") : "adult";
+      const band = p.isKid ? ((p.age ?? 6) < 5 ? "child_under_5" : "child_5_18") : "adult";
       const allDays = p.days.length >= dayCount;
-      const cands = event.ticketTypes.filter(
-        (t) => (t.ageBand === band || t.ageBand === "all") && (band !== "adult" || t.withFood === p.withFood)
-      );
+      const cands = event.ticketTypes.filter((t) => {
+        const bandOk =
+          t.ageBand === band ||
+          t.ageBand === "all" ||
+          t.ageBand === "concert" ||
+          (band === "child_5_18" && t.ageBand === "child_5_12"); // legacy youth
+        if (!bandOk) return false;
+        if (band === "adult" && t.ageBand !== "concert" && t.withFood !== p.withFood) return false;
+        return true;
+      });
       // exact day-combo (incl. full pass); else legacy per-day ticket (null dayKeys)
       const exact = cands.find((t) => Array.isArray(t.dayKeys) && sameDaySet(t.dayKeys, p.days));
       const type = exact ?? cands.find((t) => t.dayKeys == null);
@@ -271,6 +435,20 @@ export default function RegisterFlow({
   const total = Math.max(0, quote.subtotal - promo.discountCents) + membershipCents;
   const cardFee = cardProcessingFeeCents(total);
   const cardTotal = total + cardFee;
+
+  // Live price panel — shown on the selection/checkout steps so the running
+  // total is never a surprise. Hidden on the intro, "you", and done screens.
+  const showPanel = step !== "welcome" && step !== "you" && step !== "done";
+  const orderData: OrderData = {
+    lines: quote.lines,
+    promoApplied: promo.state === "applied",
+    promoCode,
+    promoDiscount: promo.discountCents,
+    membershipCents,
+    total,
+    cardFee,
+    passes: event.ticketTypes,
+  };
 
   const ensureSelfInParty = () => {
     setPeople((prev) => {
@@ -319,7 +497,7 @@ export default function RegisterFlow({
     setPeople((prev) => {
       if (prev.some((p) => p.id === key)) return prev.filter((p) => p.id !== key);
       const age = ageFromDob(f.dateOfBirth);
-      const isKid = f.relationship === "child" && (age === undefined || age < 13);
+      const isKid = f.relationship === "child" && (age === undefined || age < 18);
       return [
         ...prev,
         {
@@ -386,7 +564,8 @@ export default function RegisterFlow({
       <span className="petal-drop" style={{ left: "8%", animationDelay: "1s" }} aria-hidden />
       <span className="petal-drop pale" style={{ left: "88%", animationDelay: "5s" }} aria-hidden />
 
-      <div className="mx-auto max-w-3xl px-5 py-8 md:py-10">
+      <div className={`mx-auto max-w-3xl px-5 py-8 md:py-10 ${showPanel ? "lg:max-w-6xl lg:grid lg:grid-cols-[minmax(0,1fr)_340px] lg:gap-10 lg:items-start" : ""}`}>
+        <div className={`min-w-0 ${showPanel ? "pb-24 lg:pb-0" : ""}`}>
         {/* the Pujo Journey — your family walks to the pandal as you answer */}
         <JourneyScene step={step} people={people.map((p) => ({ isKid: p.isKid }))} />
         {step !== "done" && (
@@ -812,8 +991,10 @@ export default function RegisterFlow({
             </Card>
           )}
         </AnimatePresence>
-
+        </div>
+        {showPanel && <DesktopOrderRail {...orderData} />}
       </div>
+      {showPanel && <MobileOrderBar {...orderData} />}
     </div>
   );
 }

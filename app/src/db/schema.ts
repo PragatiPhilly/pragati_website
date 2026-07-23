@@ -145,6 +145,7 @@ export const ticketTypes = pgTable(
     saleStartsAt: timestamp("sale_starts_at", { withTimezone: true }),
     saleEndsAt: timestamp("sale_ends_at", { withTimezone: true }),
     displayOrder: integer("display_order").notNull().default(0),
+    archivedAt: timestamp("archived_at", { withTimezone: true }), // removed-but-sold: hidden everywhere, kept for records
     createdAt: createdAt(),
     updatedAt: updatedAt(),
   },
@@ -166,6 +167,7 @@ export const promoCodes = pgTable(
     validFrom: timestamp("valid_from", { withTimezone: true }),
     validUntil: timestamp("valid_until", { withTimezone: true }),
     createdBy: text("created_by"),
+    archivedAt: timestamp("archived_at", { withTimezone: true }), // removed-but-used: hidden, kept for records
     createdAt: createdAt(),
   },
   (t) => [uniqueIndex("promo_event_code_idx").on(t.eventId, t.code)]

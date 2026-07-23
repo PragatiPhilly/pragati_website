@@ -1,7 +1,7 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
-import { eq } from "drizzle-orm";
+import { and, eq, isNull } from "drizzle-orm";
 import { getDb, schema } from "@/db/client";
 import { requireAdmin } from "@/lib/auth/session";
 import { buildEventDays } from "@/lib/event-days";
@@ -86,8 +86,12 @@ export async function saveEventAction(input: EventInput): Promise<{ ok: boolean;
     eventId = ev.id;
   }
 
-  // ── ticket types: update / insert / remove-if-unsold ──
-  const existing = await db.select().from(schema.ticketTypes).where(eq(schema.ticketTypes.eventId, eventId));
+  // ── ticket types: update / insert / remove ──
+  // Only reconcile against LIVE (non-archived) rows; archived ones stay hidden.
+  const existing = await db
+    .select()
+    .from(schema.ticketTypes)
+    .where(and(eq(schema.ticketTypes.eventId, eventId), isNull(schema.ticketTypes.archivedAt)));
   const keptIds = new Set<string>();
   for (let i = 0; i < input.ticketTypes.length; i++) {
     const t = input.ticketTypes[i];
@@ -117,14 +121,23 @@ export async function saveEventAction(input: EventInput): Promise<{ ok: boolean;
       keptIds.add(nt.id);
     }
   }
+  // Removed rows: hard-delete if nothing was ever sold; otherwise archive
+  // (tickets reference ticket_types, so a sold row can't be deleted — archiving
+  // hides it from every list + registration while preserving history).
   for (const e of existing) {
-    if (!keptIds.has(e.id) && e.soldCount === 0) {
+    if (keptIds.has(e.id)) continue;
+    if (e.soldCount > 0) {
+      await db.update(schema.ticketTypes).set({ archivedAt: new Date(), updatedAt: new Date() }).where(eq(schema.ticketTypes.id, e.id));
+    } else {
       await db.delete(schema.ticketTypes).where(eq(schema.ticketTypes.id, e.id));
     }
   }
 
   // ── promo codes ──
-  const existingPromos = await db.select().from(schema.promoCodes).where(eq(schema.promoCodes.eventId, eventId));
+  const existingPromos = await db
+    .select()
+    .from(schema.promoCodes)
+    .where(and(eq(schema.promoCodes.eventId, eventId), isNull(schema.promoCodes.archivedAt)));
   const keptPromos = new Set<string>();
   for (const p of input.promoCodes) {
     if (!p.code.trim()) continue;
@@ -145,7 +158,10 @@ export async function saveEventAction(input: EventInput): Promise<{ ok: boolean;
     }
   }
   for (const e of existingPromos) {
-    if (!keptPromos.has(e.id) && e.currentUses === 0) {
+    if (keptPromos.has(e.id)) continue;
+    if (e.currentUses > 0) {
+      await db.update(schema.promoCodes).set({ archivedAt: new Date() }).where(eq(schema.promoCodes.id, e.id));
+    } else {
       await db.delete(schema.promoCodes).where(eq(schema.promoCodes.id, e.id));
     }
   }

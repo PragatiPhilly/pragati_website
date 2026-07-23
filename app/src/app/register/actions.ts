@@ -27,12 +27,12 @@ export type PromoCheck =
 
 export async function validatePromoAction(eventId: string, code: string, subtotalCents: number): Promise<PromoCheck> {
   const { getDb, schema } = await import("@/db/client");
-  const { and, eq } = await import("drizzle-orm");
+  const { and, eq, isNull } = await import("drizzle-orm");
   const db = getDb();
   const [p] = await db
     .select()
     .from(schema.promoCodes)
-    .where(and(eq(schema.promoCodes.code, code.trim().toUpperCase()), eq(schema.promoCodes.eventId, eventId)));
+    .where(and(eq(schema.promoCodes.code, code.trim().toUpperCase()), eq(schema.promoCodes.eventId, eventId), isNull(schema.promoCodes.archivedAt)));
   if (!p) return { valid: false, message: "That code doesn't exist for this event." };
   const now = new Date();
   if (p.validFrom && p.validFrom > now) return { valid: false, message: "That code isn't active yet." };

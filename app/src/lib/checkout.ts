@@ -3,7 +3,7 @@
  * rails, marks paid, sends emails. Used by the register flow, the Square
  * webhook, and the admin Zelle queue.
  */
-import { and, eq, sql } from "drizzle-orm";
+import { and, eq, isNull, sql } from "drizzle-orm";
 import { getDb, schema } from "@/db/client";
 import { nextConfirmationNumber, makeQrCode } from "@/lib/confirmation";
 import { priceQuote, attendeeGetsMemberPricing, cardProcessingFeeCents, type AttendeeInput, type TicketTypeInfo, formatCents } from "@/lib/pricing";
@@ -59,10 +59,18 @@ export function resolveTicketType(
   types: (typeof schema.ticketTypes.$inferSelect)[],
   eventDayCount: number
 ): TicketMatch {
-  const band = a.isKid ? (a.age !== undefined && a.age < 5 ? "child_under_5" : "child_5_12") : "adult";
+  // Age bands: adult (18+) · child_5_18 (youth 5–18) · child_under_5 · concert (universal, timed).
+  // "all" and legacy "child_5_12" are still honored for older data.
+  const band = a.isKid ? (a.age !== undefined && a.age < 5 ? "child_under_5" : "child_5_18") : "adult";
   const candidates = types.filter((t) => {
-    if (t.ageBand !== band && t.ageBand !== "all") return false;
-    if (band === "adult" && t.withFood !== a.withFood) return false;
+    const bandOk =
+      t.ageBand === band ||
+      t.ageBand === "all" ||
+      t.ageBand === "concert" ||
+      (band === "child_5_18" && t.ageBand === "child_5_12"); // legacy youth value
+    if (!bandOk) return false;
+    // adults choose with/without food; concert passes aren't food-gated
+    if (band === "adult" && t.ageBand !== "concert" && t.withFood !== a.withFood) return false;
     return true;
   });
   // 1) exact day-combo match — a full pass is simply the combo covering every day
@@ -84,7 +92,7 @@ export async function createCheckout(input: CheckoutInput): Promise<CheckoutResu
   const types = await db
     .select()
     .from(schema.ticketTypes)
-    .where(eq(schema.ticketTypes.eventId, event.id));
+    .where(and(eq(schema.ticketTypes.eventId, event.id), isNull(schema.ticketTypes.archivedAt)));
   const eventDays = (event.days as { key: string }[] | null) ?? [];
   const dayCount = Math.max(eventDays.length, 1);
 
@@ -149,7 +157,8 @@ export async function createCheckout(input: CheckoutInput): Promise<CheckoutResu
       .where(
         and(
           eq(schema.promoCodes.code, input.promoCode.toUpperCase()),
-          eq(schema.promoCodes.eventId, event.id)
+          eq(schema.promoCodes.eventId, event.id),
+          isNull(schema.promoCodes.archivedAt)
         )
       );
     if (p) {

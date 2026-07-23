@@ -117,8 +117,8 @@ async function main() {
       tt({ name: "Adult · All 3 days · no food", ageBand: "adult", dayKeys: ["fri", "sat", "sun"], withFood: false, priceMemberCents: 5600, priceNonmemberCents: 8000, displayOrder: 2, capacity: 400, requiresFoodSelection: false }) as never,
       tt({ name: "Adult · Single day · with food", ageBand: "adult", dayKeys: null, withFood: true, priceMemberCents: 3500, priceNonmemberCents: 5000, displayOrder: 3, capacity: 1200 }) as never,
       tt({ name: "Adult · Single day · no food", ageBand: "adult", dayKeys: null, withFood: false, priceMemberCents: 2500, priceNonmemberCents: 3500, displayOrder: 4, capacity: 600, requiresFoodSelection: false }) as never,
-      tt({ name: "Kid (5–12) · All 3 days · kid meal", ageBand: "child_5_12", dayKeys: ["fri", "sat", "sun"], withFood: true, priceMemberCents: 2000, priceNonmemberCents: 3000, displayOrder: 5, capacity: 300 }) as never,
-      tt({ name: "Kid (5–12) · Single day · kid meal", ageBand: "child_5_12", dayKeys: null, withFood: true, priceMemberCents: 800, priceNonmemberCents: 1200, displayOrder: 6, capacity: 400 }) as never,
+      tt({ name: "Youth (5–18) · All 3 days · kid meal", ageBand: "child_5_18", dayKeys: ["fri", "sat", "sun"], withFood: true, priceMemberCents: 2000, priceNonmemberCents: 3000, displayOrder: 5, capacity: 300 }) as never,
+      tt({ name: "Youth (5–18) · Single day · kid meal", ageBand: "child_5_18", dayKeys: null, withFood: true, priceMemberCents: 800, priceNonmemberCents: 1200, displayOrder: 6, capacity: 400 }) as never,
       tt({ name: "Little one (under 5) · free", ageBand: "child_under_5", dayKeys: ["fri", "sat", "sun"], withFood: true, priceMemberCents: 0, priceNonmemberCents: 0, displayOrder: 7, requiresFoodSelection: false }) as never,
     ]);
 

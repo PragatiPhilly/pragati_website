@@ -1,4 +1,4 @@
-import { and, asc, eq } from "drizzle-orm";
+import { and, asc, eq, isNull } from "drizzle-orm";
 import { getDb, schema } from "@/db/client";
 import { getConfig } from "@/lib/system-config";
 
@@ -28,7 +28,7 @@ export async function getEventBySlug(slug: string) {
   const ticketTypes = await db
     .select()
     .from(schema.ticketTypes)
-    .where(eq(schema.ticketTypes.eventId, event.id))
+    .where(and(eq(schema.ticketTypes.eventId, event.id), isNull(schema.ticketTypes.archivedAt)))
     .orderBy(asc(schema.ticketTypes.displayOrder));
   return { ...event, ticketTypes };
 }
