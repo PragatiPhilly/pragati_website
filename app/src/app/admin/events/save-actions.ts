@@ -4,12 +4,15 @@ import { revalidatePath } from "next/cache";
 import { eq } from "drizzle-orm";
 import { getDb, schema } from "@/db/client";
 import { requireAdmin } from "@/lib/auth/session";
+import { buildEventDays } from "@/lib/event-days";
+import { ensureExtraColumns } from "@/lib/schema-ensure";
 
 export type TicketTypeInput = {
   id?: string;
   name: string;
   ageBand: string;
-  fullPass: boolean;
+  dayKeys: string[]; // event day-keys this pass covers ([] = every day)
+  checkInStart: string | null; // "HH:MM" concert-style check-in gate, or null for any time
   withFood: boolean;
   priceMember: number; // dollars
   priceNonmember: number; // dollars, -1 = members only
@@ -42,29 +45,10 @@ export type EventInput = {
   promoCodes: PromoInput[];
 };
 
-function buildDays(startsAt: Date, endsAt: Date) {
-  const days: { key: string; label: string; date: string }[] = [];
-  const d = new Date(startsAt);
-  d.setHours(0, 0, 0, 0);
-  const end = new Date(endsAt);
-  const seen = new Set<string>();
-  while (d <= end && days.length < 7) {
-    let key = d.toLocaleDateString("en-US", { timeZone: "America/New_York", weekday: "short" }).toLowerCase();
-    while (seen.has(key)) key = `${key}2`;
-    seen.add(key);
-    days.push({
-      key,
-      label: d.toLocaleDateString("en-US", { timeZone: "America/New_York", weekday: "long", month: "short", day: "numeric" }),
-      date: d.toISOString().slice(0, 10),
-    });
-    d.setDate(d.getDate() + 1);
-  }
-  return days;
-}
-
 export async function saveEventAction(input: EventInput): Promise<{ ok: boolean; error?: string; id?: string }> {
   const admin = await requireAdmin();
   const db = getDb();
+  await ensureExtraColumns();
 
   if (!input.name.trim() || !input.slug.trim()) return { ok: false, error: "Name and slug are required." };
   const startsAt = new Date(input.startsAt);
@@ -72,7 +56,7 @@ export async function saveEventAction(input: EventInput): Promise<{ ok: boolean;
   if (!(startsAt < endsAt)) return { ok: false, error: "End must be after start." };
   if (input.ticketTypes.length === 0) return { ok: false, error: "Add at least one ticket type." };
 
-  const days = buildDays(startsAt, endsAt);
+  const days = buildEventDays(input.startsAt, input.endsAt);
   const dayKeys = days.map((d) => d.key);
 
   const values = {
@@ -110,7 +94,8 @@ export async function saveEventAction(input: EventInput): Promise<{ ok: boolean;
       eventId,
       name: t.name.trim(),
       ageBand: t.ageBand,
-      dayKeys: t.fullPass ? dayKeys : null,
+      dayKeys: t.dayKeys && t.dayKeys.length ? t.dayKeys : dayKeys,
+      checkInStart: t.checkInStart || null,
       withFood: t.withFood,
       priceMemberCents: Math.round(t.priceMember * 100),
       priceNonmemberCents: t.priceNonmember < 0 ? -1 : Math.round(t.priceNonmember * 100),

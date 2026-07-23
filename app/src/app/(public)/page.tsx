@@ -18,7 +18,7 @@ import RegisterPreview from "@/components/site/RegisterPreview";
 import ScrollLink from "@/components/site/ScrollLink";
 import Daypart from "@/components/site/Daypart";
 import PetalTrail from "@/components/site/PetalTrail";
-import DhaakButton from "@/components/site/DhaakButton";
+import ScrollToTop from "@/components/site/ScrollToTop";
 import PhotoCarousel from "@/components/site/PhotoCarousel";
 import PhotoSlideshow from "@/components/site/PhotoSlideshow";
 import PosterPanels from "@/components/site/PosterPanels";
@@ -77,7 +77,7 @@ export default async function HomePage() {
       <AlponaSpine />
       <Daypart />
       <PetalTrail targetId="hero" />
-      <DhaakButton />
+      <ScrollToTop />
 
       {/* ══════════ HERO — compact, countdown floats on the seam below ══════════ */}
       <section id="hero" className="relative overflow-hidden">
@@ -492,7 +492,7 @@ export default async function HomePage() {
       </section>
 
       {/* ══════════ STATS STRIP ══════════ */}
-      <section className="py-16" style={{ background: "var(--bg-soft)" }}>
+      <section className="py-16">
         <div className="mx-auto max-w-6xl px-5 text-center">
           <Reveal>
             <DhakiVignette className="vignette w-28 mx-auto mb-4" />
@@ -589,7 +589,7 @@ export default async function HomePage() {
       </Reveal>
 
       {/* ══════════ MEMBERSHIP ══════════ */}
-      <section className="relative overflow-hidden py-16" style={{ background: "var(--bg-soft)" }}>
+      <section className="relative overflow-hidden py-16">
         {["5%", "20%", "35%", "55%", "70%", "85%"].map((left, i) => (
           <span key={left} className="speck" style={{ left, animationDelay: `${i * 1.1}s` }} aria-hidden />
         ))}

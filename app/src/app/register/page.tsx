@@ -55,6 +55,7 @@ export default async function RegisterPage({
   const paused = (await getConfig<string>("registration_paused")) === "yes";
   const squareEnabled = (await getConfig<string>("payments_square_enabled")) !== "no";
   const zelleEnabled = (await getConfig<string>("payments_zelle_enabled")) === "yes";
+  const membershipPriceCents = Number(await getConfig<number>("membership_annual_price_cents")) || 3500;
   if (paused) {
     const pauseMessage = await getConfig<string>("registration_pause_message");
     return (
@@ -99,6 +100,7 @@ export default async function RegisterPage({
         idleResetSeconds={idleResetSeconds}
         squareEnabled={squareEnabled}
         zelleEnabled={zelleEnabled}
+        membershipPriceCents={membershipPriceCents}
       />
     </>
   );

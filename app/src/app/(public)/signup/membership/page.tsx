@@ -4,7 +4,7 @@ import { eq } from "drizzle-orm";
 import { getSession } from "@/lib/auth/session";
 import { getDb, schema } from "@/db/client";
 import { getConfig } from "@/lib/system-config";
-import { formatCents } from "@/lib/pricing";
+import { formatCents, cardProcessingFeeCents } from "@/lib/pricing";
 import CopyButton from "@/components/site/CopyButton";
 import MembershipPayButtons from "./MembershipPayButtons";
 
@@ -59,8 +59,12 @@ export default async function MembershipPaymentPage() {
       {squareEnabled && (
         <div className="festive-card p-7 mb-6">
           <p className="font-semibold mb-1">Pay by card</p>
-          <p className="text-sm mb-4" style={{ color: "var(--ink-soft)" }}>
+          <p className="text-sm mb-3" style={{ color: "var(--ink-soft)" }}>
             Secure checkout via Square — your membership activates instantly.
+          </p>
+          <p className="text-sm mb-4">
+            Processing fee <strong style={{ color: "var(--sindoor)" }}>{formatCents(cardProcessingFeeCents(price))}</strong> · Total{" "}
+            <strong>{formatCents(price + cardProcessingFeeCents(price))}</strong>
           </p>
           <MembershipPayButtons />
         </div>

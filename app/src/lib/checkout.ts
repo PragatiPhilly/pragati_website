@@ -6,7 +6,9 @@
 import { and, eq, sql } from "drizzle-orm";
 import { getDb, schema } from "@/db/client";
 import { nextConfirmationNumber, makeQrCode } from "@/lib/confirmation";
-import { priceQuote, type AttendeeInput, type TicketTypeInfo, formatCents } from "@/lib/pricing";
+import { priceQuote, attendeeGetsMemberPricing, cardProcessingFeeCents, type AttendeeInput, type TicketTypeInfo, formatCents } from "@/lib/pricing";
+import { sameDaySet, splitEven } from "@/lib/event-days";
+import { ensureExtraColumns } from "@/lib/schema-ensure";
 import { getConfig } from "@/lib/system-config";
 import { createSquarePaymentLink } from "@/lib/payments/square";
 import { getZelleInstructions, type ZelleInstructions } from "@/lib/payments/zelle";
@@ -31,6 +33,7 @@ export type CheckoutInput = {
   buyerPhone?: string;
   memberId?: string;
   isMemberPurchase: boolean;
+  wantsMembership?: boolean; // guest opted to become a member: adds dues + whole-family member pricing
   source?: "web" | "day_of_kiosk" | "admin";
   paymentMethod: "square" | "zelle" | "offline";
   promoCode?: string;
@@ -42,23 +45,35 @@ export type CheckoutResult =
   | { kind: "zelle_instructions"; confirmationNumber: string; zelle: ZelleInstructions; totalCents: number }
   | { kind: "offline"; confirmationNumber: string; totalCents: number };
 
+export type TicketMatch = {
+  type: typeof schema.ticketTypes.$inferSelect;
+  /** full = 1 pass covering every day · bundle = an explicit multi-day combo,
+   *  its total split across day tickets · perday = legacy single-day, ×N days */
+  mode: "full" | "bundle" | "perday";
+};
+
 /** Pick the right ticket type for an attendee given the event's types. */
 export function resolveTicketType(
   a: CheckoutAttendee,
   types: (typeof schema.ticketTypes.$inferSelect)[],
   eventDayCount: number
-): { type: (typeof schema.ticketTypes.$inferSelect); perDay: boolean } {
-  const allDays = a.days.length >= eventDayCount;
+): TicketMatch {
   const band = a.isKid ? (a.age !== undefined && a.age < 5 ? "child_under_5" : "child_5_12") : "adult";
   const candidates = types.filter((t) => {
     if (t.ageBand !== band && t.ageBand !== "all") return false;
-    const isFullPass = Array.isArray(t.dayKeys) && (t.dayKeys as string[]).length >= eventDayCount;
-    if (allDays !== isFullPass) return false;
     if (band === "adult" && t.withFood !== a.withFood) return false;
     return true;
   });
-  if (candidates.length === 0) throw new Error(`No ticket type for ${a.firstName} (${band}, days=${a.days.join(",")})`);
-  return { type: candidates[0], perDay: !allDays };
+  // 1) exact day-combo match — a full pass is simply the combo covering every day
+  const exact = candidates.find((t) => Array.isArray(t.dayKeys) && sameDaySet(t.dayKeys as string[], a.days));
+  if (exact) {
+    const allDays = a.days.length >= eventDayCount;
+    return { type: exact, mode: allDays ? "full" : "bundle" };
+  }
+  // 2) legacy per-day ticket (null dayKeys) — priced per chosen day
+  const perday = candidates.find((t) => t.dayKeys == null);
+  if (perday) return { type: perday, mode: "perday" };
+  throw new Error(`No ticket type for ${a.firstName} (${band}, days=${a.days.join(",")})`);
 }
 
 export async function createCheckout(input: CheckoutInput): Promise<CheckoutResult> {
@@ -86,9 +101,14 @@ export async function createCheckout(input: CheckoutInput): Promise<CheckoutResu
     ])
   );
 
+  const discountMode = (await getConfig<string>("member_discount_mode")) as "per_adult" | "whole_family";
+  const wantsMembership = !!input.wantsMembership;
+  const effMemberPurchase = input.isMemberPurchase || wantsMembership;
+  const effDiscountMode: "per_adult" | "whole_family" = wantsMembership ? "whole_family" : discountMode;
+
   const expanded: { attendee: AttendeeInput; day?: string }[] = [];
   for (const a of input.attendees) {
-    const { type, perDay } = resolveTicketType(a, types, dayCount);
+    const { type, mode } = resolveTicketType(a, types, dayCount);
     const base: Omit<AttendeeInput, "ticketTypeId"> = {
       firstName: a.firstName,
       lastName: a.lastName,
@@ -97,10 +117,25 @@ export async function createCheckout(input: CheckoutInput): Promise<CheckoutResu
       isMemberFlagged: a.isMemberFlagged ?? false,
       foodPref: a.foodPref,
     };
-    if (perDay) {
-      for (const day of a.days) expanded.push({ attendee: { ...base, ticketTypeId: type.id }, day });
-    } else {
+    if (mode === "full") {
       expanded.push({ attendee: { ...base, ticketTypeId: type.id } });
+    } else if (mode === "bundle") {
+      // one QR per chosen day; the bundle's fixed total is split across them
+      const member = attendeeGetsMemberPricing({ ...base, ticketTypeId: type.id }, effMemberPurchase, effDiscountMode);
+      const bundleTotal = member ? type.priceMemberCents : type.priceNonmemberCents;
+      const shares = bundleTotal >= 0 ? splitEven(bundleTotal, a.days.length) : [];
+      a.days.forEach((day, idx) =>
+        expanded.push({
+          attendee: {
+            ...base,
+            ticketTypeId: type.id,
+            priceOverrideCents: bundleTotal >= 0 ? shares[idx] : undefined,
+          },
+          day,
+        })
+      );
+    } else {
+      for (const day of a.days) expanded.push({ attendee: { ...base, ticketTypeId: type.id }, day });
     }
   }
 
@@ -126,17 +161,20 @@ export async function createCheckout(input: CheckoutInput): Promise<CheckoutResu
     }
   }
 
-  const discountMode = (await getConfig<string>("member_discount_mode")) as "per_adult" | "whole_family";
   const quote = priceQuote(
     expanded.map((e) => e.attendee),
     ttMap,
-    { isMemberPurchase: input.isMemberPurchase, discountMode, promo }
+    { isMemberPurchase: effMemberPurchase, discountMode: effDiscountMode, promo }
   );
 
+  const membershipDuesCents = wantsMembership ? Number(await getConfig<number>("membership_annual_price_cents")) : 0;
+  const grandTotalCents = quote.totalCents + membershipDuesCents;
   const conf = await nextConfirmationNumber("PRG");
   const squareResMin = await getConfig<number>("square_reservation_minutes");
   const now = new Date();
   const reservationExpiresAt = new Date(now.getTime() + squareResMin * 60_000);
+  const processingFeeCents = input.paymentMethod === "square" ? cardProcessingFeeCents(grandTotalCents) : 0;
+  await ensureExtraColumns();
 
   const status =
     input.paymentMethod === "zelle"
@@ -158,7 +196,9 @@ export async function createCheckout(input: CheckoutInput): Promise<CheckoutResu
       source: input.source ?? "web",
       subtotalCents: quote.subtotalCents,
       discountCents: quote.discountCents,
-      totalCents: quote.totalCents,
+      totalCents: grandTotalCents,
+      processingFeeCents,
+      membershipSignup: wantsMembership,
       promoCodeId: promo?.id,
       paymentMethod: input.paymentMethod,
       status,
@@ -198,22 +238,22 @@ export async function createCheckout(input: CheckoutInput): Promise<CheckoutResu
     const link = await createSquarePaymentLink({
       referenceId: reg.id,
       confirmationNumber: conf,
-      amountCents: quote.totalCents,
+      amountCents: grandTotalCents + processingFeeCents,
       description: `${event.name} tickets — ${conf}`,
     });
     await db
       .update(schema.registrations)
       .set({ squareOrderId: link.squareOrderId })
       .where(eq(schema.registrations.id, reg.id));
-    return { kind: "square_redirect", confirmationNumber: conf, url: link.url, totalCents: quote.totalCents };
+    return { kind: "square_redirect", confirmationNumber: conf, url: link.url, totalCents: grandTotalCents };
   }
 
   if (input.paymentMethod === "zelle") {
-    const zelle = await getZelleInstructions(conf, quote.totalCents);
-    return { kind: "zelle_instructions", confirmationNumber: conf, zelle, totalCents: quote.totalCents };
+    const zelle = await getZelleInstructions(conf, grandTotalCents);
+    return { kind: "zelle_instructions", confirmationNumber: conf, zelle, totalCents: grandTotalCents };
   }
 
-  return { kind: "offline", confirmationNumber: conf, totalCents: quote.totalCents };
+  return { kind: "offline", confirmationNumber: conf, totalCents: grandTotalCents };
 }
 
 /** Buyer clicked "I've sent the Zelle" — extend hold, ack buyer, alert treasurer. */
@@ -286,6 +326,11 @@ export async function markRegistrationPaid(
     .where(eq(schema.registrations.id, registrationId));
 
   await sendTicketsEmail(registrationId);
+
+  if (reg.membershipSignup) {
+    const { enrollMemberFromPaidRegistration } = await import("@/lib/membership");
+    await enrollMemberFromPaidRegistration(reg);
+  }
 }
 
 /** Compose + send the full tickets email (used on payment AND for admin resends). */
@@ -300,6 +345,15 @@ export async function sendTicketsEmail(registrationId: string, opts: { resend?: 
   const [event] = await db.select().from(schema.events).where(eq(schema.events.id, reg.eventId));
   const orgName = await getConfig<string>("org_name");
   const base = process.env.NEXT_PUBLIC_SITE_URL;
+  const eventDays = (event?.days as { key: string; label?: string; date: string }[] | null) ?? [];
+
+  const checkInNote = (t: (typeof tix)[number]): string | undefined => {
+    const tt = types.find((x) => x.id === t.ticketTypeId);
+    if (!tt?.checkInStart) return undefined;
+    const day = eventDays.find((d) => d.key === t.dayKey) ?? eventDays[0];
+    const nice = new Date(`2000-01-01T${tt.checkInStart}:00`).toLocaleTimeString("en-US", { hour: "numeric", minute: "2-digit" });
+    return `Check-in opens at ${nice}${day?.label ? ` on ${day.label}` : ""} — this pass won't scan before then.`;
+  };
 
   const mail = T.ticketsEmail({
     buyerName: reg.buyerName,
@@ -310,6 +364,7 @@ export async function sendTicketsEmail(registrationId: string, opts: { resend?: 
       type: typeName(t.ticketTypeId),
       price: t.priceCents,
       passUrl: `${base}/t/${t.qrCode}`,
+      note: checkInNote(t),
     })),
     totalCents: reg.totalCents,
     lookupUrl: `${base}/lookup?email=${encodeURIComponent(reg.buyerEmail)}&conf=${reg.confirmationNumber}`,

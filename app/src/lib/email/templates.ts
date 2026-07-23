@@ -32,7 +32,7 @@ export function ticketsEmail(p: {
   buyerName: string;
   conf: string;
   eventName: string;
-  lines: { name: string; type: string; price: number; passUrl: string }[];
+  lines: { name: string; type: string; price: number; passUrl: string; note?: string }[];
   totalCents: number;
   lookupUrl: string;
   printUrl: string;
@@ -40,7 +40,11 @@ export function ticketsEmail(p: {
   resend?: boolean;
 }) {
   const lineText = p.lines
-    .map((l) => `  🎟 ${l.name} — ${l.type} — ${formatCents(l.price)}\n     Personal pass: ${l.passUrl}`)
+    .map(
+      (l) =>
+        `  🎟 ${l.name} — ${l.type} — ${formatCents(l.price)}\n     Personal pass: ${l.passUrl}` +
+        (l.note ? `\n     ⏰ ${l.note}` : "")
+    )
     .join("\n\n");
   return {
     subject: `${p.resend ? "(Resent) " : ""}Your tickets for ${p.eventName} 🎟 ${p.conf}`,
@@ -94,16 +98,28 @@ ${p.orgAddress}${sig(p.orgName)}`,
   };
 }
 
-export function welcomeEmail(p: { firstName: string; familyName: string; orgName: string }) {
+export function welcomeEmail(p: {
+  firstName: string;
+  familyName: string;
+  orgName: string;
+  memberNumber?: string;
+  validUntil?: string;
+  loginUrl?: string;
+}) {
+  const idLine = p.memberNumber ? `\nYour member ID: ${p.memberNumber}` : "";
+  const validLine = p.validUntil
+    ? `\nYour membership is active through ${p.validUntil} — one full year. We'll remind you to renew before it lapses so your member discounts keep going.`
+    : "";
+  const loginLine = p.loginUrl
+    ? `\n\nSet your password to sign in and see your membership, family, and tickets anytime:\n${p.loginUrl}\n(If this link expires, just use "Forgot password" with this email.)`
+    : `\n\nSign in anytime to manage your family and tickets.`;
   return {
     subject: `Welcome to Pragati, ${p.firstName}! 🪔`,
     text: `Namaskar ${p.firstName},
 
-Welcome to the Pragati family! Your membership for the ${p.familyName} is now active.
+Welcome to the Pragati family! Your membership for the ${p.familyName} is now active.${idLine}${validLine}
 
-As a member you enjoy discounted tickets for all our events — Durga Pujo, Kali Pujo, Saraswati Pujo, picnics and more — and you're helping keep Bengali culture thriving in Greater Philadelphia.
-
-Sign in anytime to manage your family and tickets.${sig(p.orgName)}`,
+As a member you enjoy discounted tickets for all our events — Durga Pujo, Kali Pujo, Saraswati Pujo, picnics and more — and you're helping keep Bengali culture thriving in Greater Philadelphia.${loginLine}${sig(p.orgName)}`,
   };
 }
 

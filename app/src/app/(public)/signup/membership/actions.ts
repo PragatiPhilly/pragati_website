@@ -5,6 +5,8 @@ import { getSession } from "@/lib/auth/session";
 import { getDb, schema } from "@/db/client";
 import { getConfig } from "@/lib/system-config";
 import { createSquarePaymentLink } from "@/lib/payments/square";
+import { cardProcessingFeeCents } from "@/lib/pricing";
+import { ensureMembershipColumn } from "@/lib/membership-ensure";
 
 /**
  * Start a card checkout for annual membership dues. Uses the same Square rail
@@ -27,10 +29,14 @@ export async function startMembershipCardCheckout(): Promise<{ url?: string; err
   const link = await createSquarePaymentLink({
     referenceId: member.id,
     confirmationNumber: conf,
-    amountCents: price,
+    amountCents: price + cardProcessingFeeCents(price),
     description: "Pragati Annual Membership",
     redirectPath: `/checkout/success?conf=${encodeURIComponent(conf)}&membership=1`,
   });
+
+  // remember the order id so the Square webhook can match this payment (live Square)
+  await ensureMembershipColumn();
+  await db.update(schema.members).set({ squareOrderId: link.squareOrderId }).where(eq(schema.members.id, member.id));
 
   return { url: link.url };
 }

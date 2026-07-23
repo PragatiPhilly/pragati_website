@@ -18,6 +18,7 @@ export default function MagazineManager({ magazines }: { magazines: Mag[] }) {
   const [title, setTitle] = useState("");
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
+  const [fileName, setFileName] = useState("");
   const [pending, startTransition] = useTransition();
 
   const upload = async () => {
@@ -36,6 +37,7 @@ export default function MagazineManager({ magazines }: { magazines: Mag[] }) {
         setError(data.error ?? "Upload failed.");
       } else {
         if (fileRef.current) fileRef.current.value = "";
+        setFileName("");
         setTitle("");
         router.refresh();
       }
@@ -73,11 +75,40 @@ export default function MagazineManager({ magazines }: { magazines: Mag[] }) {
               />
             </label>
           </div>
-          <input ref={fileRef} type="file" accept="application/pdf,.pdf" className="text-sm" />
+          <input
+            ref={fileRef}
+            type="file"
+            accept="application/pdf,.pdf"
+            className="hidden"
+            onChange={(e) => {
+              setFileName(e.target.files?.[0]?.name ?? "");
+              setError("");
+            }}
+          />
+          <div
+            className="flex items-center gap-3 flex-wrap rounded-xl px-4 py-3"
+            style={{ border: "1.5px dashed var(--line)", background: "var(--bg-soft)" }}
+          >
+            <button type="button" onClick={() => fileRef.current?.click()} className="btn-secondary !py-2 !px-4 text-sm">
+              {fileName ? "Change PDF" : "📄 Choose PDF…"}
+            </button>
+            <span className="text-sm truncate" style={{ color: fileName ? "var(--ink)" : "var(--ink-soft)" }}>
+              {fileName || "No file chosen yet"}
+            </span>
+          </div>
           <div className="flex items-center gap-4">
-            <button className="btn-primary !py-2.5 !px-6 text-sm" disabled={busy} onClick={upload}>
+            <button
+              className="btn-primary !py-2.5 !px-6 text-sm disabled:opacity-50 disabled:cursor-not-allowed"
+              disabled={busy || !fileName}
+              onClick={upload}
+            >
               {busy ? "Uploading…" : "Upload PDF"}
             </button>
+            {!fileName && !error && (
+              <span className="text-xs" style={{ color: "var(--ink-soft)" }}>
+                Choose a PDF to enable upload
+              </span>
+            )}
             {error && (
               <p className="text-sm font-medium" style={{ color: "var(--sindoor)" }}>
                 {error}

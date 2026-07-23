@@ -20,7 +20,6 @@ export default async function EditEventPage({ params }: { params: Promise<{ id: 
   if (!ev) notFound();
   const types = await db.select().from(schema.ticketTypes).where(eq(schema.ticketTypes.eventId, id)).orderBy(asc(schema.ticketTypes.displayOrder));
   const promos = await db.select().from(schema.promoCodes).where(eq(schema.promoCodes.eventId, id));
-  const dayCount = Array.isArray(ev.days) ? (ev.days as unknown[]).length : 1;
 
   return (
     <div>
@@ -43,7 +42,12 @@ export default async function EditEventPage({ params }: { params: Promise<{ id: 
             id: t.id,
             name: t.name,
             ageBand: t.ageBand,
-            fullPass: Array.isArray(t.dayKeys) && (t.dayKeys as string[]).length >= dayCount,
+            dayKeys: Array.isArray(t.dayKeys)
+              ? (t.dayKeys as string[])
+              : Array.isArray(ev.days)
+                ? (ev.days as { key: string }[]).map((d) => d.key)
+                : [],
+            checkInStart: t.checkInStart ?? null,
             withFood: t.withFood,
             priceMember: t.priceMemberCents / 100,
             priceNonmember: t.priceNonmemberCents < 0 ? -1 : t.priceNonmemberCents / 100,

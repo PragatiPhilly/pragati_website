@@ -3,6 +3,7 @@
 import { eq, ilike, or } from "drizzle-orm";
 import { getDb, schema } from "@/db/client";
 import { getSession } from "@/lib/auth/session";
+import { ensureExtraColumns } from "@/lib/schema-ensure";
 
 /** Check-in staff = admins + volunteers (volunteers can ONLY do check-in). */
 async function requireCheckinStaff() {
@@ -29,6 +30,50 @@ function normalize(query: string): string {
   const m = q.match(/\/t\/([A-Za-z0-9-]+)/);
   if (m) q = m[1];
   return q;
+}
+
+/** Current wall-clock in New York as a comparable date + minutes-of-day. */
+function nyNow(): { ymd: string; minutes: number } {
+  const p = Object.fromEntries(
+    new Intl.DateTimeFormat("en-CA", {
+      timeZone: "America/New_York",
+      year: "numeric",
+      month: "2-digit",
+      day: "2-digit",
+      hour: "2-digit",
+      minute: "2-digit",
+      hour12: false,
+    })
+      .formatToParts(new Date())
+      .map((x) => [x.type, x.value])
+  );
+  return { ymd: `${p.year}-${p.month}-${p.day}`, minutes: Number(p.hour) * 60 + Number(p.minute) };
+}
+
+/**
+ * Concert-style gate: a ticket whose type has a check-in start time cannot
+ * check in before that time on its day. Returns a reason to block, or null.
+ */
+async function checkInBlockedReason(
+  db: ReturnType<typeof getDb>,
+  ticket: typeof schema.tickets.$inferSelect
+): Promise<string | null> {
+  await ensureExtraColumns();
+  const [tt] = await db.select().from(schema.ticketTypes).where(eq(schema.ticketTypes.id, ticket.ticketTypeId));
+  const start = tt?.checkInStart;
+  if (!start) return null;
+  const [reg] = await db.select().from(schema.registrations).where(eq(schema.registrations.id, ticket.registrationId));
+  const [event] = reg ? await db.select().from(schema.events).where(eq(schema.events.id, reg.eventId)) : [];
+  const days = (event?.days as { key: string; date: string; label?: string }[] | null) ?? [];
+  const day = days.find((d) => d.key === ticket.dayKey) ?? days[0];
+  if (!day) return null;
+  const [h, m] = start.split(":").map(Number);
+  const startMin = h * 60 + m;
+  const now = nyNow();
+  const early = now.ymd < day.date || (now.ymd === day.date && now.minutes < startMin);
+  if (!early) return null;
+  const nice = new Date(`2000-01-01T${start}:00`).toLocaleTimeString("en-US", { hour: "numeric", minute: "2-digit" });
+  return `Check-in for this pass opens at ${nice} on ${day.label ?? day.date}.`;
 }
 
 export async function lookupTicketsAction(rawQuery: string): Promise<CheckinTicket[]> {
@@ -115,6 +160,9 @@ export async function entryScanAction(rawQuery: string): Promise<EntryScanResult
     .where(eq(schema.registrations.id, ticket.registrationId));
   if (!reg || reg.status !== "paid")
     return { kind: "invalid", reason: "NOT VALID — payment pending on this ticket." };
+
+  const blocked = await checkInBlockedReason(db, ticket);
+  if (blocked) return { kind: "invalid", reason: blocked };
 
   const attendee = `${ticket.attendeeFirstName} ${ticket.attendeeLastName ?? ""}`.trim();
 

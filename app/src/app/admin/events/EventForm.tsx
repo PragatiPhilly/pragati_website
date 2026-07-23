@@ -3,11 +3,13 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { saveEventAction, type EventInput, type TicketTypeInput, type PromoInput } from "./save-actions";
+import { buildEventDays } from "@/lib/event-days";
 
-const emptyTicket = (): TicketTypeInput => ({
+const emptyTicket = (dayKeys: string[] = []): TicketTypeInput => ({
   name: "",
   ageBand: "adult",
-  fullPass: true,
+  dayKeys,
+  checkInStart: null,
   withFood: true,
   priceMember: 0,
   priceNonmember: 0,
@@ -28,6 +30,7 @@ export default function EventForm({ initial }: { initial: EventInput }) {
   const [error, setError] = useState("");
   const [busy, setBusy] = useState(false);
   const set = (patch: Partial<EventInput>) => setEv((e) => ({ ...e, ...patch }));
+  const eventDays = buildEventDays(ev.startsAt, ev.endsAt);
 
   const setTicket = (i: number, patch: Partial<TicketTypeInput>) =>
     set({ ticketTypes: ev.ticketTypes.map((t, j) => (j === i ? { ...t, ...patch } : t)) });
@@ -102,10 +105,14 @@ export default function EventForm({ initial }: { initial: EventInput }) {
       {/* ticket types */}
       <div className="festive-card p-6 grid gap-4">
         <h2 className="font-[family-name:var(--font-display)] text-lg font-bold">Ticket types</h2>
+        <p className="text-xs -mt-2" style={{ color: "var(--ink-soft)" }}>
+          One row per pass. Tick exactly the days it covers — a single day, any two-day combo, or every day — and set its
+          member / non-member price. Use <strong>Duplicate</strong> to copy a row and just change the days or price.
+        </p>
         {ev.ticketTypes.map((t, i) => (
           <div key={i} className="hairline rounded-2xl p-4 grid gap-3">
-            <div className="grid sm:grid-cols-[2fr_1fr_1fr] gap-3">
-              <input className="input" placeholder='Name, e.g. "Adult · All 3 days · with food"' value={t.name} onChange={(e) => setTicket(i, { name: e.target.value })} />
+            <div className="grid sm:grid-cols-[2fr_1fr] gap-3">
+              <input className="input" placeholder='Name, e.g. "Adult · Fri & Sat · with food"' value={t.name} onChange={(e) => setTicket(i, { name: e.target.value })} />
               <select className="input" value={t.ageBand} onChange={(e) => setTicket(i, { ageBand: e.target.value })}>
                 <option value="adult">Adult</option>
                 <option value="child_5_12">Kid 5–12</option>
@@ -113,12 +120,42 @@ export default function EventForm({ initial }: { initial: EventInput }) {
                 <option value="senior">Senior</option>
                 <option value="all">Everyone</option>
               </select>
-              <select className="input" value={t.fullPass ? "full" : "single"} onChange={(e) => setTicket(i, { fullPass: e.target.value === "full" })}>
-                <option value="full">Full pass (all days)</option>
-                <option value="single">Single day</option>
-              </select>
             </div>
-            <div className="grid grid-cols-2 sm:grid-cols-5 gap-3 items-center">
+            <div>
+              <p className="text-xs font-semibold mb-1.5" style={{ color: "var(--ink-soft)" }}>Days this pass covers</p>
+              {eventDays.length > 0 ? (
+                <div className="flex flex-wrap gap-2">
+                  {eventDays.map((d) => {
+                    const on = t.dayKeys.includes(d.key);
+                    return (
+                      <button
+                        type="button"
+                        key={d.key}
+                        onClick={() => setTicket(i, { dayKeys: on ? t.dayKeys.filter((k) => k !== d.key) : [...t.dayKeys, d.key] })}
+                        className="text-xs font-semibold rounded-full px-3 py-1.5 border transition-colors"
+                        style={{ background: on ? "var(--sindoor)" : "transparent", color: on ? "var(--cream)" : "var(--ink-soft)", borderColor: on ? "var(--sindoor)" : "var(--line)" }}
+                      >
+                        {d.label.split(",")[0]}
+                      </button>
+                    );
+                  })}
+                </div>
+              ) : (
+                <p className="text-xs" style={{ color: "var(--ink-soft)" }}>
+                  Set the event start &amp; end dates above, then pick the days for this pass.
+                </p>
+              )}
+            </div>
+            <label className="text-xs font-semibold" style={{ color: "var(--ink-soft)" }}>
+              Check-in opens (optional — e.g. a concert at 6:30 PM; blank = any time that day)
+              <input
+                type="time"
+                className="input mt-1 max-w-40"
+                value={t.checkInStart ?? ""}
+                onChange={(e) => setTicket(i, { checkInStart: e.target.value || null })}
+              />
+            </label>
+            <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 items-center">
               <label className="flex items-center gap-2 text-sm">
                 <input type="checkbox" checked={t.withFood} onChange={(e) => setTicket(i, { withFood: e.target.checked })} className="accent-[var(--sindoor)] w-4 h-4" />
                 With food
@@ -135,13 +172,28 @@ export default function EventForm({ initial }: { initial: EventInput }) {
                 Capacity (blank = ∞)
                 <input type="number" min={0} className="input mt-1" value={t.capacity ?? ""} onChange={(e) => setTicket(i, { capacity: e.target.value === "" ? null : parseInt(e.target.value, 10) })} />
               </label>
-              <button type="button" className="text-xs underline opacity-60 hover:opacity-100 justify-self-end" onClick={() => set({ ticketTypes: ev.ticketTypes.filter((_, j) => j !== i) })}>
-                Remove
-              </button>
+            </div>
+            <div className="flex items-center justify-between gap-3 flex-wrap">
+              <p className="text-xs" style={{ color: "var(--ink-soft)" }}>
+                {t.dayKeys.length ? t.dayKeys.map((k) => k.toUpperCase()).join(" + ") : "every day"} · {t.withFood ? "with food" : "no food"} · Member ${t.priceMember || 0}
+                {t.priceNonmember < 0 ? " · members only" : ` / Non-member $${t.priceNonmember || 0}`}
+              </p>
+              <div className="flex gap-4">
+                <button
+                  type="button"
+                  className="text-xs underline opacity-60 hover:opacity-100"
+                  onClick={() => set({ ticketTypes: [...ev.ticketTypes.slice(0, i + 1), { ...t, id: undefined, name: t.name ? `${t.name} (copy)` : "" }, ...ev.ticketTypes.slice(i + 1)] })}
+                >
+                  Duplicate
+                </button>
+                <button type="button" className="text-xs underline opacity-60 hover:opacity-100" onClick={() => set({ ticketTypes: ev.ticketTypes.filter((_, j) => j !== i) })}>
+                  Remove
+                </button>
+              </div>
             </div>
           </div>
         ))}
-        <button type="button" className="btn-secondary !py-2 w-fit text-sm" onClick={() => set({ ticketTypes: [...ev.ticketTypes, emptyTicket()] })}>
+        <button type="button" className="btn-secondary !py-2 w-fit text-sm" onClick={() => set({ ticketTypes: [...ev.ticketTypes, emptyTicket(eventDays.map((d) => d.key))] })}>
           + Add ticket type
         </button>
       </div>

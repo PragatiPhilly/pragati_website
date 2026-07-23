@@ -2,6 +2,7 @@
 
 import { useActionState, useState } from "react";
 import { donateAction } from "./actions";
+import { cardProcessingFeeCents, formatCents } from "@/lib/pricing";
 
 const AMOUNTS = [25, 50, 100, 500];
 
@@ -16,6 +17,10 @@ export default function DonateForm({
   const [amount, setAmount] = useState<string>("50");
   const [honor, setHonor] = useState("none");
   const [method, setMethod] = useState(squareEnabled ? "square" : "zelle");
+  const [customAmount, setCustomAmount] = useState("");
+  const dollars = amount === "custom" ? Number(customAmount) || 0 : Number(amount) || 0;
+  const amountCents = Math.max(0, Math.round(dollars * 100));
+  const feeCents = cardProcessingFeeCents(amountCents);
 
   return (
     <div className="mx-auto max-w-2xl px-5 py-16">
@@ -48,7 +53,7 @@ export default function DonateForm({
           </div>
           <input type="hidden" name="amount" value={amount} />
           {amount === "custom" && (
-            <input name="customAmount" type="number" min="1" step="1" placeholder="Amount in USD" className="input mt-3 max-w-48" />
+            <input name="customAmount" type="number" min="1" step="1" placeholder="Amount in USD" className="input mt-3 max-w-48" value={customAmount} onChange={(e) => setCustomAmount(e.target.value)} />
           )}
         </div>
 
@@ -101,6 +106,12 @@ export default function DonateForm({
             )}
           </div>
           <input type="hidden" name="paymentMethod" value={method} />
+          {method === "square" && amountCents > 0 && (
+            <p className="text-sm mt-3">
+              Processing fee <strong style={{ color: "var(--sindoor)" }}>{formatCents(feeCents)}</strong> · Total{" "}
+              <strong>{formatCents(amountCents + feeCents)}</strong>
+            </p>
+          )}
         </div>
 
         {state?.error && (

@@ -4,6 +4,7 @@ import { getDb, schema } from "@/db/client";
 import { nextConfirmationNumber } from "@/lib/confirmation";
 import { getConfig } from "@/lib/system-config";
 import { createSquarePaymentLink } from "@/lib/payments/square";
+import { cardProcessingFeeCents } from "@/lib/pricing";
 import { getZelleInstructions, type ZelleInstructions } from "@/lib/payments/zelle";
 import { sendMail } from "@/lib/email";
 import * as T from "@/lib/email/templates";
@@ -52,7 +53,7 @@ export async function createDonation(input: DonationInput): Promise<DonationResu
     const link = await createSquarePaymentLink({
       referenceId: don.id,
       confirmationNumber: conf,
-      amountCents: input.amountCents,
+      amountCents: input.amountCents + cardProcessingFeeCents(input.amountCents),
       description: `Donation to Pragati — ${conf}`,
     });
     await db.update(schema.donations).set({ squareOrderId: link.squareOrderId }).where(eq(schema.donations.id, don.id));

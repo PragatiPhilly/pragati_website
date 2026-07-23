@@ -14,7 +14,8 @@ import { useEffect, useMemo, useState } from "react";
 import { AnimatePresence, motion } from "framer-motion";
 import { useRouter } from "next/navigation";
 import { submitRegistration, validatePromoAction } from "./actions";
-import { formatCents } from "@/lib/pricing";
+import { formatCents, cardProcessingFeeCents } from "@/lib/pricing";
+import { sameDaySet } from "@/lib/event-days";
 import JourneyScene from "@/components/register/JourneyScene";
 
 // ── types passed from the server ──
@@ -62,7 +63,7 @@ type Person = {
   foodPref: "veg" | "non_veg" | "kid" | "none";
 };
 
-type StepId = "welcome" | "you" | "party" | "days" | "food" | "review" | "pay" | "done";
+type StepId = "welcome" | "you" | "party" | "days" | "food" | "membership" | "review" | "pay" | "done";
 
 const spring = { type: "spring", stiffness: 260, damping: 26 } as const;
 
@@ -72,6 +73,7 @@ const STEP_TITLES: Record<StepId, string> = {
   party: "পরিবার",
   days: "দিন",
   food: "ভোগ",
+  membership: "সদস্যপদ",
   review: "দেখে নিন",
   pay: "টাকা",
   done: "শেষ",
@@ -161,6 +163,7 @@ export default function RegisterFlow({
   idleResetSeconds = 90,
   squareEnabled = true,
   zelleEnabled = true,
+  membershipPriceCents = 3500,
 }: {
   event: FlowEvent;
   member: FlowMemberContext | null;
@@ -169,6 +172,7 @@ export default function RegisterFlow({
   idleResetSeconds?: number;
   squareEnabled?: boolean;
   zelleEnabled?: boolean;
+  membershipPriceCents?: number;
 }) {
   const router = useRouter();
   const dayCount = Math.max(event.days.length, 1);
@@ -178,6 +182,7 @@ export default function RegisterFlow({
   }, [event.days]);
 
   const isMemberPurchase = !!member?.isActiveMember;
+  const canJoinMembership = !isMemberPurchase && !dayOfMode;
 
   // ── state ──
   const [step, setStep] = useState<StepId>(member || dayOfMode ? "you" : "welcome");
@@ -192,6 +197,7 @@ export default function RegisterFlow({
   const [busy, setBusy] = useState(false);
   const [doneConf, setDoneConf] = useState("");
   const [doneTotal, setDoneTotal] = useState(0);
+  const [wantsMembership, setWantsMembership] = useState(false);
 
   // add-person mini-form
   const [draftName, setDraftName] = useState("");
@@ -200,8 +206,10 @@ export default function RegisterFlow({
 
   const steps: StepId[] = useMemo(() => {
     const base: StepId[] = member || dayOfMode ? [] : ["welcome"];
-    return [...base, "you", "party", ...(dayOfMode || dayCount === 1 ? [] : (["days"] as StepId[])), "food", "review", "pay"];
-  }, [member, dayOfMode, dayCount]);
+    const daysStep: StepId[] = dayOfMode || dayCount === 1 ? [] : (["days"] as StepId[]);
+    const joinStep: StepId[] = canJoinMembership ? (["membership"] as StepId[]) : [];
+    return [...base, "you", "party", ...daysStep, "food", ...joinStep, "review", "pay"];
+  }, [member, dayOfMode, dayCount, canJoinMembership]);
   const stepIndex = steps.indexOf(step);
 
   const go = (next: StepId, dir = 1) => {
@@ -236,17 +244,16 @@ export default function RegisterFlow({
     for (const p of people) {
       const band = p.isKid ? ((p.age ?? 6) < 5 ? "child_under_5" : "child_5_12") : "adult";
       const allDays = p.days.length >= dayCount;
-      const type = event.ticketTypes.find((t) => {
-        if (t.ageBand !== band && t.ageBand !== "all") return false;
-        const fullPass = (t.dayKeys?.length ?? 0) >= dayCount;
-        if (allDays !== fullPass) return false;
-        if (band === "adult" && t.withFood !== p.withFood) return false;
-        return true;
-      });
+      const cands = event.ticketTypes.filter(
+        (t) => (t.ageBand === band || t.ageBand === "all") && (band !== "adult" || t.withFood === p.withFood)
+      );
+      // exact day-combo (incl. full pass); else legacy per-day ticket (null dayKeys)
+      const exact = cands.find((t) => Array.isArray(t.dayKeys) && sameDaySet(t.dayKeys, p.days));
+      const type = exact ?? cands.find((t) => t.dayKeys == null);
       if (!type) continue;
-      const memberPricing = isMemberPurchase && (p.isKid || discountMode === "whole_family" || p.isMemberFlagged);
+      const memberPricing = wantsMembership || (isMemberPurchase && (p.isKid || discountMode === "whole_family" || p.isMemberFlagged));
       const unit = memberPricing ? type.priceMemberCents : type.priceNonmemberCents;
-      const units = allDays ? 1 : p.days.length;
+      const units = exact ? 1 : p.days.length;
       lines.push({
         person: p,
         label: allDays ? "All days" : p.days.map((d) => d.toUpperCase()).join(" + "),
@@ -257,10 +264,13 @@ export default function RegisterFlow({
     }
     const subtotal = lines.reduce((s, l) => s + l.price, 0);
     return { lines, subtotal };
-  }, [people, event.ticketTypes, dayCount, isMemberPurchase, discountMode]);
+  }, [people, event.ticketTypes, dayCount, isMemberPurchase, discountMode, wantsMembership]);
 
   const firstName = buyerName.trim().split(" ")[0] || "friend";
-  const total = Math.max(0, quote.subtotal - promo.discountCents);
+  const membershipCents = wantsMembership ? membershipPriceCents : 0;
+  const total = Math.max(0, quote.subtotal - promo.discountCents) + membershipCents;
+  const cardFee = cardProcessingFeeCents(total);
+  const cardTotal = total + cardFee;
 
   const ensureSelfInParty = () => {
     setPeople((prev) => {
@@ -341,6 +351,7 @@ export default function RegisterFlow({
       paymentMethod,
       promoCode: promo.state === "applied" ? promoCode : undefined,
       source: dayOfMode ? "day_of_kiosk" : "web",
+      wantsMembership,
       attendees: people.map((p) => ({
         firstName: p.firstName,
         lastName: p.lastName || undefined,
@@ -592,6 +603,37 @@ export default function RegisterFlow({
             </Card>
           )}
 
+          {/* ── BECOME A MEMBER ── */}
+          {step === "membership" && (
+            <Card k="membership" direction={direction} onBack={stepIndex > 0 ? goBack : undefined}>
+              <H>Want to join the Pragati family? 🪔</H>
+              <Sub>
+                You&apos;re booking as a guest. Become a member for {formatCents(membershipPriceCents)}/year and your whole
+                family gets member pricing on this order — and on every event all year. One membership covers the family.
+              </Sub>
+              <div className="grid gap-3">
+                <button className="choice-chip !p-5" data-selected={wantsMembership} onClick={() => { setWantsMembership(true); goNext(); }}>
+                  <span className="text-2xl">🌟</span>
+                  <span>
+                    <strong className="text-lg">Yes — make us members (+{formatCents(membershipPriceCents)}/year)</strong>
+                    <span className="block text-sm mt-0.5" style={{ color: "var(--ink-soft)" }}>
+                      Member prices apply to everyone on this order · welcome email with your member ID
+                    </span>
+                  </span>
+                </button>
+                <button className="choice-chip !p-5" data-selected={!wantsMembership} onClick={() => { setWantsMembership(false); goNext(); }}>
+                  <span className="text-2xl">🎟</span>
+                  <span>
+                    <strong className="text-lg">No thanks — just the tickets</strong>
+                    <span className="block text-sm mt-0.5" style={{ color: "var(--ink-soft)" }}>
+                      You can always join later
+                    </span>
+                  </span>
+                </button>
+              </div>
+            </Card>
+          )}
+
           {/* ── REVIEW ── */}
           {step === "review" && (
             <Card k="review" direction={direction} onBack={stepIndex > 0 ? goBack : undefined}>
@@ -624,6 +666,12 @@ export default function RegisterFlow({
                     <p className="font-semibold" style={{ color: "var(--leaf-deep)" }}>
                       −{formatCents(promo.discountCents)}
                     </p>
+                  </div>
+                )}
+                {wantsMembership && (
+                  <div className="flex items-center justify-between px-5 py-3.5">
+                    <p className="text-sm font-semibold">🌟 Pragati membership — 1 year (whole family)</p>
+                    <p className="font-semibold">{formatCents(membershipCents)}</p>
                   </div>
                 )}
                 <div className="flex items-center justify-between px-5 py-5" style={{ background: "var(--accent-soft)" }}>
@@ -688,6 +736,12 @@ export default function RegisterFlow({
                       <span className="block text-sm mt-0.5" style={{ color: "var(--ink-soft)" }}>
                         Instant — tickets emailed in seconds
                       </span>
+                      {total > 0 && (
+                        <span className="block text-sm mt-1">
+                          Processing fee <strong style={{ color: "var(--sindoor)" }}>{formatCents(cardFee)}</strong> · Total{" "}
+                          <strong>{formatCents(cardTotal)}</strong>
+                        </span>
+                      )}
                     </span>
                   </button>
                 )}

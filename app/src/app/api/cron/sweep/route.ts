@@ -17,5 +17,11 @@ export async function GET(req: Request) {
   // drain the email outbox: send queued/deferred mail, combine alert digests
   const { drainOutbox } = await import("@/lib/email");
   const outbox = await drainOutbox();
-  return NextResponse.json({ ok: true, released, outbox });
+  // prune old logs ~hourly to keep the free-tier database lean (cheap no-op otherwise)
+  let pruned: Record<string, number> | undefined;
+  if (new Date().getUTCMinutes() < 5) {
+    const { pruneOldLogs } = await import("@/lib/log-retention");
+    pruned = await pruneOldLogs();
+  }
+  return NextResponse.json({ ok: true, released, outbox, pruned });
 }

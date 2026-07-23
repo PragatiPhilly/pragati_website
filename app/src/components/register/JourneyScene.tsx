@@ -12,7 +12,7 @@ const INK = "#2e1a0e";
 const SKIN = "#e8b84a";
 const BODY_COLORS = ["#b5402a", "#3f6b4a", "#3a5a8c", "#7a4a8c", "#c96a5a", "#a3641a"];
 
-export type JourneyStep = "welcome" | "you" | "party" | "days" | "food" | "review" | "pay" | "done";
+export type JourneyStep = "welcome" | "you" | "party" | "days" | "food" | "membership" | "review" | "pay" | "done";
 
 const STOP_X: Record<JourneyStep, number> = {
   welcome: 60,
@@ -20,6 +20,7 @@ const STOP_X: Record<JourneyStep, number> = {
   party: 320,
   days: 455,
   food: 585,
+  membership: 650,
   review: 712,
   pay: 712,
   done: 845,

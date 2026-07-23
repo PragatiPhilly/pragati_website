@@ -11,6 +11,7 @@ export type SubmitRegistrationInput = {
   paymentMethod: "square" | "zelle" | "offline";
   promoCode?: string;
   source: "web" | "day_of_kiosk";
+  wantsMembership?: boolean;
   attendees: CheckoutAttendee[];
 };
 
@@ -78,6 +79,7 @@ export async function submitRegistration(input: SubmitRegistrationInput): Promis
       buyerPhone: input.buyerPhone?.trim(),
       memberId: session?.memberId,
       isMemberPurchase: !!session?.memberId,
+      wantsMembership: input.wantsMembership,
       source: input.source,
       paymentMethod: input.paymentMethod,
       promoCode: input.promoCode,

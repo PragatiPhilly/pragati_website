@@ -3,6 +3,7 @@ import { site } from "@/config/site";
 import { getSession } from "@/lib/auth/session";
 import { logoutAction } from "@/lib/auth/actions";
 import MobileNav from "./MobileNav";
+import HeaderScroll from "./HeaderScroll";
 
 export default async function Header() {
   const session = await getSession();
@@ -10,25 +11,16 @@ export default async function Header() {
 
   return (
     <>
-      <header
-        className="sticky top-0 z-40 backdrop-blur-md border-b"
-        style={{ background: "color-mix(in srgb, var(--bg) 85%, transparent)", borderColor: "var(--line)" }}
-      >
-        <div className="mx-auto max-w-6xl px-5 h-[72px] flex items-center justify-between gap-4">
-          <Link href="/" className="group inline-flex flex-col justify-center min-w-0 leading-none" aria-label="Pragati — home">
+      <HeaderScroll />
+      <header className="site-header sticky top-0 z-40 backdrop-blur-md border-b">
+        <div className="hdr-inner mx-auto max-w-6xl px-5 flex items-center justify-between gap-4">
+          <Link href="/" className="group flex items-center min-w-0" aria-label="Pragati — home">
             {/* eslint-disable-next-line @next/next/no-img-element */}
             <img
-              src="/brand/header-logo.png"
-              alt="Pragati"
-              className="shrink-0 transition-transform group-hover:scale-[1.03]"
-              style={{ height: 38, width: "auto" }}
+              src="/brand/header-logo-full.png"
+              alt="Pragati — The Bengali Association of Greater Philadelphia, since 1972"
+              className="hdr-logo shrink-0 w-auto group-hover:scale-[1.02]"
             />
-            <span
-              className="hidden sm:block text-[10px] tracking-wide mt-1 whitespace-nowrap"
-              style={{ color: "var(--ink-soft)" }}
-            >
-              The Bengali Association of Greater Philadelphia · since 1972
-            </span>
           </Link>
 
           <nav className="hidden md:flex items-center gap-6 text-sm font-medium">

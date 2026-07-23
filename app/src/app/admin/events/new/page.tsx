@@ -22,7 +22,7 @@ export default async function NewEventPage() {
           venueMapUrl: "",
           status: "draft",
           ticketTypes: [
-            { name: "Adult · with food", ageBand: "adult", fullPass: true, withFood: true, priceMember: 0, priceNonmember: 0, capacity: null },
+            { name: "Adult · with food", ageBand: "adult", dayKeys: [], checkInStart: null, withFood: true, priceMember: 0, priceNonmember: 0, capacity: null },
           ],
           promoCodes: [],
         }}

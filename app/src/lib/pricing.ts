@@ -13,6 +13,10 @@ export type AttendeeInput = {
   isMemberFlagged: boolean; // family_members.is_member (adults, Mode A)
   ticketTypeId: string;
   foodPref: "veg" | "non_veg" | "kid" | "none";
+  /** For multi-day bundle passes: the bundle total is split across its day
+   *  tickets, so each day-line carries its share here instead of the ticket's
+   *  own price. The members-only check still uses the ticket's base price. */
+  priceOverrideCents?: number;
 };
 
 export type TicketTypeInfo = {
@@ -67,8 +71,9 @@ export function priceQuote(
     const tt = ticketTypes.get(a.ticketTypeId);
     if (!tt) throw new Error(`Unknown ticket type: ${a.ticketTypeId}`);
     const memberPricing = attendeeGetsMemberPricing(a, opts.isMemberPurchase, opts.discountMode);
-    const priceCents = memberPricing ? tt.priceMemberCents : tt.priceNonmemberCents;
-    if (priceCents < 0) throw new Error(`${tt.name} is available to members only`);
+    const base = memberPricing ? tt.priceMemberCents : tt.priceNonmemberCents;
+    if (base < 0) throw new Error(`${tt.name} is available to members only`);
+    const priceCents = a.priceOverrideCents ?? base;
     return { attendee: a, ticketType: tt, memberPricing, priceCents };
   });
 
@@ -85,6 +90,13 @@ export function priceQuote(
 
 export function formatCents(cents: number): string {
   return `$${(cents / 100).toFixed(2)}`;
+}
+
+/** Card (Square) surcharge — 3% of the amount, shown at checkout and added to
+ *  the charged total. Card payments only; Zelle / offline pay no fee. */
+export const CARD_FEE_RATE = 0.03;
+export function cardProcessingFeeCents(amountCents: number): number {
+  return Math.max(0, Math.round(amountCents * CARD_FEE_RATE));
 }
 
 export function ageOn(dateOfBirth: string | Date, onDate: Date): number {

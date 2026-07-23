@@ -60,6 +60,9 @@ export const members = pgTable(
     country: text("country").default("US"),
     membershipStatus: text("membership_status").notNull().default("pending_payment"), // pending_payment | active | inactive
     membershipStartedAt: date("membership_started_at"),
+    squareOrderId: text("square_order_id"), // set when paying dues by card; matched by the Square webhook
+    membershipExpiresAt: timestamp("membership_expires_at", { withTimezone: true }), // active membership valid until
+    memberNumber: text("member_number"), // friendly member ID shown to the member
     notes: text("notes"),
     createdAt: createdAt(),
     updatedAt: updatedAt(),
@@ -135,6 +138,7 @@ export const ticketTypes = pgTable(
     ageBand: text("age_band").notNull().default("all"), // adult | child_5_12 | child_under_5 | senior | all
     dayKeys: jsonb("day_keys"), // which event days this covers, e.g. ['sat'] or ['fri','sat','sun']
     withFood: boolean("with_food").notNull().default(true),
+    checkInStart: text("check_in_start"), // "HH:MM" event-local; concert-style gate. null = check in any time
     capacity: integer("capacity"),
     soldCount: integer("sold_count").notNull().default(0),
     requiresFoodSelection: boolean("requires_food_selection").notNull().default(true),
@@ -185,6 +189,8 @@ export const registrations = pgTable(
     subtotalCents: integer("subtotal_cents").notNull(),
     discountCents: integer("discount_cents").notNull().default(0),
     totalCents: integer("total_cents").notNull(),
+    processingFeeCents: integer("processing_fee_cents").notNull().default(0), // card surcharge, added when paying by Square
+    membershipSignup: boolean("membership_signup").notNull().default(false), // buyer opted to become a member during this registration
     promoCodeId: text("promo_code_id").references(() => promoCodes.id),
     paymentMethod: text("payment_method").notNull(), // square | zelle | offline
     status: text("status").notNull().default("pending_payment"),
