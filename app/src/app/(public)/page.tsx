@@ -256,7 +256,7 @@ export default async function HomePage() {
             {
               src: "/lineup/anjan-dutt.jpg",
               alt: "Pragati presents Anjan Dutt & The Electric Band — the only East Coast stop this year",
-              date: "Sat, Oct 10, 2026",
+              date: "Sat, Oct 10, 2026 · 6:30 PM",
               venue: "Greater Philadelphia Expo Center",
               accent: "#e9c25d",
               bg: "#14100a",
