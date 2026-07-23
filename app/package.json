@@ -9,7 +9,8 @@
     "db:push": "node -e \"require('fs').mkdirSync(process.env.PGLITE_DIR||'./.data/pglite',{recursive:true})\" && drizzle-kit push",
     "seed": "tsx src/db/seed.ts",
     "test": "vitest run",
-    "reset:test-data": "tsx scripts/reset-test-data.ts"
+    "reset:test-data": "tsx scripts/reset-test-data.ts",
+    "create:admin": "tsx scripts/create-admin.ts"
   },
   "dependencies": {
     "@electric-sql/pglite": "^0.5.3",

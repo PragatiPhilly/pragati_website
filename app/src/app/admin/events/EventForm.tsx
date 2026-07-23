@@ -194,7 +194,6 @@ export default function EventForm({ initial }: { initial: EventInput }) {
                   <label className="text-xs font-semibold grid gap-1" style={{ color: "var(--ink-soft)" }}>
                     Non-member $
                     <input type="number" min={-1} step="0.01" className="input" value={t.priceNonmember} onChange={(e) => setTicket(i, { priceNonmember: parseFloat(e.target.value) || 0 })} />
-                    <span className="font-normal opacity-70">−1 = members only</span>
                   </label>
                   <label className="text-xs font-semibold grid gap-1" style={{ color: "var(--ink-soft)" }}>
                     Capacity
