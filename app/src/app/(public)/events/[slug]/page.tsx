@@ -120,6 +120,25 @@ function ConcertCard({ t, days }: { t: Ticket; days: EventDay[] }) {
   );
 }
 
+function AddonCard({ t, days }: { t: Ticket; days: EventDay[] }) {
+  const time = fmtTime(t.checkInStart);
+  const keys = Array.isArray(t.dayKeys) ? (t.dayKeys as string[]) : [];
+  return (
+    <div className="rounded-2xl p-4" style={{ border: "1px solid var(--line)", background: "var(--card)" }}>
+      <p className="font-bold text-sm">🎫 {t.name}</p>
+      <p className="text-xs mt-0.5" style={{ color: "var(--ink-soft)" }}>
+        {keys.length > 0 && keys.length < days.length ? `${coverageLabel(t.dayKeys, days)} · ` : ""}
+        {time ? `${time} · ` : ""}
+        {t.withFood ? "includes food" : "no meal"}
+        {soldOut(t) && <SoldOutTag />}
+      </p>
+      <div className="mt-2">
+        <PriceCell t={t} />
+      </div>
+    </div>
+  );
+}
+
 export default async function EventDetailPage({ params }: { params: Promise<{ slug: string }> }) {
   const { slug } = await params;
   const event = await getEventBySlug(slug);
@@ -132,15 +151,21 @@ export default async function EventDetailPage({ params }: { params: Promise<{ sl
   const adult = event.ticketTypes.filter((t) => t.ageBand === "adult");
   const youth = event.ticketTypes.filter((t) => t.ageBand === "child_5_18" || t.ageBand === "child_5_12");
   const under = event.ticketTypes.filter((t) => t.ageBand === "child_under_5");
+  const student = event.ticketTypes.filter((t) => t.ageBand === "student");
   const concert = event.ticketTypes.filter((t) => t.ageBand === "concert");
-  const known = new Set(["adult", "child_5_18", "child_5_12", "child_under_5", "concert"]);
+  const addon = event.ticketTypes.filter((t) => t.ageBand === "addon");
+  const known = new Set(["adult", "child_5_18", "child_5_12", "child_under_5", "student", "concert", "addon"]);
   const other = event.ticketTypes.filter((t) => !known.has(t.ageBand));
-  const adultMap = new Map<string, typeof adult>();
-  for (const t of adult) {
-    const label = coverageLabel(t.dayKeys, days);
-    adultMap.set(label, [...(adultMap.get(label) ?? []), t]);
-  }
-  const adultGroups = [...adultMap.entries()];
+  const groupByCoverage = (items: typeof adult) => {
+    const m = new Map<string, typeof adult>();
+    for (const t of items) {
+      const label = coverageLabel(t.dayKeys, days);
+      m.set(label, [...(m.get(label) ?? []), t]);
+    }
+    return [...m.entries()];
+  };
+  const adultGroups = groupByCoverage(adult);
+  const studentGroups = groupByCoverage(student);
 
   return (
     <div className="mx-auto max-w-5xl px-5 py-14">
@@ -245,6 +270,16 @@ export default async function EventDetailPage({ params }: { params: Promise<{ sl
             </TicketGroup>
           )}
 
+          {studentGroups.length > 0 && (
+            <TicketGroup title="Students" sub="🎓 valid student ID required at entry">
+              <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-3">
+                {studentGroups.map(([label, passes]) => (
+                  <CoverageCard key={label} label={label} passes={passes} />
+                ))}
+              </div>
+            </TicketGroup>
+          )}
+
           {under.length > 0 && (
             <TicketGroup title="Little ones" sub="under 5">
               <SimpleRows passes={under} />
@@ -256,6 +291,16 @@ export default async function EventDetailPage({ params }: { params: Promise<{ sl
               <div className="grid sm:grid-cols-2 gap-3">
                 {concert.map((t) => (
                   <ConcertCard key={t.id} t={t} days={days} />
+                ))}
+              </div>
+            </TicketGroup>
+          )}
+
+          {addon.length > 0 && (
+            <TicketGroup title="Extras" sub="add-ons — lunch, dinner & more">
+              <div className="grid sm:grid-cols-2 gap-3">
+                {addon.map((t) => (
+                  <AddonCard key={t.id} t={t} days={days} />
                 ))}
               </div>
             </TicketGroup>

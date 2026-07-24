@@ -101,13 +101,31 @@ export default async function TicketPage({ params }: { params: Promise<{ code: s
             <p>
               <span style={{ color: "var(--ink-soft)" }}>Day:</span> <strong>{ticket.dayKey === "all" ? "All days" : ticket.dayKey?.toUpperCase()}</strong>
               <span className="mx-2" style={{ color: "var(--line)" }}>|</span>
-              <span style={{ color: "var(--ink-soft)" }}>Food:</span> <strong>{ticket.foodPref ?? "—"}</strong>
+              <span style={{ color: "var(--ink-soft)" }}>Food:</span> <strong>{ticket.foodPref && ticket.foodPref !== "none" ? ticket.foodPref.replace("_", "-") : "No meal"}</strong>
             </p>
             <p>
               <span style={{ color: "var(--ink-soft)" }}>Booked by:</span> {reg.buyerName} ·{" "}
               <span className="font-mono text-xs">{reg.confirmationNumber}</span>
             </p>
           </div>
+
+          {isAdmin && ticket.studentInfo != null && (
+            <div className="mt-4 rounded-xl px-4 py-3 text-sm" style={{ background: "var(--accent-soft)" }}>
+              <p className="font-bold mb-1">🎓 Student pass — check student ID</p>
+              {(() => {
+                const si = ticket.studentInfo as { eduEmail?: string; university?: string; city?: string; gradYear?: string };
+                return (
+                  <div style={{ color: "var(--ink-soft)" }}>
+                    <p>
+                      {[si.university, si.city].filter(Boolean).join(", ")}
+                      {si.gradYear ? ` · grad ${si.gradYear}` : ""}
+                    </p>
+                    {si.eduEmail && <p className="font-mono text-xs break-all">{si.eduEmail}</p>}
+                  </div>
+                );
+              })()}
+            </div>
+          )}
 
           {/* The pass QR — what the attendee shows at the gate. The gate
               volunteer scans it, which opens this same page on their (signed-in)

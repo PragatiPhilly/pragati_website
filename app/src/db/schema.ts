@@ -192,6 +192,7 @@ export const registrations = pgTable(
     discountCents: integer("discount_cents").notNull().default(0),
     totalCents: integer("total_cents").notNull(),
     processingFeeCents: integer("processing_fee_cents").notNull().default(0), // card surcharge, added when paying by Square
+    donationCents: integer("donation_cents").notNull().default(0), // optional donation added during checkout
     membershipSignup: boolean("membership_signup").notNull().default(false), // buyer opted to become a member during this registration
     promoCodeId: text("promo_code_id").references(() => promoCodes.id),
     paymentMethod: text("payment_method").notNull(), // square | zelle | offline
@@ -234,6 +235,7 @@ export const tickets = pgTable(
     attendeeIsMember: boolean("attendee_is_member").notNull().default(false),
     foodPref: text("food_pref"), // veg | non_veg | kid | none
     dietaryNotes: text("dietary_notes"),
+    studentInfo: jsonb("student_info"), // { eduEmail, university, city, gradYear } for student passes
     dayKey: text("day_key").default("all"), // which event day this ticket covers ('all' = full pass)
     priceCents: integer("price_cents").notNull().default(0),
     qrCode: text("qr_code").notNull(),

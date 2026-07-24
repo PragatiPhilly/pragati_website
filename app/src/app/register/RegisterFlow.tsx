@@ -63,9 +63,11 @@ type Person = {
   withFood: boolean;
   foodPref: "veg" | "non_veg" | "kid" | "none";
   concertOnly: boolean;
+  isStudent: boolean;
+  student?: { eduEmail: string; university: string; city: string; gradYear: string };
 };
 
-type StepId = "welcome" | "you" | "party" | "days" | "food" | "membership" | "review" | "pay" | "done";
+type StepId = "welcome" | "you" | "party" | "days" | "food" | "extras" | "membership" | "donate" | "review" | "pay" | "done";
 
 const spring = { type: "spring", stiffness: 260, damping: 26 } as const;
 
@@ -75,7 +77,9 @@ const STEP_TITLES: Record<StepId, string> = {
   party: "পরিবার",
   days: "দিন",
   food: "ভোগ",
+  extras: "বাড়তি",
   membership: "সদস্যপদ",
+  donate: "দান",
   review: "দেখে নিন",
   pay: "টাকা",
   done: "শেষ",
@@ -159,7 +163,7 @@ function PersonRow({ title, children }: { title: React.ReactNode; children: Reac
 
 /** ── live price panel (desktop side rail + mobile bottom sheet) ── */
 
-type QuoteLine = { person: Person; label: string; typeName: string; price: number; memberPricing: boolean };
+type QuoteLine = { person: Person | null; label: string; typeName: string; price: number; memberPricing: boolean };
 
 type OrderData = {
   lines: QuoteLine[];
@@ -167,6 +171,7 @@ type OrderData = {
   promoCode: string;
   promoDiscount: number;
   membershipCents: number;
+  donationCents: number;
   total: number;
   cardFee: number;
   passes: FlowEvent["ticketTypes"];
@@ -188,11 +193,13 @@ function shortPassName(name: string): string {
 const PASS_GROUPS: { keys: string[]; label: string }[] = [
   { keys: ["adult"], label: "Adult" },
   { keys: ["child_5_18", "child_5_12"], label: "Youth 5–18" },
+  { keys: ["student"], label: "Student" },
   { keys: ["child_under_5"], label: "Under 5" },
   { keys: ["concert"], label: "Concert" },
+  { keys: ["addon"], label: "Extras" },
 ];
 
-function OrderLines({ lines, promoApplied, promoCode, promoDiscount, membershipCents }: OrderData) {
+function OrderLines({ lines, promoApplied, promoCode, promoDiscount, membershipCents, donationCents }: OrderData) {
   return (
     <div className="divide-y" style={{ borderColor: "var(--line)" }}>
       {lines.length === 0 ? (
@@ -201,14 +208,15 @@ function OrderLines({ lines, promoApplied, promoCode, promoDiscount, membershipC
         </p>
       ) : (
         lines.map((l) => (
-          <div key={`${l.person.id}-${l.label}`} className="flex items-start justify-between gap-3 py-2.5">
+          <div key={l.person ? `${l.person.id}-${l.label}` : `addon-${l.typeName}`} className="flex items-start justify-between gap-3 py-2.5">
             <div className="min-w-0">
               <p className="text-sm font-semibold truncate">
-                {l.person.isKid ? "🧒" : "🧑"} {l.person.firstName}
+                {l.person ? `${l.person.isStudent ? "🎓" : l.person.isKid ? "🧒" : "🧑"} ${l.person.firstName}` : `🎫 ${l.typeName}`}
               </p>
               <p className="text-xs truncate" style={{ color: "var(--ink-soft)" }}>
-                {l.label}
-                {l.person.concertOnly ? " · concert" : l.person.isKid ? " · kid meal" : l.person.withFood ? " · with food" : " · no food"}
+                {l.person
+                  ? `${l.label}${l.person.concertOnly ? " · concert" : l.person.isStudent ? (l.person.withFood ? " · student · food" : " · student") : l.person.isKid ? ((l.person.age ?? 6) < 5 ? " · under 5 · free" : " · youth · meal incl.") : l.person.withFood ? " · with food" : " · no food"}`
+                  : `Add-on ${l.label}`}
                 {l.memberPricing && " · member"}
               </p>
             </div>
@@ -228,6 +236,12 @@ function OrderLines({ lines, promoApplied, promoCode, promoDiscount, membershipC
           <span className="font-semibold">{formatCents(membershipCents)}</span>
         </div>
       )}
+      {donationCents > 0 && (
+        <div className="flex items-center justify-between py-2 text-sm">
+          <span>🙏 Donation</span>
+          <span className="font-semibold">{formatCents(donationCents)}</span>
+        </div>
+      )}
     </div>
   );
 }
@@ -235,42 +249,47 @@ function OrderLines({ lines, promoApplied, promoCode, promoDiscount, membershipC
 function PassList({ passes }: { passes: FlowEvent["ticketTypes"] }) {
   if (passes.length === 0) return null;
   const known = new Set(PASS_GROUPS.flatMap((g) => g.keys));
-  const other = passes.filter((t) => !known.has(t.ageBand));
+  const groups = [
+    ...PASS_GROUPS.map((g) => ({ label: g.label, items: passes.filter((t) => g.keys.includes(t.ageBand)) })),
+    { label: "Other", items: passes.filter((t) => !known.has(t.ageBand)) },
+  ].filter((g) => g.items.length > 0);
+  const priceOf = (t: FlowEvent["ticketTypes"][number]) => (t.priceNonmemberCents >= 0 ? t.priceNonmemberCents : t.priceMemberCents);
+  const range = (items: FlowEvent["ticketTypes"]) => {
+    const p = items.map(priceOf);
+    const lo = Math.min(...p);
+    const hi = Math.max(...p);
+    return lo === hi ? formatCents(lo) : `${formatCents(lo)} – ${formatCents(hi)}`;
+  };
   return (
     <div className="mt-4 pt-3 border-t" style={{ borderColor: "var(--line)" }}>
-      <p className="text-sm font-black">All passes &amp; prices</p>
-      <p className="text-[11px] mb-2.5" style={{ color: "var(--ink-soft)" }}>non-member / member★</p>
-      <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-1">
-        {PASS_GROUPS.map((g) => {
-          const items = passes.filter((t) => g.keys.includes(t.ageBand));
-          if (items.length === 0) return null;
-          return (
+      <p className="text-sm font-black mb-2">Passes at a glance</p>
+      <div className="grid gap-1.5">
+        {groups.map((g) => (
+          <div key={g.label} className="flex items-baseline justify-between gap-3">
+            <span className="text-[11px] font-bold uppercase tracking-wide" style={{ color: "var(--terracotta)" }}>{g.label}</span>
+            <span className="text-xs font-semibold whitespace-nowrap">{range(g.items)}</span>
+          </div>
+        ))}
+      </div>
+      <details className="mt-3">
+        <summary className="text-xs font-semibold cursor-pointer select-none" style={{ color: "var(--sindoor)" }}>See every price</summary>
+        <p className="text-[10px] mt-1.5 mb-2" style={{ color: "var(--ink-soft)" }}>guest / member★</p>
+        <div className="grid gap-2.5">
+          {groups.map((g) => (
             <div key={g.label}>
-              <p className="text-[11px] font-bold uppercase tracking-wide mb-1" style={{ color: "var(--terracotta)" }}>
-                {g.label}
-              </p>
-              <div className="grid gap-1">
-                {items.map((t) => (
-                  <div key={t.id} className="flex items-baseline justify-between gap-3 text-xs">
+              <p className="text-[10px] font-bold uppercase tracking-wide mb-1" style={{ color: "var(--terracotta)" }}>{g.label}</p>
+              <div className="grid gap-0.5">
+                {g.items.map((t) => (
+                  <div key={t.id} className="flex items-baseline justify-between gap-2 text-[11px]">
                     <span className="min-w-0 truncate" style={{ color: "var(--ink-soft)" }}>{shortPassName(t.name)}</span>
-                    <span className="whitespace-nowrap font-medium">{passPrice(t)}</span>
+                    <span className="whitespace-nowrap">{passPrice(t)}</span>
                   </div>
                 ))}
               </div>
             </div>
-          );
-        })}
-        {other.length > 0 && (
-          <div className="grid gap-1">
-            {other.map((t) => (
-              <div key={t.id} className="flex items-baseline justify-between gap-3 text-xs">
-                <span className="min-w-0 truncate" style={{ color: "var(--ink-soft)" }}>{t.name}</span>
-                <span className="whitespace-nowrap font-medium">{passPrice(t)}</span>
-              </div>
-            ))}
-          </div>
-        )}
-      </div>
+          ))}
+        </div>
+      </details>
     </div>
   );
 }
@@ -387,6 +406,13 @@ export default function RegisterFlow({
   const hasConcert = concertDays.length > 0;
   // arriving from a poster "buy concert" link — start everyone in concert mode for that day
   const initialConcertDay = concertDay && concertDayKeys.includes(concertDay) ? concertDay : null;
+
+  // ── add-on / extra passes (ageBand "addon"): lunch, dinner, parking… ──
+  const addonPasses = useMemo(() => event.ticketTypes.filter((t) => t.ageBand === "addon"), [event.ticketTypes]);
+  const hasAddons = addonPasses.length > 0;
+
+  // ── student passes (ageBand "student"): edu ID required, own price ──
+  const hasStudent = useMemo(() => event.ticketTypes.some((t) => t.ageBand === "student"), [event.ticketTypes]);
   const todayKey = useMemo(() => {
     const today = new Date().toISOString().slice(0, 10);
     return event.days.find((d) => d.date === today)?.key ?? event.days[0]?.key ?? "all";
@@ -409,18 +435,23 @@ export default function RegisterFlow({
   const [doneConf, setDoneConf] = useState("");
   const [doneTotal, setDoneTotal] = useState(0);
   const [wantsMembership, setWantsMembership] = useState(false);
+  const [addonQty, setAddonQty] = useState<Record<string, number>>({});
+  const [donationCents, setDonationCents] = useState(0);
 
   // add-person mini-form
   const [draftName, setDraftName] = useState("");
-  const [draftKind, setDraftKind] = useState<"adult" | "kid" | null>(null);
+  const [draftKind, setDraftKind] = useState<"adult" | "kid" | "student" | null>(null);
   const [draftAge, setDraftAge] = useState("");
+  const [draftStudent, setDraftStudent] = useState({ eduEmail: "", university: "", city: "", gradYear: "" });
 
   const steps: StepId[] = useMemo(() => {
     const base: StepId[] = member || dayOfMode ? [] : ["welcome"];
     const daysStep: StepId[] = dayOfMode || dayCount === 1 ? [] : (["days"] as StepId[]);
+    const extrasStep: StepId[] = hasAddons ? (["extras"] as StepId[]) : [];
     const joinStep: StepId[] = canJoinMembership ? (["membership"] as StepId[]) : [];
-    return [...base, "you", "party", ...daysStep, "food", ...joinStep, "review", "pay"];
-  }, [member, dayOfMode, dayCount, canJoinMembership]);
+    const donateStep: StepId[] = dayOfMode ? [] : (["donate"] as StepId[]);
+    return [...base, "you", "party", ...daysStep, "food", ...extrasStep, ...joinStep, ...donateStep, "review", "pay"];
+  }, [member, dayOfMode, dayCount, canJoinMembership, hasAddons]);
   const stepIndex = steps.indexOf(step);
 
   const go = (next: StepId, dir = 1) => {
@@ -451,7 +482,7 @@ export default function RegisterFlow({
 
   // ── pricing mirror (display only — server re-prices authoritatively) ──
   const quote = useMemo(() => {
-    const lines: { person: Person; label: string; typeName: string; price: number; memberPricing: boolean }[] = [];
+    const lines: { person: Person | null; label: string; typeName: string; price: number; memberPricing: boolean }[] = [];
     for (const p of people) {
       // Concert-only person: one concert-pass line per chosen concert day, no food.
       if (p.concertOnly) {
@@ -465,22 +496,34 @@ export default function RegisterFlow({
         }
         continue;
       }
-      const band = p.isKid ? ((p.age ?? 6) < 5 ? "child_under_5" : "child_5_18") : "adult";
+      const band = p.isStudent ? "student" : p.isKid ? ((p.age ?? 6) < 5 ? "child_under_5" : "child_5_18") : "adult";
       const allDays = p.days.length >= dayCount;
       const cands = event.ticketTypes.filter((t) => {
-        if (t.ageBand === "concert") return false; // concert = dedicated flow, not auto-matched
+        if (t.ageBand === "concert" || t.ageBand === "addon") return false; // sold via their own flows
         const bandOk =
           t.ageBand === band ||
           t.ageBand === "all" ||
           (band === "child_5_18" && t.ageBand === "child_5_12"); // legacy youth
         if (!bandOk) return false;
-        if (band === "adult" && t.withFood !== p.withFood) return false;
+        if ((band === "adult" || band === "student") && t.withFood !== p.withFood) return false;
         return true;
       });
       // exact day-combo (incl. full pass); else legacy per-day ticket (null dayKeys)
       const exact = cands.find((t) => Array.isArray(t.dayKeys) && sameDaySet(t.dayKeys, p.days));
       const type = exact ?? cands.find((t) => t.dayKeys == null);
-      if (!type) continue;
+      if (!type) {
+        // Under-5 with no dedicated pass → free, but still show them on the order.
+        if (p.isKid && (p.age ?? 6) < 5) {
+          lines.push({
+            person: p,
+            label: allDays ? "All days" : p.days.map((d) => d.toUpperCase()).join(" + "),
+            typeName: "Under 5",
+            price: 0,
+            memberPricing: false,
+          });
+        }
+        continue;
+      }
       const memberPricing = wantsMembership || (isMemberPurchase && (p.isKid || discountMode === "whole_family" || p.isMemberFlagged));
       const unit = memberPricing ? type.priceMemberCents : type.priceNonmemberCents;
       const units = exact ? 1 : p.days.length;
@@ -492,13 +535,21 @@ export default function RegisterFlow({
         memberPricing,
       });
     }
+    // Add-on / extra passes — quantity × price, member pricing for members.
+    for (const t of addonPasses) {
+      const qty = addonQty[t.id] ?? 0;
+      if (qty <= 0) continue;
+      const memberPricing = wantsMembership || isMemberPurchase;
+      const unit = memberPricing ? t.priceMemberCents : t.priceNonmemberCents;
+      lines.push({ person: null, label: `×${qty}`, typeName: t.name, price: (unit < 0 ? 0 : unit) * qty, memberPricing });
+    }
     const subtotal = lines.reduce((s, l) => s + l.price, 0);
     return { lines, subtotal };
-  }, [people, event.ticketTypes, event.days, concertPasses, dayCount, isMemberPurchase, discountMode, wantsMembership]);
+  }, [people, event.ticketTypes, event.days, concertPasses, addonPasses, addonQty, dayCount, isMemberPurchase, discountMode, wantsMembership]);
 
   const firstName = buyerName.trim().split(" ")[0] || "friend";
   const membershipCents = wantsMembership ? membershipPriceCents : 0;
-  const total = Math.max(0, quote.subtotal - promo.discountCents) + membershipCents;
+  const total = Math.max(0, quote.subtotal - promo.discountCents) + membershipCents + donationCents;
   const cardFee = cardProcessingFeeCents(total);
   const cardTotal = total + cardFee;
 
@@ -511,6 +562,7 @@ export default function RegisterFlow({
     promoCode,
     promoDiscount: promo.discountCents,
     membershipCents,
+    donationCents,
     total,
     cardFee,
     passes: event.ticketTypes,
@@ -531,6 +583,7 @@ export default function RegisterFlow({
           withFood: !initialConcertDay,
           foodPref: initialConcertDay ? "none" : "non_veg",
           concertOnly: !!initialConcertDay,
+          isStudent: false,
         },
         ...prev,
       ];
@@ -565,11 +618,14 @@ export default function RegisterFlow({
         withFood: !initialConcertDay,
         foodPref: initialConcertDay ? "none" : draftKind === "kid" ? "kid" : "non_veg",
         concertOnly: !!initialConcertDay,
+        isStudent: draftKind === "student",
+        student: draftKind === "student" ? { ...draftStudent } : undefined,
       },
     ]);
     setDraftName("");
     setDraftKind(null);
     setDraftAge("");
+    setDraftStudent({ eduEmail: "", university: "", city: "", gradYear: "" });
   };
 
   const toggleFamily = (f: FlowMemberContext["family"][number]) => {
@@ -591,6 +647,7 @@ export default function RegisterFlow({
           withFood: !initialConcertDay,
           foodPref: initialConcertDay ? "none" : isKid ? "kid" : f.foodPref,
           concertOnly: !!initialConcertDay,
+          isStudent: false,
         },
       ];
     });
@@ -621,7 +678,11 @@ export default function RegisterFlow({
         withFood: p.concertOnly ? false : p.withFood,
         foodPref: p.concertOnly ? "none" : p.isKid ? "kid" : p.withFood ? p.foodPref : "none",
         concertOnly: p.concertOnly,
+        isStudent: p.isStudent,
+        student: p.student,
       })),
+      addons: addonPasses.map((t) => ({ ticketTypeId: t.id, qty: addonQty[t.id] ?? 0 })).filter((a) => a.qty > 0),
+      donationCents,
     });
     setBusy(false);
     if (!res.ok) return setError(res.error);
@@ -736,7 +797,7 @@ export default function RegisterFlow({
                       className="inline-flex items-center gap-2 rounded-full px-4.5 py-2.5 text-[15px] font-semibold"
                       style={{ background: "var(--accent-soft)", color: "var(--ink)", border: "1.5px solid var(--line)", padding: "0.6rem 1.1rem" }}
                     >
-                      {p.isKid ? "🧒" : "🧑"} {p.firstName}
+                      {p.isStudent ? "🎓" : p.isKid ? "🧒" : "🧑"} {p.firstName}
                       {p.isKid && p.age !== undefined && <span style={{ color: "var(--ink-soft)" }}>({p.age})</span>}
                       {p.id !== "self" && (
                         <button className="ml-1 opacity-60 hover:opacity-100" onClick={() => setPeople((prev) => prev.filter((x) => x.id !== p.id))}>
@@ -775,7 +836,36 @@ export default function RegisterFlow({
                     <button className="choice-chip !py-3 !px-5" onClick={() => setDraftKind("kid")}>
                       🧒 A kid
                     </button>
+                    {hasStudent && (
+                      <button className="choice-chip !py-3 !px-5" onClick={() => setDraftKind("student")}>
+                        🎓 A student
+                      </button>
+                    )}
                   </div>
+                ) : draftKind === "student" ? (
+                  <motion.div initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} className="grid gap-3">
+                    <p className="font-semibold">
+                      🎓 Student pass{" "}
+                      <span className="text-xs font-normal" style={{ color: "var(--ink-soft)" }}>
+                        — discounted rate · bring your student ID to the gate
+                      </span>
+                    </p>
+                    <div className="grid sm:grid-cols-2 gap-3">
+                      <input className="input !py-3" placeholder="Student's name" value={draftName} onChange={(e) => setDraftName(e.target.value)} autoFocus />
+                      <input className="input !py-3" type="email" placeholder="School email (.edu)" value={draftStudent.eduEmail} onChange={(e) => setDraftStudent((s) => ({ ...s, eduEmail: e.target.value }))} />
+                      <input className="input !py-3" placeholder="University / college" value={draftStudent.university} onChange={(e) => setDraftStudent((s) => ({ ...s, university: e.target.value }))} />
+                      <input className="input !py-3" placeholder="City" value={draftStudent.city} onChange={(e) => setDraftStudent((s) => ({ ...s, city: e.target.value }))} />
+                      <input className="input !py-3" type="number" placeholder="Expected grad year (e.g. 2027)" value={draftStudent.gradYear} onChange={(e) => setDraftStudent((s) => ({ ...s, gradYear: e.target.value }))} />
+                    </div>
+                    <div className="flex gap-3 items-center">
+                      <button className="btn-primary !py-3 !px-6 text-sm" onClick={addDraft} disabled={!draftName.trim() || !draftStudent.eduEmail.includes("@")}>
+                        Add student ✓
+                      </button>
+                      <button className="text-sm opacity-60 hover:opacity-100" onClick={() => setDraftKind(null)}>
+                        cancel
+                      </button>
+                    </div>
+                  </motion.div>
                 ) : (
                   <motion.div initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} className="flex flex-wrap gap-3 items-center">
                     <input className="input flex-1 min-w-44 !py-3" placeholder={draftKind === "kid" ? "Kid's name" : "Their name"} value={draftName} onChange={(e) => setDraftName(e.target.value)} autoFocus onKeyDown={(e) => e.key === "Enter" && addDraft()} />
@@ -792,7 +882,20 @@ export default function RegisterFlow({
                 )}
               </div>
 
-              <NextBtn big={dayOfMode} label={people.length > 1 ? `Continue with ${people.length} people →` : "It's just me — continue →"} onClick={goNext} />
+              <NextBtn
+                big={dayOfMode}
+                label={people.length > 1 ? `Continue with ${people.length} people →` : "It's just me — continue →"}
+                onClick={() => {
+                  // Guard against the common slip: typed a name but never clicked "Add".
+                  if (draftKind && draftName.trim()) {
+                    const ok = window.confirm(
+                      `You started adding "${draftName.trim()}" but haven't tapped "Add" yet — they won't be included. Continue without them?`
+                    );
+                    if (!ok) return;
+                  }
+                  goNext();
+                }}
+              />
             </Card>
           )}
 
@@ -823,7 +926,7 @@ export default function RegisterFlow({
                 {people.map((p) => {
                   const options = (p.concertOnly ? concertDays : event.days) as { key: string; label: string }[];
                   return (
-                    <PersonRow key={p.id} title={<>{p.isKid ? "🧒" : "🧑"} {p.firstName}</>}>
+                    <PersonRow key={p.id} title={<>{p.isStudent ? "🎓" : p.isKid ? "🧒" : "🧑"} {p.firstName}</>}>
                       {hasConcert && (
                         <label className="flex items-center gap-2 mb-3 text-sm font-medium cursor-pointer">
                           <input
@@ -866,7 +969,7 @@ export default function RegisterFlow({
               <Sub>Bhog is half the reason we all come. Kids get the kid&apos;s meal automatically.</Sub>
               <div className="grid gap-4">
                 {people.map((p) => (
-                  <PersonRow key={p.id} title={<>{p.isKid ? "🧒" : "🧑"} {p.firstName}</>}>
+                  <PersonRow key={p.id} title={<>{p.isStudent ? "🎓" : p.isKid ? "🧒" : "🧑"} {p.firstName}</>}>
                     {p.concertOnly ? (
                       <p style={{ color: "var(--ink-soft)" }}>🎶 Concert ticket — no meal</p>
                     ) : p.isKid ? (
@@ -888,6 +991,59 @@ export default function RegisterFlow({
                 ))}
               </div>
               <NextBtn big={dayOfMode} onClick={goNext} />
+            </Card>
+          )}
+
+          {/* ── EXTRAS / ADD-ONS ── */}
+          {step === "extras" && (
+            <Card k="extras" direction={direction} onBack={stepIndex > 0 ? goBack : undefined}>
+              <H big={dayOfMode}>Anything extra? 🎫</H>
+              <Sub>Add lunch, dinner, or other passes — each comes with its own QR code. Skip if you don&apos;t need any.</Sub>
+              <div className="grid gap-3">
+                {addonPasses.map((t) => {
+                  const qty = addonQty[t.id] ?? 0;
+                  const price = wantsMembership || isMemberPurchase ? t.priceMemberCents : t.priceNonmemberCents;
+                  const setQ = (n: number) => setAddonQty((m) => ({ ...m, [t.id]: Math.max(0, n) }));
+                  const time = t.checkInStart
+                    ? new Date(`2000-01-01T${t.checkInStart}:00`).toLocaleTimeString("en-US", { hour: "numeric", minute: "2-digit" })
+                    : null;
+                  return (
+                    <div key={t.id} className="hairline rounded-2xl p-4 flex items-center gap-3" style={{ background: "var(--bg-soft)" }}>
+                      <div className="flex-1 min-w-0">
+                        <p className="font-semibold">{t.name}</p>
+                        <p className="text-xs mt-0.5" style={{ color: "var(--ink-soft)" }}>
+                          {formatCents(price < 0 ? t.priceMemberCents : price)}
+                          {time ? ` · ${time}` : ""}
+                          {t.withFood ? " · includes food" : ""}
+                        </p>
+                      </div>
+                      <div className="flex items-center gap-2 shrink-0">
+                        <button
+                          type="button"
+                          aria-label={`Remove one ${t.name}`}
+                          className="w-9 h-9 rounded-full font-bold text-lg leading-none"
+                          style={{ border: "1.5px solid var(--line)", opacity: qty === 0 ? 0.4 : 1 }}
+                          onClick={() => setQ(qty - 1)}
+                          disabled={qty === 0}
+                        >
+                          −
+                        </button>
+                        <span className="w-6 text-center font-bold tabular-nums">{qty}</span>
+                        <button
+                          type="button"
+                          aria-label={`Add one ${t.name}`}
+                          className="w-9 h-9 rounded-full font-bold text-lg leading-none"
+                          style={{ background: "var(--sindoor)", color: "var(--cream)" }}
+                          onClick={() => setQ(qty + 1)}
+                        >
+                          +
+                        </button>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+              <NextBtn big={dayOfMode} label="Continue →" onClick={goNext} />
             </Card>
           )}
 
@@ -922,6 +1078,52 @@ export default function RegisterFlow({
             </Card>
           )}
 
+          {/* ── DONATION ── */}
+          {step === "donate" && (
+            <Card k="donate" direction={direction} onBack={stepIndex > 0 ? goBack : undefined}>
+              <H>Add a little extra? 🙏</H>
+              <Sub>
+                Pragati is a volunteer-run 501(c)(3) nonprofit. A small donation on top of your tickets helps keep the pujo,
+                the bhog, and the culture thriving — and it&apos;s tax-deductible. Totally optional.
+              </Sub>
+              <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+                {[1000, 2500, 5000, 10000].map((amt) => (
+                  <button
+                    key={amt}
+                    className="choice-chip justify-center !py-4 text-lg"
+                    data-selected={donationCents === amt}
+                    onClick={() => setDonationCents(donationCents === amt ? 0 : amt)}
+                  >
+                    {formatCents(amt)}
+                  </button>
+                ))}
+              </div>
+              <div className="mt-4 flex items-center gap-3 flex-wrap">
+                <label className="text-sm font-semibold" style={{ color: "var(--ink-soft)" }}>
+                  Or a custom amount $
+                </label>
+                <input
+                  type="number"
+                  min={0}
+                  step="1"
+                  className="input !py-3 max-w-40"
+                  placeholder="0"
+                  value={donationCents ? String(donationCents / 100) : ""}
+                  onChange={(e) => setDonationCents(Math.max(0, Math.round((parseFloat(e.target.value) || 0) * 100)))}
+                />
+                {donationCents > 0 && (
+                  <button type="button" className="text-sm underline underline-offset-4 opacity-70 hover:opacity-100" onClick={() => setDonationCents(0)}>
+                    clear
+                  </button>
+                )}
+              </div>
+              <NextBtn
+                label={donationCents > 0 ? `Add ${formatCents(donationCents)} & continue →` : "No thanks — continue →"}
+                onClick={goNext}
+              />
+            </Card>
+          )}
+
           {/* ── REVIEW ── */}
           {step === "review" && (
             <Card k="review" direction={direction} onBack={stepIndex > 0 ? goBack : undefined}>
@@ -929,13 +1131,15 @@ export default function RegisterFlow({
               <Sub>Check everything over — you can go back and change anything.</Sub>
               <div className="hairline rounded-2xl divide-y overflow-hidden" style={{ borderColor: "var(--line)" }}>
                 {quote.lines.map((l, i) => (
-                  <motion.div key={`${l.person.id}-${l.label}`} initial={{ opacity: 0, x: -14 }} animate={{ opacity: 1, x: 0 }} transition={{ delay: i * 0.08 }} className="flex items-center justify-between gap-3 px-5 py-4" style={{ borderColor: "var(--line)" }}>
+                  <motion.div key={l.person ? `${l.person.id}-${l.label}` : `addon-${l.typeName}`} initial={{ opacity: 0, x: -14 }} animate={{ opacity: 1, x: 0 }} transition={{ delay: i * 0.08 }} className="flex items-center justify-between gap-3 px-5 py-4" style={{ borderColor: "var(--line)" }}>
                     <div>
                       <p className="font-semibold text-[17px]">
-                        {l.person.isKid ? "🧒" : "🧑"} {l.person.firstName} {l.person.lastName}
+                        {l.person ? `${l.person.isStudent ? "🎓" : l.person.isKid ? "🧒" : "🧑"} ${l.person.firstName} ${l.person.lastName}` : `🎫 ${l.typeName} ${l.label}`}
                       </p>
                       <p className="text-sm mt-0.5" style={{ color: "var(--ink-soft)" }}>
-                        {l.label} · {l.person.concertOnly ? "concert · no meal" : l.person.isKid ? "kid meal" : l.person.withFood ? `food: ${l.person.foodPref.replace("_", "-")}` : "no food"}
+                        {l.person
+                          ? `${l.label} · ${l.person.concertOnly ? "concert · no meal" : l.person.isStudent ? (l.person.withFood ? `student · food: ${l.person.foodPref.replace("_", "-")}` : "student · no food") : l.person.isKid ? ((l.person.age ?? 6) < 5 ? "under 5 · free" : "youth · meal included") : l.person.withFood ? `food: ${l.person.foodPref.replace("_", "-")}` : "no food"}`
+                          : "Add-on pass"}
                         {l.memberPricing && (
                           <span className="ml-1.5 font-semibold" style={{ color: "var(--leaf-deep)" }}>
                             member price ✓
@@ -960,6 +1164,12 @@ export default function RegisterFlow({
                   <div className="flex items-center justify-between px-5 py-3.5">
                     <p className="text-sm font-semibold">🌟 Pragati membership — 1 year (whole family)</p>
                     <p className="font-semibold">{formatCents(membershipCents)}</p>
+                  </div>
+                )}
+                {donationCents > 0 && (
+                  <div className="flex items-center justify-between px-5 py-3.5">
+                    <p className="text-sm font-semibold">🙏 Donation to Pragati</p>
+                    <p className="font-semibold">{formatCents(donationCents)}</p>
                   </div>
                 )}
                 <div className="flex items-center justify-between px-5 py-5" style={{ background: "var(--accent-soft)" }}>

@@ -13,6 +13,8 @@ export type SubmitRegistrationInput = {
   source: "web" | "day_of_kiosk";
   wantsMembership?: boolean;
   attendees: CheckoutAttendee[];
+  addons?: { ticketTypeId: string; qty: number }[];
+  donationCents?: number;
 };
 
 export type SubmitRegistrationResult =
@@ -84,6 +86,8 @@ export async function submitRegistration(input: SubmitRegistrationInput): Promis
       paymentMethod: input.paymentMethod,
       promoCode: input.promoCode,
       attendees: input.attendees,
+      addons: input.addons,
+      donationCents: input.donationCents,
     });
 
     if (result.kind === "square_redirect")

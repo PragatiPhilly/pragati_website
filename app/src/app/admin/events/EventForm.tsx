@@ -154,7 +154,9 @@ export default function EventForm({ initial }: { initial: EventInput }) {
                       <option value="adult">Adult (18+)</option>
                       <option value="child_5_18">Youth (5–18)</option>
                       <option value="child_under_5">Under 5</option>
+                      <option value="student">Student (edu ID required)</option>
                       <option value="concert">Concert</option>
+                      <option value="addon">Add-on / Extra (lunch, dinner, parking…)</option>
                     </select>
                   </label>
                 </div>

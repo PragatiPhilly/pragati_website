@@ -36,8 +36,10 @@ export function ticketsEmail(p: {
   subtotalCents: number;
   discountCents: number;
   membershipCents: number;
+  donationCents?: number;
   feeCents: number;
   totalPaidCents: number;
+  studentReminder?: boolean;
   lookupUrl: string;
   printUrl: string;
   orgName: string;
@@ -50,15 +52,21 @@ export function ticketsEmail(p: {
         (l.note ? `\n     ⏰ ${l.note}` : "")
     )
     .join("\n\n");
+  const donation = p.donationCents ?? 0;
   const summary = [
     `Subtotal:            ${formatCents(p.subtotalCents)}`,
     p.discountCents > 0 ? `Discount:           −${formatCents(p.discountCents)}` : null,
     p.membershipCents > 0 ? `Membership (1 yr):   ${formatCents(p.membershipCents)}` : null,
+    donation > 0 ? `Donation:            ${formatCents(donation)}` : null,
     p.feeCents > 0 ? `Card processing fee: ${formatCents(p.feeCents)}` : null,
     `Total paid:          ${formatCents(p.totalPaidCents)}`,
   ]
     .filter(Boolean)
     .join("\n");
+  const studentNote = p.studentReminder
+    ? `\n\n🎓 Student passes: please bring your valid student ID to the gate — it may be checked at entry.`
+    : "";
+  const donationThanks = donation > 0 ? `\n\n🙏 Thank you for your ${formatCents(donation)} donation — it directly supports Pragati's programs.` : "";
   return {
     subject: `${p.resend ? "(Resent) " : ""}Your tickets for ${p.eventName} 🎟 ${p.conf}`,
     text: `Namaskar ${p.buyerName},
@@ -69,7 +77,7 @@ ${lineText}
 
 ── Payment summary ────────────────────────
 ${summary}
-Confirmation number: ${p.conf}
+Confirmation number: ${p.conf}${studentNote}${donationThanks}
 
 ── Your Pujo Pass ─────────────────────────
 See all QR codes on one page (save this link!):

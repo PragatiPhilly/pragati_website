@@ -16,6 +16,8 @@ import { getZelleInstructions, type ZelleInstructions } from "@/lib/payments/zel
 import { sendMail } from "@/lib/email";
 import * as T from "@/lib/email/templates";
 
+export type StudentInfo = { eduEmail: string; university: string; city: string; gradYear: string };
+
 export type CheckoutAttendee = {
   firstName: string;
   lastName?: string;
@@ -26,6 +28,8 @@ export type CheckoutAttendee = {
   withFood: boolean;
   foodPref: "veg" | "non_veg" | "kid" | "none";
   concertOnly?: boolean; // buys a concert pass per chosen day, no food, timed check-in
+  isStudent?: boolean; // buys a student pass; requires studentInfo
+  student?: StudentInfo; // edu email + school details, shown to admins + reminded in email
 };
 
 export type CheckoutInput = {
@@ -40,6 +44,8 @@ export type CheckoutInput = {
   paymentMethod: "square" | "zelle" | "offline";
   promoCode?: string;
   attendees: CheckoutAttendee[];
+  addons?: { ticketTypeId: string; qty: number }[]; // ageBand "addon" extras (lunch/dinner/parking…)
+  donationCents?: number; // optional donation folded into this one payment
 };
 
 export type CheckoutResult =
@@ -62,17 +68,24 @@ export function resolveTicketType(
 ): TicketMatch {
   // Age bands: adult (18+) · child_5_18 (youth 5–18) · child_under_5 · concert (universal, timed).
   // "all" and legacy "child_5_12" are still honored for older data.
-  const band = a.isKid ? (a.age !== undefined && a.age < 5 ? "child_under_5" : "child_5_18") : "adult";
+  const band = a.isStudent
+    ? "student"
+    : a.isKid
+      ? a.age !== undefined && a.age < 5
+        ? "child_under_5"
+        : "child_5_18"
+      : "adult";
   const candidates = types.filter((t) => {
-    // Concert passes are sold ONLY via the dedicated concert flow — never
-    // auto-matched here (that would mis-assign a day-pass buyer to a concert).
-    if (t.ageBand === "concert") return false;
+    // Concert + add-on passes are sold via their own flows — never auto-matched
+    // here (that would mis-assign a day-pass buyer to a concert/lunch pass).
+    if (t.ageBand === "concert" || t.ageBand === "addon") return false;
     const bandOk =
       t.ageBand === band ||
       t.ageBand === "all" ||
       (band === "child_5_18" && t.ageBand === "child_5_12"); // legacy youth value
     if (!bandOk) return false;
-    if (band === "adult" && t.withFood !== a.withFood) return false;
+    // adults & students choose with / without food
+    if ((band === "adult" || band === "student") && t.withFood !== a.withFood) return false;
     return true;
   });
   // 1) exact day-combo match — a full pass is simply the combo covering every day
@@ -117,7 +130,7 @@ export async function createCheckout(input: CheckoutInput): Promise<CheckoutResu
   const effMemberPurchase = input.isMemberPurchase || wantsMembership;
   const effDiscountMode: "per_adult" | "whole_family" = wantsMembership ? "whole_family" : discountMode;
 
-  const expanded: { attendee: AttendeeInput; day?: string }[] = [];
+  const expanded: { attendee: AttendeeInput; day?: string; studentInfo?: StudentInfo | null }[] = [];
   const concertPasses = types.filter((t) => t.ageBand === "concert");
   for (const a of input.attendees) {
     // Concert-only attendee: one concert pass per chosen concert day, never food.
@@ -151,8 +164,9 @@ export async function createCheckout(input: CheckoutInput): Promise<CheckoutResu
       isMemberFlagged: a.isMemberFlagged ?? false,
       foodPref: a.foodPref,
     };
+    const studentInfo: StudentInfo | undefined = a.isStudent && a.student ? a.student : undefined;
     if (mode === "full") {
-      expanded.push({ attendee: { ...base, ticketTypeId: type.id } });
+      expanded.push({ attendee: { ...base, ticketTypeId: type.id }, studentInfo });
     } else if (mode === "bundle") {
       // one QR per chosen day; the bundle's fixed total is split across them
       const member = attendeeGetsMemberPricing({ ...base, ticketTypeId: type.id }, effMemberPurchase, effDiscountMode);
@@ -166,10 +180,44 @@ export async function createCheckout(input: CheckoutInput): Promise<CheckoutResu
             priceOverrideCents: bundleTotal >= 0 ? shares[idx] : undefined,
           },
           day,
+          studentInfo,
         })
       );
     } else {
-      for (const day of a.days) expanded.push({ attendee: { ...base, ticketTypeId: type.id }, day });
+      for (const day of a.days) expanded.push({ attendee: { ...base, ticketTypeId: type.id }, day, studentInfo });
+    }
+  }
+
+  // Add-on / extra passes (lunch, dinner, parking…) — quantity-based, one QR each.
+  const buyerFirst = input.buyerName.trim().split(" ")[0] || "Guest";
+  for (const ad of input.addons ?? []) {
+    const t = types.find((x) => x.id === ad.ticketTypeId && x.ageBand === "addon");
+    if (!t || ad.qty <= 0) continue;
+    const day = Array.isArray(t.dayKeys) && (t.dayKeys as string[])[0] ? (t.dayKeys as string[])[0] : undefined;
+    for (let k = 0; k < ad.qty; k++) {
+      expanded.push({
+        attendee: {
+          firstName: buyerFirst,
+          lastName: undefined,
+          isKid: false,
+          isMemberFlagged: input.isMemberPurchase,
+          foodPref: "none",
+          ticketTypeId: t.id,
+        },
+        day,
+      });
+    }
+  }
+
+  // Capacity guard — never oversell a limited ticket type. soldCount already
+  // includes pending (held) reservations, so this also respects live holds.
+  const demand = new Map<string, number>();
+  for (const e of expanded) demand.set(e.attendee.ticketTypeId, (demand.get(e.attendee.ticketTypeId) ?? 0) + 1);
+  for (const [ttId, want] of demand) {
+    const t = types.find((x) => x.id === ttId);
+    if (t && t.capacity !== null && t.soldCount + want > t.capacity) {
+      const left = Math.max(0, t.capacity - t.soldCount);
+      throw new Error(left === 0 ? `"${t.name}" is sold out.` : `Only ${left} left for "${t.name}" — please reduce that selection.`);
     }
   }
 
@@ -203,7 +251,8 @@ export async function createCheckout(input: CheckoutInput): Promise<CheckoutResu
   );
 
   const membershipDuesCents = wantsMembership ? Number(await getConfig<number>("membership_annual_price_cents")) : 0;
-  const grandTotalCents = quote.totalCents + membershipDuesCents;
+  const donationCents = Math.max(0, Math.round(input.donationCents ?? 0));
+  const grandTotalCents = quote.totalCents + membershipDuesCents + donationCents;
   const conf = await nextConfirmationNumber("PRG");
   const squareResMin = await getConfig<number>("square_reservation_minutes");
   const now = new Date();
@@ -233,6 +282,7 @@ export async function createCheckout(input: CheckoutInput): Promise<CheckoutResu
       discountCents: quote.discountCents,
       totalCents: grandTotalCents,
       processingFeeCents,
+      donationCents,
       membershipSignup: wantsMembership,
       promoCodeId: promo?.id,
       paymentMethod: input.paymentMethod,
@@ -253,6 +303,7 @@ export async function createCheckout(input: CheckoutInput): Promise<CheckoutResu
       attendeeAge: e.attendee.age,
       attendeeIsMember: line.memberPricing,
       foodPref: e.attendee.foodPref,
+      studentInfo: e.studentInfo ?? null,
       priceCents: line.priceCents,
       qrCode: makeQrCode(),
       dayKey: e.day ?? "all",
@@ -393,8 +444,10 @@ export async function sendTicketsEmail(registrationId: string, opts: { resend?: 
   const fee = reg.processingFeeCents ?? 0;
   const discount = reg.discountCents ?? 0;
   const subtotal = reg.subtotalCents ?? 0;
-  const membership = Math.max(0, (reg.totalCents ?? 0) - (subtotal - discount)); // dues folded into total
+  const donation = reg.donationCents ?? 0;
+  const membership = Math.max(0, (reg.totalCents ?? 0) - (subtotal - discount) - donation); // dues folded into total
   const totalPaid = (reg.totalCents ?? 0) + fee; // card fee is on top of the grand total
+  const studentReminder = tix.some((t) => t.studentInfo != null);
   const mail = T.ticketsEmail({
     buyerName: reg.buyerName,
     conf: reg.confirmationNumber,
@@ -409,8 +462,10 @@ export async function sendTicketsEmail(registrationId: string, opts: { resend?: 
     subtotalCents: subtotal,
     discountCents: discount,
     membershipCents: membership,
+    donationCents: donation,
     feeCents: fee,
     totalPaidCents: totalPaid,
+    studentReminder,
     lookupUrl: `${base}/lookup?email=${encodeURIComponent(reg.buyerEmail)}&conf=${reg.confirmationNumber}`,
     printUrl: `${base}/tickets/${reg.confirmationNumber}/print?email=${encodeURIComponent(reg.buyerEmail)}`,
     orgName,
