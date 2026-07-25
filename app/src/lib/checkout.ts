@@ -68,9 +68,12 @@ export function resolveTicketType(
 ): TicketMatch {
   // Age bands: adult (18+) · child_5_18 (youth 5–18) · child_under_5 · concert (universal, timed).
   // "all" and legacy "child_5_12" are still honored for older data.
+  // A "kid" aged 18+ is an adult — enforced here too, so a crafted request
+  // can't smuggle an adult in on youth pricing.
+  const kid = a.isKid && (a.age === undefined || a.age < 18);
   const band = a.isStudent
     ? "student"
-    : a.isKid
+    : kid
       ? a.age !== undefined && a.age < 5
         ? "child_under_5"
         : "child_5_18"
@@ -156,7 +159,8 @@ export async function createCheckout(input: CheckoutInput): Promise<CheckoutResu
       continue;
     }
     // Under-5 with no dedicated pass → enters free; no ticket to issue.
-    const attBand = a.isStudent ? "student" : a.isKid ? (a.age !== undefined && a.age < 5 ? "child_under_5" : "child_5_18") : "adult";
+    const attKid = a.isKid && (a.age === undefined || a.age < 18);
+    const attBand = a.isStudent ? "student" : attKid ? (a.age !== undefined && a.age < 5 ? "child_under_5" : "child_5_18") : "adult";
     if (attBand === "child_under_5" && !types.some((t) => t.ageBand === "child_under_5")) continue;
 
     const { type, mode } = resolveTicketType(a, types, dayCount);

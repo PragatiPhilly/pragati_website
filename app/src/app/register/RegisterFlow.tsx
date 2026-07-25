@@ -382,7 +382,9 @@ const BAND_LABEL: Record<string, string> = {
 const picksFood = (band: string) => band === "adult" || band === "student";
 
 function personBand(p: { isStudent: boolean; isKid: boolean; age?: number }): string {
-  return p.isStudent ? "student" : p.isKid ? ((p.age ?? 6) < 5 ? "child_under_5" : "child_5_18") : "adult";
+  // A "kid" aged 18+ is an adult — never let an adult ride on youth pricing.
+  const kid = p.isKid && (p.age === undefined || p.age < 18);
+  return p.isStudent ? "student" : kid ? ((p.age ?? 6) < 5 ? "child_under_5" : "child_5_18") : "adult";
 }
 
 /** Day passes (not concert/add-on) that serve a given band. */
@@ -731,8 +733,28 @@ export default function RegisterFlow({
   const addDraft = () => {
     if (!draftName.trim() || !draftKind) return;
     const [fn, ...rest] = draftName.trim().split(" ");
-    const kidAge = draftKind === "kid" ? parseInt(draftAge || "8", 10) : undefined;
-    const band = personBand({ isStudent: draftKind === "student", isKid: draftKind === "kid", age: kidAge });
+
+    // Enforce that a "kid" is actually under 18 — 18+ is an adult, always.
+    let effKind: "adult" | "kid" | "student" = draftKind;
+    let kidAge: number | undefined;
+    if (draftKind === "kid") {
+      const a = parseInt(draftAge, 10);
+      if (!draftAge.trim() || Number.isNaN(a)) return setError("Please enter the child's age.");
+      if (a < 0 || a > 120) return setError("Please enter a valid age.");
+      if (a >= 18) {
+        effKind = "adult"; // switch the category — no adult on youth pricing
+        setError(`${fn} is 18 or older, so we've added them as an adult.`);
+      } else {
+        kidAge = a;
+        setError("");
+      }
+    } else {
+      setError("");
+    }
+
+    const isKidP = effKind === "kid";
+    const isStudentP = effKind === "student";
+    const band = personBand({ isStudent: isStudentP, isKid: isKidP, age: kidAge });
     const def = initialConcertDay
       ? { days: [initialConcertDay], withFood: false }
       : dayOfMode
@@ -744,15 +766,15 @@ export default function RegisterFlow({
         id: crypto.randomUUID(),
         firstName: fn,
         lastName: rest.join(" "),
-        isKid: draftKind === "kid",
+        isKid: isKidP,
         age: kidAge,
         isMemberFlagged: false,
         days: def.days,
         withFood: initialConcertDay ? false : def.withFood,
-        foodPref: initialConcertDay ? "none" : draftKind === "kid" ? "kid" : def.withFood ? "non_veg" : "none",
+        foodPref: initialConcertDay ? "none" : isKidP ? "kid" : def.withFood ? "non_veg" : "none",
         concertOnly: !!initialConcertDay,
-        isStudent: draftKind === "student",
-        student: draftKind === "student" ? { ...draftStudent } : undefined,
+        isStudent: isStudentP,
+        student: isStudentP ? { ...draftStudent } : undefined,
       },
     ]);
     setDraftName("");
@@ -1067,6 +1089,11 @@ export default function RegisterFlow({
                 )}
               </div>
 
+              {error && (
+                <p className="mt-5 text-sm font-medium rounded-xl px-4 py-3" style={{ background: "var(--accent-soft)", color: "var(--sindoor)" }}>
+                  {error}
+                </p>
+              )}
               <NextBtn
                 big={dayOfMode}
                 label={people.length > 1 ? `Continue with ${people.length} people →` : "It's just me — continue →"}
