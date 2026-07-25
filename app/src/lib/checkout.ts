@@ -155,6 +155,10 @@ export async function createCheckout(input: CheckoutInput): Promise<CheckoutResu
       }
       continue;
     }
+    // Under-5 with no dedicated pass → enters free; no ticket to issue.
+    const attBand = a.isStudent ? "student" : a.isKid ? (a.age !== undefined && a.age < 5 ? "child_under_5" : "child_5_18") : "adult";
+    if (attBand === "child_under_5" && !types.some((t) => t.ageBand === "child_under_5")) continue;
+
     const { type, mode } = resolveTicketType(a, types, dayCount);
     const base: Omit<AttendeeInput, "ticketTypeId"> = {
       firstName: a.firstName,

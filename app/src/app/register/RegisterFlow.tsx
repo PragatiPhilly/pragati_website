@@ -366,6 +366,80 @@ function MobileOrderBar(props: OrderData) {
   );
 }
 
+// ── availability engine: every selection must resolve to a real, created pass ──
+type FlowTT = FlowEvent["ticketTypes"][number];
+type FlowDay = FlowEvent["days"][number];
+
+const BAND_LABEL: Record<string, string> = {
+  adult: "adult",
+  student: "student",
+  child_5_18: "youth (5–18)",
+  child_5_12: "youth",
+  child_under_5: "under-5",
+};
+const picksFood = (band: string) => band === "adult" || band === "student";
+
+function personBand(p: { isStudent: boolean; isKid: boolean; age?: number }): string {
+  return p.isStudent ? "student" : p.isKid ? ((p.age ?? 6) < 5 ? "child_under_5" : "child_5_18") : "adult";
+}
+
+/** Day passes (not concert/add-on) that serve a given band. */
+function bandDayPasses(tts: FlowTT[], band: string): FlowTT[] {
+  return tts.filter((t) => {
+    if (t.ageBand === "concert" || t.ageBand === "addon") return false;
+    return t.ageBand === band || t.ageBand === "all" || (band === "child_5_18" && t.ageBand === "child_5_12");
+  });
+}
+
+/** Does a real pass cover exactly these days + this food choice for the band? */
+function matchDayPass(passes: FlowTT[], days: string[], withFood: boolean, band: string): { type: FlowTT; exact: boolean } | null {
+  if (days.length === 0) return null;
+  const cands = passes.filter((t) => (picksFood(band) ? t.withFood === withFood : true));
+  const exact = cands.find((t) => Array.isArray(t.dayKeys) && sameDaySet(t.dayKeys as string[], days));
+  if (exact) return { type: exact, exact: true };
+  const perday = cands.find((t) => t.dayKeys == null);
+  if (perday) return { type: perday, exact: false };
+  return null;
+}
+
+function comboLabelOf(days: string[], eventDays: FlowDay[], dayCount: number): string {
+  if (days.length >= dayCount) return "All days";
+  return days.map((k) => eventDays.find((d) => d.key === k)?.label.split(",")[0] ?? k.toUpperCase()).join(" + ");
+}
+
+/** The day-combos an admin actually created passes for (for quick-fix + messaging). */
+function availableCombos(passes: FlowTT[], eventDays: FlowDay[], dayCount: number): { key: string; days: string[]; label: string }[] {
+  const out = new Map<string, string[]>();
+  for (const t of passes) {
+    if (Array.isArray(t.dayKeys) && t.dayKeys.length) {
+      const key = [...(t.dayKeys as string[])].sort().join(",");
+      if (!out.has(key)) out.set(key, t.dayKeys as string[]);
+    } else if (t.dayKeys == null) {
+      for (const d of eventDays) if (!out.has(d.key)) out.set(d.key, [d.key]);
+    }
+  }
+  return [...out.values()]
+    .sort((a, b) => b.length - a.length)
+    .map((days) => ({ key: [...days].sort().join(","), days, label: comboLabelOf(days, eventDays, dayCount) }));
+}
+
+/** Which food options exist for a band on these days. */
+function foodAvail(passes: FlowTT[], days: string[]): { withFood: boolean; noFood: boolean } {
+  const matching = passes.filter((t) => (Array.isArray(t.dayKeys) && sameDaySet(t.dayKeys as string[], days)) || t.dayKeys == null);
+  return { withFood: matching.some((t) => t.withFood), noFood: matching.some((t) => !t.withFood) };
+}
+
+/** A valid default selection for a band — never lands on a non-existent combo. */
+function defaultSelection(passes: FlowTT[], eventDayKeys: string[]): { days: string[]; withFood: boolean } {
+  if (passes.length === 0) return { days: eventDayKeys, withFood: true }; // no pass → will be flagged
+  const isAll = (t: FlowTT) => Array.isArray(t.dayKeys) && sameDaySet(t.dayKeys as string[], eventDayKeys);
+  if (passes.some(isAll)) return { days: eventDayKeys, withFood: passes.some((t) => isAll(t) && t.withFood) };
+  if (passes.some((t) => t.dayKeys == null)) return { days: eventDayKeys, withFood: passes.some((t) => t.dayKeys == null && t.withFood) };
+  const first = passes.find((t) => Array.isArray(t.dayKeys) && (t.dayKeys as string[]).length) ?? passes[0];
+  const days = Array.isArray(first?.dayKeys) ? (first!.dayKeys as string[]) : eventDayKeys;
+  return { days, withFood: passes.some((t) => Array.isArray(t.dayKeys) && sameDaySet(t.dayKeys as string[], days) && t.withFood) };
+}
+
 export default function RegisterFlow({
   event,
   member,
@@ -437,6 +511,8 @@ export default function RegisterFlow({
   const [wantsMembership, setWantsMembership] = useState(false);
   const [addonQty, setAddonQty] = useState<Record<string, number>>({});
   const [donationCents, setDonationCents] = useState(0);
+  const [selfIsStudent, setSelfIsStudent] = useState(false);
+  const [selfStudent, setSelfStudent] = useState({ eduEmail: "", university: "", city: "", gradYear: "" });
 
   // add-person mini-form
   const [draftName, setDraftName] = useState("");
@@ -480,9 +556,32 @@ export default function RegisterFlow({
     };
   }, [dayOfMode, idleResetSeconds]);
 
+  // Keep each person's food choice valid for what their pass actually offers
+  // (e.g., a student pass that's food-included can't be "no food").
+  useEffect(() => {
+    setPeople((prev) => {
+      let changed = false;
+      const next = prev.map((p) => {
+        if (p.concertOnly || p.isKid) return p;
+        const fa = foodAvail(bandDayPasses(event.ticketTypes, personBand(p)), p.days);
+        if (p.withFood && !fa.withFood && fa.noFood) {
+          changed = true;
+          return { ...p, withFood: false, foodPref: "none" as const };
+        }
+        if (!p.withFood && !fa.noFood && fa.withFood) {
+          changed = true;
+          return { ...p, withFood: true, foodPref: (p.foodPref === "none" ? "non_veg" : p.foodPref) as Person["foodPref"] };
+        }
+        return p;
+      });
+      return changed ? next : prev;
+    });
+  }, [people, event.ticketTypes]);
+
   // ── pricing mirror (display only — server re-prices authoritatively) ──
   const quote = useMemo(() => {
     const lines: { person: Person | null; label: string; typeName: string; price: number; memberPricing: boolean }[] = [];
+    const issues: { person: Person; band: string; reason: string; combos: { key: string; days: string[]; label: string }[]; food: { withFood: boolean; noFood: boolean } }[] = [];
     for (const p of people) {
       // Concert-only person: one concert-pass line per chosen concert day, no food.
       if (p.concertOnly) {
@@ -496,44 +595,34 @@ export default function RegisterFlow({
         }
         continue;
       }
-      const band = p.isStudent ? "student" : p.isKid ? ((p.age ?? 6) < 5 ? "child_under_5" : "child_5_18") : "adult";
-      const allDays = p.days.length >= dayCount;
-      const cands = event.ticketTypes.filter((t) => {
-        if (t.ageBand === "concert" || t.ageBand === "addon") return false; // sold via their own flows
-        const bandOk =
-          t.ageBand === band ||
-          t.ageBand === "all" ||
-          (band === "child_5_18" && t.ageBand === "child_5_12"); // legacy youth
-        if (!bandOk) return false;
-        if ((band === "adult" || band === "student") && t.withFood !== p.withFood) return false;
-        return true;
-      });
-      // exact day-combo (incl. full pass); else legacy per-day ticket (null dayKeys)
-      const exact = cands.find((t) => Array.isArray(t.dayKeys) && sameDaySet(t.dayKeys, p.days));
-      const type = exact ?? cands.find((t) => t.dayKeys == null);
-      if (!type) {
-        // Under-5 with no dedicated pass → free, but still show them on the order.
+      const band = personBand(p);
+      const passes = bandDayPasses(event.ticketTypes, band);
+      const label = comboLabelOf(p.days, event.days, dayCount);
+      const m = matchDayPass(passes, p.days, p.withFood, band);
+      if (!m) {
+        // Under-5 is the ONLY category that's automatically free with no pass.
         if (p.isKid && (p.age ?? 6) < 5) {
-          lines.push({
+          lines.push({ person: p, label, typeName: "Under 5", price: 0, memberPricing: false });
+        } else {
+          // No real pass matches — flag it instead of silently charging $0.
+          issues.push({
             person: p,
-            label: allDays ? "All days" : p.days.map((d) => d.toUpperCase()).join(" + "),
-            typeName: "Under 5",
-            price: 0,
-            memberPricing: false,
+            band,
+            reason:
+              passes.length === 0
+                ? `No ${BAND_LABEL[band] ?? band} pass exists for this event yet.`
+                : `No ${BAND_LABEL[band] ?? band} pass covers ${label || "these days"}${picksFood(band) ? ` (${p.withFood ? "with food" : "no food"})` : ""}.`,
+            combos: availableCombos(passes, event.days, dayCount),
+            food: foodAvail(passes, p.days),
           });
         }
         continue;
       }
+      const { type, exact } = m;
       const memberPricing = wantsMembership || (isMemberPurchase && (p.isKid || discountMode === "whole_family" || p.isMemberFlagged));
       const unit = memberPricing ? type.priceMemberCents : type.priceNonmemberCents;
       const units = exact ? 1 : p.days.length;
-      lines.push({
-        person: p,
-        label: allDays ? "All days" : p.days.map((d) => d.toUpperCase()).join(" + "),
-        typeName: type.name,
-        price: unit * units,
-        memberPricing,
-      });
+      lines.push({ person: p, label, typeName: type.name, price: (unit < 0 ? 0 : unit) * units, memberPricing });
     }
     // Add-on / extra passes — quantity × price, member pricing for members.
     for (const t of addonPasses) {
@@ -544,7 +633,7 @@ export default function RegisterFlow({
       lines.push({ person: null, label: `×${qty}`, typeName: t.name, price: (unit < 0 ? 0 : unit) * qty, memberPricing });
     }
     const subtotal = lines.reduce((s, l) => s + l.price, 0);
-    return { lines, subtotal };
+    return { lines, subtotal, issues };
   }, [people, event.ticketTypes, event.days, concertPasses, addonPasses, addonQty, dayCount, isMemberPurchase, discountMode, wantsMembership]);
 
   const firstName = buyerName.trim().split(" ")[0] || "friend";
@@ -552,6 +641,23 @@ export default function RegisterFlow({
   const total = Math.max(0, quote.subtotal - promo.discountCents) + membershipCents + donationCents;
   const cardFee = cardProcessingFeeCents(total);
   const cardTotal = total + cardFee;
+
+  // Availability guards — a selection must resolve to a real, created pass.
+  const eventDayKeys = event.days.map((d) => d.key);
+  const defaultsFor = (band: string) => defaultSelection(bandDayPasses(event.ticketTypes, band), eventDayKeys);
+  const hasIssues = quote.issues.length > 0;
+  const issueByPerson = new Map(quote.issues.map((i) => [i.person.id, i]));
+  // Day-combo validity (food-agnostic) — drives the days-step warnings/blocking.
+  const bandDayOk = (p: Person) => {
+    if (p.concertOnly || p.days.length === 0) return true;
+    if (p.isKid && (p.age ?? 6) < 5) return true; // under-5 is always fine (free)
+    const bp = bandDayPasses(event.ticketTypes, personBand(p));
+    return bp.some((t) => (Array.isArray(t.dayKeys) && sameDaySet(t.dayKeys as string[], p.days)) || t.dayKeys == null);
+  };
+  const combosFor = (p: Person) => availableCombos(bandDayPasses(event.ticketTypes, personBand(p)), event.days, dayCount);
+  const daysStepBlocked = people.some((p) => p.days.length === 0 || !bandDayOk(p));
+  // Food availability for a person given their current days.
+  const foodFor = (p: Person) => foodAvail(bandDayPasses(event.ticketTypes, personBand(p)), p.days);
 
   // Live price panel — shown on the selection/checkout steps so the running
   // total is never a surprise. Hidden on the intro, "you", and done screens.
@@ -568,36 +674,54 @@ export default function RegisterFlow({
     passes: event.ticketTypes,
   };
 
+  // Add or refresh "self" (the buyer) — respects the "I'm a student" choice and
+  // keeps any day/food tweaks the buyer already made if their category is unchanged.
   const ensureSelfInParty = () => {
+    const [fn, ...rest] = buyerName.trim().split(" ");
+    const selfStudent2 = !initialConcertDay && selfIsStudent;
+    const band = selfStudent2 ? "student" : "adult";
+    const def = initialConcertDay
+      ? { days: [initialConcertDay], withFood: false }
+      : dayOfMode
+        ? { days: [todayKey], withFood: true }
+        : defaultsFor(band);
+    const built: Person = {
+      id: "self",
+      firstName: fn,
+      lastName: rest.join(" "),
+      isKid: false,
+      isMemberFlagged: isMemberPurchase,
+      days: def.days,
+      withFood: initialConcertDay ? false : def.withFood,
+      foodPref: initialConcertDay ? "none" : def.withFood ? "non_veg" : "none",
+      concertOnly: !!initialConcertDay,
+      isStudent: selfStudent2,
+      student: selfStudent2 ? { ...selfStudent } : undefined,
+    };
     setPeople((prev) => {
-      if (prev.some((p) => p.id === "self")) return prev;
-      const [fn, ...rest] = buyerName.trim().split(" ");
-      return [
-        {
-          id: "self",
-          firstName: fn,
-          lastName: rest.join(" "),
-          isKid: false,
-          isMemberFlagged: isMemberPurchase,
-          days: initialConcertDay ? [initialConcertDay] : dayOfMode ? [todayKey] : event.days.map((d) => d.key),
-          withFood: !initialConcertDay,
-          foodPref: initialConcertDay ? "none" : "non_veg",
-          concertOnly: !!initialConcertDay,
-          isStudent: false,
-        },
-        ...prev,
-      ];
+      const existing = prev.find((p) => p.id === "self");
+      const others = prev.filter((p) => p.id !== "self");
+      // preserve the buyer's earlier day/food/concert tweaks when category didn't change
+      const merged: Person =
+        existing && existing.isStudent === built.isStudent
+          ? { ...built, days: existing.days, withFood: existing.withFood, foodPref: existing.foodPref, concertOnly: existing.concertOnly }
+          : built;
+      return [merged, ...others];
     });
   };
 
   // Flip one person (or everyone) between a full pujo pass and a concert-only ticket.
-  const applyConcert = (p: Person, on: boolean): Person => ({
-    ...p,
-    concertOnly: on,
-    days: on ? concertDayKeys : event.days.map((d) => d.key),
-    withFood: on ? false : p.isKid ? true : p.withFood,
-    foodPref: on ? "none" : p.isKid ? "kid" : p.foodPref === "none" ? "non_veg" : p.foodPref,
-  });
+  const applyConcert = (p: Person, on: boolean): Person => {
+    if (on) return { ...p, concertOnly: true, days: concertDayKeys, withFood: false, foodPref: "none" };
+    const def = defaultsFor(personBand({ isStudent: p.isStudent, isKid: p.isKid, age: p.age }));
+    return {
+      ...p,
+      concertOnly: false,
+      days: def.days,
+      withFood: p.isKid ? true : def.withFood,
+      foodPref: p.isKid ? "kid" : def.withFood ? "non_veg" : "none",
+    };
+  };
   const togglePersonConcert = (id: string, on: boolean) =>
     setPeople((prev) => prev.map((p) => (p.id === id ? applyConcert(p, on) : p)));
   const setAllConcert = (on: boolean) => setPeople((prev) => prev.map((p) => applyConcert(p, on)));
@@ -605,6 +729,13 @@ export default function RegisterFlow({
   const addDraft = () => {
     if (!draftName.trim() || !draftKind) return;
     const [fn, ...rest] = draftName.trim().split(" ");
+    const kidAge = draftKind === "kid" ? parseInt(draftAge || "8", 10) : undefined;
+    const band = personBand({ isStudent: draftKind === "student", isKid: draftKind === "kid", age: kidAge });
+    const def = initialConcertDay
+      ? { days: [initialConcertDay], withFood: false }
+      : dayOfMode
+        ? { days: [todayKey], withFood: true }
+        : defaultsFor(band);
     setPeople((prev) => [
       ...prev,
       {
@@ -612,11 +743,11 @@ export default function RegisterFlow({
         firstName: fn,
         lastName: rest.join(" "),
         isKid: draftKind === "kid",
-        age: draftKind === "kid" ? parseInt(draftAge || "8", 10) : undefined,
+        age: kidAge,
         isMemberFlagged: false,
-        days: initialConcertDay ? [initialConcertDay] : dayOfMode ? [todayKey] : event.days.map((d) => d.key),
-        withFood: !initialConcertDay,
-        foodPref: initialConcertDay ? "none" : draftKind === "kid" ? "kid" : "non_veg",
+        days: def.days,
+        withFood: initialConcertDay ? false : def.withFood,
+        foodPref: initialConcertDay ? "none" : draftKind === "kid" ? "kid" : def.withFood ? "non_veg" : "none",
         concertOnly: !!initialConcertDay,
         isStudent: draftKind === "student",
         student: draftKind === "student" ? { ...draftStudent } : undefined,
@@ -634,6 +765,11 @@ export default function RegisterFlow({
       if (prev.some((p) => p.id === key)) return prev.filter((p) => p.id !== key);
       const age = ageFromDob(f.dateOfBirth);
       const isKid = f.relationship === "child" && (age === undefined || age < 18);
+      const def = initialConcertDay
+        ? { days: [initialConcertDay], withFood: false }
+        : dayOfMode
+          ? { days: [todayKey], withFood: true }
+          : defaultsFor(personBand({ isStudent: false, isKid, age }));
       return [
         ...prev,
         {
@@ -643,9 +779,9 @@ export default function RegisterFlow({
           isKid,
           age,
           isMemberFlagged: f.isMember,
-          days: initialConcertDay ? [initialConcertDay] : dayOfMode ? [todayKey] : event.days.map((d) => d.key),
-          withFood: !initialConcertDay,
-          foodPref: initialConcertDay ? "none" : isKid ? "kid" : f.foodPref,
+          days: def.days,
+          withFood: initialConcertDay ? false : def.withFood,
+          foodPref: initialConcertDay ? "none" : isKid ? "kid" : def.withFood ? f.foodPref : "none",
           concertOnly: !!initialConcertDay,
           isStudent: false,
         },
@@ -657,6 +793,11 @@ export default function RegisterFlow({
     setPeople((prev) => prev.map((p) => (p.id === id ? { ...p, ...patch } : p)));
 
   const submit = async (paymentMethod: "square" | "zelle" | "offline") => {
+    if (hasIssues) {
+      setError("Some passes don't match what's offered for this event — please fix the highlighted people before paying.");
+      go("days", -1);
+      return;
+    }
     setBusy(true);
     setError("");
     const res = await submitRegistration({
@@ -762,6 +903,26 @@ export default function RegisterFlow({
                 <input className={`input ${dayOfMode ? "text-lg !py-4" : "!py-3.5"}`} type="email" required placeholder="Email (required) — your tickets land here" value={buyerEmail} onChange={(e) => setBuyerEmail(e.target.value)} />
                 <input className={`input ${dayOfMode ? "text-lg !py-4" : "!py-3.5"}`} type="tel" placeholder="Phone number" value={buyerPhone} onChange={(e) => setBuyerPhone(e.target.value)} />
               </div>
+
+              {hasStudent && !isMemberPurchase && !dayOfMode && (
+                <>
+                  <label className="mt-4 flex items-start gap-3 rounded-xl px-4 py-3 cursor-pointer" style={{ background: "var(--accent-soft)" }}>
+                    <input type="checkbox" className="accent-[var(--sindoor)] w-4 h-4 mt-0.5" checked={selfIsStudent} onChange={(e) => setSelfIsStudent(e.target.checked)} />
+                    <span className="text-sm">
+                      <strong>🎓 I&apos;m a student</strong> — register yourself at the student rate (bring your student ID to the gate)
+                    </span>
+                  </label>
+                  {selfIsStudent && (
+                    <div className="mt-3 grid sm:grid-cols-2 gap-3">
+                      <input className="input !py-3" type="email" placeholder="School email (.edu)" value={selfStudent.eduEmail} onChange={(e) => setSelfStudent((s) => ({ ...s, eduEmail: e.target.value }))} />
+                      <input className="input !py-3" placeholder="University / college" value={selfStudent.university} onChange={(e) => setSelfStudent((s) => ({ ...s, university: e.target.value }))} />
+                      <input className="input !py-3" placeholder="City" value={selfStudent.city} onChange={(e) => setSelfStudent((s) => ({ ...s, city: e.target.value }))} />
+                      <input className="input !py-3" type="number" placeholder="Expected grad year (e.g. 2027)" value={selfStudent.gradYear} onChange={(e) => setSelfStudent((s) => ({ ...s, gradYear: e.target.value }))} />
+                    </div>
+                  )}
+                </>
+              )}
+
               {member && !member.isActiveMember && (
                 <p className="mt-4 text-sm rounded-xl px-4 py-3" style={{ background: "var(--accent-soft)" }}>
                   Your membership isn&apos;t active yet, so non-member pricing applies for now.
@@ -769,7 +930,7 @@ export default function RegisterFlow({
               )}
               <NextBtn
                 big={dayOfMode}
-                disabled={!buyerName.trim() || !buyerEmail.includes("@")}
+                disabled={!buyerName.trim() || !buyerEmail.includes("@") || (selfIsStudent && !selfStudent.eduEmail.includes("@"))}
                 onClick={() => {
                   ensureSelfInParty();
                   goNext();
@@ -954,11 +1115,39 @@ export default function RegisterFlow({
                           </button>
                         ))}
                       </div>
+                      {!p.concertOnly && p.days.length > 0 && !bandDayOk(p) && (
+                        <div className="mt-3 rounded-xl px-3.5 py-3 text-sm" style={{ background: "rgba(200,16,46,0.07)", border: "1px solid rgba(200,16,46,0.25)" }}>
+                          <p className="font-semibold" style={{ color: "var(--sindoor)" }}>
+                            ⚠️ There&apos;s no {BAND_LABEL[personBand(p)] ?? "matching"} pass for {p.firstName}&apos;s day selection.
+                          </p>
+                          {combosFor(p).length > 0 ? (
+                            <>
+                              <p className="text-xs mt-1.5 mb-2" style={{ color: "var(--ink-soft)" }}>Tap an available option:</p>
+                              <div className="flex flex-wrap gap-2">
+                                {combosFor(p).map((c) => (
+                                  <button key={c.key} className="choice-chip !py-2 !px-3.5 text-xs" onClick={() => updatePerson(p.id, { days: c.days })}>
+                                    {c.label}
+                                  </button>
+                                ))}
+                              </div>
+                            </>
+                          ) : (
+                            <p className="text-xs mt-1" style={{ color: "var(--ink-soft)" }}>
+                              No {BAND_LABEL[personBand(p)] ?? "such"} passes are offered — please remove this person.
+                            </p>
+                          )}
+                        </div>
+                      )}
                     </PersonRow>
                   );
                 })}
               </div>
-              <NextBtn disabled={people.some((p) => p.days.length === 0)} onClick={goNext} />
+              {daysStepBlocked && (
+                <p className="mt-4 text-sm font-medium" style={{ color: "var(--sindoor)" }}>
+                  Pick a valid pass for everyone above to continue.
+                </p>
+              )}
+              <NextBtn disabled={daysStepBlocked} onClick={goNext} />
             </Card>
           )}
 
@@ -968,27 +1157,46 @@ export default function RegisterFlow({
               <H big={dayOfMode}>Now, the important part — food. 🍛</H>
               <Sub>Bhog is half the reason we all come. Kids get the kid&apos;s meal automatically.</Sub>
               <div className="grid gap-4">
-                {people.map((p) => (
-                  <PersonRow key={p.id} title={<>{p.isStudent ? "🎓" : p.isKid ? "🧒" : "🧑"} {p.firstName}</>}>
-                    {p.concertOnly ? (
-                      <p style={{ color: "var(--ink-soft)" }}>🎶 Concert ticket — no meal</p>
-                    ) : p.isKid ? (
-                      <p style={{ color: "var(--ink-soft)" }}>Kid&apos;s meal included 🍚</p>
-                    ) : (
-                      <div className="flex flex-wrap gap-2.5">
-                        <button className="choice-chip !py-2.5 !px-4 text-sm" data-selected={p.withFood && p.foodPref === "non_veg"} onClick={() => updatePerson(p.id, { withFood: true, foodPref: "non_veg" })}>
-                          🐟 With food · non-veg
-                        </button>
-                        <button className="choice-chip !py-2.5 !px-4 text-sm" data-selected={p.withFood && p.foodPref === "veg"} onClick={() => updatePerson(p.id, { withFood: true, foodPref: "veg" })}>
-                          🥬 With food · veg
-                        </button>
-                        <button className="choice-chip !py-2.5 !px-4 text-sm" data-selected={!p.withFood} onClick={() => updatePerson(p.id, { withFood: false, foodPref: "none" })}>
-                          🚫 No food for me
-                        </button>
-                      </div>
-                    )}
-                  </PersonRow>
-                ))}
+                {people.map((p) => {
+                  const fa = p.concertOnly || p.isKid ? { withFood: true, noFood: true } : foodFor(p);
+                  return (
+                    <PersonRow key={p.id} title={<>{p.isStudent ? "🎓" : p.isKid ? "🧒" : "🧑"} {p.firstName}</>}>
+                      {p.concertOnly ? (
+                        <p style={{ color: "var(--ink-soft)" }}>🎶 Concert ticket — no meal</p>
+                      ) : p.isKid ? (
+                        <p style={{ color: "var(--ink-soft)" }}>Kid&apos;s meal included 🍚</p>
+                      ) : (
+                        <div className="flex flex-wrap gap-2.5">
+                          {fa.withFood && (
+                            <>
+                              <button className="choice-chip !py-2.5 !px-4 text-sm" data-selected={p.withFood && p.foodPref === "non_veg"} onClick={() => updatePerson(p.id, { withFood: true, foodPref: "non_veg" })}>
+                                🐟 With food · non-veg
+                              </button>
+                              <button className="choice-chip !py-2.5 !px-4 text-sm" data-selected={p.withFood && p.foodPref === "veg"} onClick={() => updatePerson(p.id, { withFood: true, foodPref: "veg" })}>
+                                🥬 With food · veg
+                              </button>
+                            </>
+                          )}
+                          {fa.noFood && (
+                            <button className="choice-chip !py-2.5 !px-4 text-sm" data-selected={!p.withFood} onClick={() => updatePerson(p.id, { withFood: false, foodPref: "none" })}>
+                              🚫 No food
+                            </button>
+                          )}
+                          {fa.withFood && !fa.noFood && (
+                            <p className="text-xs w-full mt-0.5" style={{ color: "var(--ink-soft)" }}>
+                              This pass includes food — pick veg or non-veg.
+                            </p>
+                          )}
+                          {!fa.withFood && fa.noFood && (
+                            <p className="text-xs w-full mt-0.5" style={{ color: "var(--ink-soft)" }}>
+                              This pass doesn&apos;t include a meal.
+                            </p>
+                          )}
+                        </div>
+                      )}
+                    </PersonRow>
+                  );
+                })}
               </div>
               <NextBtn big={dayOfMode} onClick={goNext} />
             </Card>
@@ -1213,7 +1421,12 @@ export default function RegisterFlow({
                   {promo.note}
                 </p>
               )}
-              <NextBtn label="Looks right — choose payment →" onClick={goNext} />
+              {hasIssues && (
+                <p className="mt-4 text-sm font-medium" style={{ color: "var(--sindoor)" }}>
+                  Some passes don&apos;t match what&apos;s offered — go back and fix the highlighted people first.
+                </p>
+              )}
+              <NextBtn label="Looks right — choose payment →" disabled={hasIssues} onClick={goNext} />
             </Card>
           )}
 
