@@ -33,6 +33,9 @@ export const users = pgTable(
     emailVerifiedAt: timestamp("email_verified_at", { withTimezone: true }),
     role: text("role").notNull().default("member"), // member | admin | super_admin
     lastLoginAt: timestamp("last_login_at", { withTimezone: true }),
+    failedLoginCount: integer("failed_login_count").notNull().default(0), // brute-force lockout
+    lastFailedLoginAt: timestamp("last_failed_login_at", { withTimezone: true }),
+    lockedUntil: timestamp("locked_until", { withTimezone: true }),
     createdAt: createdAt(),
     updatedAt: updatedAt(),
     deletedAt: timestamp("deleted_at", { withTimezone: true }),

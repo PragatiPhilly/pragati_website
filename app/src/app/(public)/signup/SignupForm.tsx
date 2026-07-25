@@ -3,6 +3,7 @@
 import { useActionState } from "react";
 import Link from "next/link";
 import { signupAction } from "@/lib/auth/actions";
+import PhoneInput from "@/components/site/PhoneInput";
 
 export default function SignupForm({ priceLabel }: { priceLabel: string }) {
   const [state, action, pending] = useActionState(signupAction, undefined);
@@ -28,10 +29,12 @@ export default function SignupForm({ priceLabel }: { priceLabel: string }) {
           Family name <span className="font-normal" style={{ color: "var(--ink-soft)" }}>(how we'll greet you — optional)</span>
           <input name="familyName" placeholder="e.g. Kundu family" className="input mt-1.5" />
         </label>
-        <label className="text-sm font-semibold">
+        <div className="text-sm font-semibold">
           Phone
-          <input name="phone" type="tel" className="input mt-1.5" placeholder="+1 (267) 555-0123" />
-        </label>
+          <div className="mt-1.5">
+            <PhoneInput name="phone" />
+          </div>
+        </div>
         <label className="text-sm font-semibold">
           Email
           <input name="email" type="email" required className="input mt-1.5" />

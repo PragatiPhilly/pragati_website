@@ -16,7 +16,9 @@ import { useRouter } from "next/navigation";
 import { submitRegistration, validatePromoAction } from "./actions";
 import { formatCents, cardProcessingFeeCents } from "@/lib/pricing";
 import { sameDaySet } from "@/lib/event-days";
+import { isEmail } from "@/lib/validation";
 import JourneyScene from "@/components/register/JourneyScene";
+import PhoneInput from "@/components/site/PhoneInput";
 
 // ── types passed from the server ──
 export type FlowEvent = {
@@ -320,7 +322,7 @@ function TotalRow({ total, cardFee }: { total: number; cardFee: number }) {
 
 function DesktopOrderRail(props: OrderData) {
   return (
-    <aside className="hidden lg:block sticky top-6 self-start">
+    <aside className="hidden lg:block sticky top-20 self-start max-h-[calc(100vh-6rem)] overflow-y-auto pr-1">
       <div className="festive-card p-5">
         <p className="font-[family-name:var(--font-display)] text-lg font-black mb-3">Your order</p>
         <OrderLines {...props} />
@@ -900,8 +902,14 @@ export default function RegisterFlow({
               <Sub>{member ? "Confirm your details and we'll move on." : "Who should the tickets go to?"}</Sub>
               <div className="grid gap-4">
                 <input className={`input ${dayOfMode ? "text-lg !py-4" : "!py-3.5"}`} placeholder="Your full name" value={buyerName} onChange={(e) => setBuyerName(e.target.value)} autoFocus />
-                <input className={`input ${dayOfMode ? "text-lg !py-4" : "!py-3.5"}`} type="email" required placeholder="Email (required) — your tickets land here" value={buyerEmail} onChange={(e) => setBuyerEmail(e.target.value)} />
-                <input className={`input ${dayOfMode ? "text-lg !py-4" : "!py-3.5"}`} type="tel" placeholder="Phone number" value={buyerPhone} onChange={(e) => setBuyerPhone(e.target.value)} />
+                <input
+                  className={`input ${dayOfMode ? "text-lg !py-4" : "!py-3.5"}`}
+                  type="email"
+                  placeholder={selfIsStudent ? "Email for tickets (optional — we'll use your .edu)" : "Email (required) — your tickets land here"}
+                  value={buyerEmail}
+                  onChange={(e) => setBuyerEmail(e.target.value)}
+                />
+                <PhoneInput className={`input ${dayOfMode ? "text-lg !py-4" : "!py-3.5"}`} onChange={setBuyerPhone} />
               </div>
 
               {hasStudent && !isMemberPurchase && !dayOfMode && (
@@ -914,10 +922,10 @@ export default function RegisterFlow({
                   </label>
                   {selfIsStudent && (
                     <div className="mt-3 grid sm:grid-cols-2 gap-3">
-                      <input className="input !py-3" type="email" placeholder="School email (.edu)" value={selfStudent.eduEmail} onChange={(e) => setSelfStudent((s) => ({ ...s, eduEmail: e.target.value }))} />
+                      <input className="input !py-3" type="email" placeholder="School email (.edu) — required" value={selfStudent.eduEmail} onChange={(e) => setSelfStudent((s) => ({ ...s, eduEmail: e.target.value }))} />
                       <input className="input !py-3" placeholder="University / college" value={selfStudent.university} onChange={(e) => setSelfStudent((s) => ({ ...s, university: e.target.value }))} />
                       <input className="input !py-3" placeholder="City" value={selfStudent.city} onChange={(e) => setSelfStudent((s) => ({ ...s, city: e.target.value }))} />
-                      <input className="input !py-3" type="number" placeholder="Expected grad year (e.g. 2027)" value={selfStudent.gradYear} onChange={(e) => setSelfStudent((s) => ({ ...s, gradYear: e.target.value }))} />
+                      <input className="input !py-3" type="text" inputMode="numeric" maxLength={4} placeholder="Expected grad year (e.g. 2027)" value={selfStudent.gradYear} onChange={(e) => setSelfStudent((s) => ({ ...s, gradYear: e.target.value.replace(/\D/g, "").slice(0, 4) }))} />
                     </div>
                   )}
                 </>
@@ -928,10 +936,23 @@ export default function RegisterFlow({
                   Your membership isn&apos;t active yet, so non-member pricing applies for now.
                 </p>
               )}
+              {error && (
+                <p className="mt-4 text-sm font-medium rounded-xl px-4 py-3" style={{ background: "var(--accent-soft)", color: "var(--sindoor)" }}>
+                  {error}
+                </p>
+              )}
               <NextBtn
                 big={dayOfMode}
-                disabled={!buyerName.trim() || !buyerEmail.includes("@") || (selfIsStudent && !selfStudent.eduEmail.includes("@"))}
                 onClick={() => {
+                  if (!buyerName.trim()) return setError("Please enter your name to continue.");
+                  if (selfIsStudent) {
+                    if (!isEmail(selfStudent.eduEmail)) return setError("Please enter your school (.edu) email — it's required for the student rate.");
+                  } else if (!isEmail(buyerEmail)) {
+                    return setError("Please enter a valid email so we can send your tickets.");
+                  }
+                  // Student with no separate contact email → tickets go to the .edu address.
+                  if (selfIsStudent && !isEmail(buyerEmail)) setBuyerEmail(selfStudent.eduEmail);
+                  setError("");
                   ensureSelfInParty();
                   goNext();
                 }}
@@ -1016,10 +1037,13 @@ export default function RegisterFlow({
                       <input className="input !py-3" type="email" placeholder="School email (.edu)" value={draftStudent.eduEmail} onChange={(e) => setDraftStudent((s) => ({ ...s, eduEmail: e.target.value }))} />
                       <input className="input !py-3" placeholder="University / college" value={draftStudent.university} onChange={(e) => setDraftStudent((s) => ({ ...s, university: e.target.value }))} />
                       <input className="input !py-3" placeholder="City" value={draftStudent.city} onChange={(e) => setDraftStudent((s) => ({ ...s, city: e.target.value }))} />
-                      <input className="input !py-3" type="number" placeholder="Expected grad year (e.g. 2027)" value={draftStudent.gradYear} onChange={(e) => setDraftStudent((s) => ({ ...s, gradYear: e.target.value }))} />
+                      <input className="input !py-3" type="text" inputMode="numeric" maxLength={4} placeholder="Expected grad year (e.g. 2027)" value={draftStudent.gradYear} onChange={(e) => setDraftStudent((s) => ({ ...s, gradYear: e.target.value.replace(/\D/g, "").slice(0, 4) }))} />
                     </div>
+                    {draftName.trim() && !isEmail(draftStudent.eduEmail) && (
+                      <p className="text-xs font-medium" style={{ color: "var(--sindoor)" }}>A school (.edu) email is required to add a student.</p>
+                    )}
                     <div className="flex gap-3 items-center">
-                      <button className="btn-primary !py-3 !px-6 text-sm" onClick={addDraft} disabled={!draftName.trim() || !draftStudent.eduEmail.includes("@")}>
+                      <button className="btn-primary !py-3 !px-6 text-sm" onClick={addDraft} disabled={!draftName.trim() || !isEmail(draftStudent.eduEmail)}>
                         Add student ✓
                       </button>
                       <button className="text-sm opacity-60 hover:opacity-100" onClick={() => setDraftKind(null)}>
@@ -1031,7 +1055,7 @@ export default function RegisterFlow({
                   <motion.div initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} className="flex flex-wrap gap-3 items-center">
                     <input className="input flex-1 min-w-44 !py-3" placeholder={draftKind === "kid" ? "Kid's name" : "Their name"} value={draftName} onChange={(e) => setDraftName(e.target.value)} autoFocus onKeyDown={(e) => e.key === "Enter" && addDraft()} />
                     {draftKind === "kid" && (
-                      <input className="input w-24 !py-3" type="number" min={0} max={17} placeholder="Age" value={draftAge} onChange={(e) => setDraftAge(e.target.value)} />
+                      <input className="input w-24 !py-3" type="text" inputMode="numeric" maxLength={2} placeholder="Age" value={draftAge} onChange={(e) => setDraftAge(e.target.value.replace(/\D/g, "").slice(0, 2))} />
                     )}
                     <button className="btn-primary !py-3 !px-6 text-sm" onClick={addDraft} disabled={!draftName.trim()}>
                       Add ✓
@@ -1311,13 +1335,15 @@ export default function RegisterFlow({
                   Or a custom amount $
                 </label>
                 <input
-                  type="number"
-                  min={0}
-                  step="1"
+                  type="text"
+                  inputMode="decimal"
                   className="input !py-3 max-w-40"
                   placeholder="0"
                   value={donationCents ? String(donationCents / 100) : ""}
-                  onChange={(e) => setDonationCents(Math.max(0, Math.round((parseFloat(e.target.value) || 0) * 100)))}
+                  onChange={(e) => {
+                    const v = e.target.value.replace(/[^0-9.]/g, "");
+                    setDonationCents(Math.max(0, Math.round((parseFloat(v) || 0) * 100)));
+                  }}
                 />
                 {donationCents > 0 && (
                   <button type="button" className="text-sm underline underline-offset-4 opacity-70 hover:opacity-100" onClick={() => setDonationCents(0)}>

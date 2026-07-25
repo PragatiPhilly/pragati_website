@@ -2,6 +2,7 @@
 
 import { useActionState } from "react";
 import { updateProfileAction, changePasswordAction, type FormState } from "../actions";
+import PhoneInput from "@/components/site/PhoneInput";
 
 export default function ProfileForms({
   member,
@@ -19,7 +20,7 @@ export default function ProfileForms({
         <h2 className="font-[family-name:var(--font-display)] text-lg font-bold">Contact details</h2>
         <p className="text-sm -mt-2" style={{ color: "var(--ink-soft)" }}>Signed in as {email}</p>
         <input name="familyName" defaultValue={member.familyName} placeholder="Family name" className="input" />
-        <input name="phone" defaultValue={member.phone} placeholder="Phone" className="input" />
+        <PhoneInput name="phone" defaultValue={member.phone} />
         <input name="addressLine1" defaultValue={member.addressLine1} placeholder="Address" className="input" />
         <div className="grid grid-cols-3 gap-3">
           <input name="city" defaultValue={member.city} placeholder="City" className="input" />

@@ -3,6 +3,8 @@
 import { useActionState, useState } from "react";
 import { donateAction } from "./actions";
 import { cardProcessingFeeCents, formatCents } from "@/lib/pricing";
+import { amountOnly } from "@/lib/validation";
+import PhoneInput from "@/components/site/PhoneInput";
 
 const AMOUNTS = [25, 50, 100, 500];
 
@@ -53,7 +55,7 @@ export default function DonateForm({
           </div>
           <input type="hidden" name="amount" value={amount} />
           {amount === "custom" && (
-            <input name="customAmount" type="number" min="1" step="1" placeholder="Amount in USD" className="input mt-3 max-w-48" value={customAmount} onChange={(e) => setCustomAmount(e.target.value)} />
+            <input name="customAmount" type="text" inputMode="decimal" placeholder="Amount in USD" className="input mt-3 max-w-48" value={customAmount} onChange={(e) => setCustomAmount(amountOnly(e.target.value))} />
           )}
         </div>
 
@@ -82,7 +84,9 @@ export default function DonateForm({
         <div className="grid sm:grid-cols-2 gap-3">
           <input name="donorName" required placeholder="Your name" className="input" />
           <input name="donorEmail" required type="email" placeholder="Your email" className="input" />
-          <input name="donorPhone" placeholder="Phone (optional)" className="input sm:col-span-2" />
+          <div className="sm:col-span-2">
+            <PhoneInput name="donorPhone" />
+          </div>
           <textarea name="message" placeholder="A message to Pragati (optional)" className="input sm:col-span-2 min-h-24" />
         </div>
 

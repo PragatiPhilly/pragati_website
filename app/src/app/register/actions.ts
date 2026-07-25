@@ -2,6 +2,7 @@
 
 import { createCheckout, type CheckoutAttendee } from "@/lib/checkout";
 import { getSession } from "@/lib/auth/session";
+import { isEmail, isPhone } from "@/lib/validation";
 
 export type SubmitRegistrationInput = {
   eventId: string;
@@ -54,10 +55,12 @@ export async function validatePromoAction(eventId: string, code: string, subtota
 export async function submitRegistration(input: SubmitRegistrationInput): Promise<SubmitRegistrationResult> {
   try {
     if (!input.buyerName.trim()) return { ok: false, error: "Please tell us your name." };
-    if (!input.buyerEmail.includes("@")) return { ok: false, error: "We need a valid email for your tickets." };
+    if (!isEmail(input.buyerEmail)) return { ok: false, error: "We need a valid email (name@example.com) for your tickets." };
+    if (input.buyerPhone && !isPhone(input.buyerPhone)) return { ok: false, error: "That phone number doesn't look right — please check it." };
     if (input.attendees.length === 0) return { ok: false, error: "Add at least one person." };
     for (const a of input.attendees) {
       if (a.days.length === 0) return { ok: false, error: `Pick at least one day for ${a.firstName}.` };
+      if (a.isStudent && !isEmail(a.student?.eduEmail ?? "")) return { ok: false, error: `Please add a valid school (.edu) email for ${a.firstName}.` };
     }
 
     // Emergency kill-switches (Admin → Settings) — enforced server-side so a

@@ -3,6 +3,7 @@
 import { redirect } from "next/navigation";
 import { createDonation } from "@/lib/donations";
 import { getSession } from "@/lib/auth/session";
+import { isEmail, isPhone } from "@/lib/validation";
 
 export type DonateState = { error?: string } | undefined;
 
@@ -10,11 +11,19 @@ export async function donateAction(_prev: DonateState, formData: FormData): Prom
   const amountRaw = String(formData.get("amount") ?? "");
   const custom = String(formData.get("customAmount") ?? "");
   const dollars = amountRaw === "custom" ? parseFloat(custom) : parseFloat(amountRaw);
-  if (!dollars || dollars < 1) return { error: "Please choose a donation amount." };
+  if (!Number.isFinite(dollars) || dollars < 1) return { error: "Please choose a donation amount of at least $1." };
+  if (dollars > 100000) return { error: "For gifts over $100,000, please contact us directly — thank you!" };
 
   const donorName = String(formData.get("donorName") ?? "").trim();
   const donorEmail = String(formData.get("donorEmail") ?? "").trim().toLowerCase();
-  if (!donorName || !donorEmail.includes("@")) return { error: "Please add your name and a valid email." };
+  if (!donorName) return { error: "Please add your name." };
+  if (!isEmail(donorEmail)) return { error: "Please enter a valid email (name@example.com)." };
+
+  const donorPhone = String(formData.get("donorPhone") ?? "").trim();
+  if (!isPhone(donorPhone)) return { error: "That phone number doesn't look right — please check it." };
+
+  const honoreeNotifyEmail = String(formData.get("honoreeNotifyEmail") ?? "").trim();
+  if (honoreeNotifyEmail && !isEmail(honoreeNotifyEmail)) return { error: "The honoree notification email isn't valid." };
 
   const inHonorOrMemory = String(formData.get("inHonorOrMemory") ?? "none") as "none" | "in_honor_of" | "in_memory_of";
   const honoreeName = String(formData.get("honoreeName") ?? "").trim();
@@ -34,11 +43,11 @@ export async function donateAction(_prev: DonateState, formData: FormData): Prom
   const result = await createDonation({
     donorName,
     donorEmail,
-    donorPhone: String(formData.get("donorPhone") ?? "").trim() || undefined,
+    donorPhone: donorPhone || undefined,
     amountCents: Math.round(dollars * 100),
     inHonorOrMemory,
     honoreeName: honoreeName || undefined,
-    honoreeNotifyEmail: String(formData.get("honoreeNotifyEmail") ?? "").trim() || undefined,
+    honoreeNotifyEmail: honoreeNotifyEmail || undefined,
     message: String(formData.get("message") ?? "").trim() || undefined,
     isAnonymous: formData.get("isAnonymous") === "on",
     paymentMethod: method,

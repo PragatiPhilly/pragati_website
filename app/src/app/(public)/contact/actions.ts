@@ -5,11 +5,17 @@ import { getDb, schema } from "@/db/client";
 import { ensureMediaTables } from "@/lib/media/ensure";
 import { sendMail } from "@/lib/email";
 import { site } from "@/config/site";
+import { isPhone } from "@/lib/validation";
 
 const schemaIn = z.object({
   name: z.string().trim().min(1, "Please tell us your name.").max(120),
-  email: z.string().trim().email("Please enter a valid email."),
-  phone: z.string().trim().max(40).optional().or(z.literal("")),
+  email: z.string().trim().email("Please enter a valid email (name@example.com)."),
+  phone: z
+    .string()
+    .trim()
+    .max(40)
+    .default("")
+    .refine((v) => isPhone(v), "That phone number doesn't look right — please check it."),
   topic: z.string().trim().max(60).default("general"),
   message: z.string().trim().min(5, "Please add a little more detail.").max(4000),
 });
