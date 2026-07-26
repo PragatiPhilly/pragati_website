@@ -34,20 +34,36 @@ function fmtTime(hhmm: string | null): string | null {
   return new Date(`2000-01-01T${hhmm}:00`).toLocaleTimeString("en-US", { hour: "numeric", minute: "2-digit" });
 }
 
-/** Price shown as Guest / Member. */
+/** Both prices, each explicitly labelled so nobody wonders why there are two. */
 function PriceCell({ t }: { t: Ticket }) {
-  if (t.priceNonmemberCents === 0 && t.priceMemberCents === 0) return <span className="font-[family-name:var(--font-display)] font-bold">Free</span>;
-  if (t.priceNonmemberCents < 0)
+  if (t.priceNonmemberCents === 0 && t.priceMemberCents === 0)
+    return <span className="font-[family-name:var(--font-display)] font-bold text-lg">Free</span>;
+  const membersOnly = t.priceNonmemberCents < 0;
+  const save = !membersOnly && t.priceNonmemberCents > t.priceMemberCents ? t.priceNonmemberCents - t.priceMemberCents : 0;
+  // Same price for everyone → one clean number (no confusing duplicate lines).
+  if (!membersOnly && t.priceNonmemberCents === t.priceMemberCents)
     return (
-      <span className="whitespace-nowrap text-sm">
-        <span className="font-bold">Members</span> <span style={{ color: "var(--leaf-deep)" }}>{formatCents(t.priceMemberCents)}</span>
+      <span className="whitespace-nowrap">
+        <span className="font-[family-name:var(--font-display)] font-bold">{formatCents(t.priceMemberCents)}</span>{" "}
+        <span className="text-[10px] uppercase tracking-wider" style={{ color: "var(--ink-soft)" }}>· guest &amp; member</span>
       </span>
     );
   return (
-    <span className="whitespace-nowrap">
-      <span className="font-[family-name:var(--font-display)] font-bold">{formatCents(t.priceNonmemberCents)}</span>{" "}
-      <span className="text-sm" style={{ color: "var(--leaf-deep)" }}>/ {formatCents(t.priceMemberCents)}</span>
-    </span>
+    <div className="leading-tight whitespace-nowrap">
+      {!membersOnly && (
+        <div className="flex items-baseline gap-1.5">
+          <span className="w-16 text-[10px] font-bold uppercase tracking-wider" style={{ color: "var(--ink-soft)" }}>Guest</span>
+          <span className="font-[family-name:var(--font-display)] font-bold">{formatCents(t.priceNonmemberCents)}</span>
+        </div>
+      )}
+      <div className="flex items-baseline gap-1.5">
+        <span className="w-16 text-[10px] font-bold uppercase tracking-wider" style={{ color: "var(--leaf-deep)" }}>Member</span>
+        <span className="font-[family-name:var(--font-display)] font-bold" style={{ color: "var(--leaf-deep)" }}>{formatCents(t.priceMemberCents)}</span>
+      </div>
+      {save > 0 && (
+        <p className="text-[10px] font-semibold pl-[4.25rem]" style={{ color: "var(--leaf-deep)" }}>save {formatCents(save)}</p>
+      )}
+    </div>
   );
 }
 
@@ -67,22 +83,28 @@ function TicketGroup({ title, sub, children }: { title: string; sub?: string; ch
   );
 }
 
-/** Adult day-coverage card: one card per day-combo, with its food options. */
+/** Adult / student day-coverage card: a small Guest | Member table per day-combo. */
 function CoverageCard({ label, passes }: { label: string; passes: Ticket[] }) {
   const sorted = [...passes].sort((a, b) => Number(b.withFood) - Number(a.withFood));
   return (
     <div className="rounded-2xl p-4" style={{ border: "1px solid var(--line)", background: "var(--card)" }}>
-      <p className="font-bold text-sm mb-2">{label}</p>
-      <div className="grid gap-1.5">
-        {sorted.map((t) => (
-          <div key={t.id} className="flex items-center justify-between gap-2 text-sm">
-            <span style={{ color: "var(--ink-soft)" }}>
-              {t.withFood ? "🍛 With food" : "No food"}
-              {soldOut(t) && <SoldOutTag />}
-            </span>
-            <PriceCell t={t} />
-          </div>
-        ))}
+      <p className="font-bold text-sm mb-2.5">{label}</p>
+      <div className="grid grid-cols-[1fr_auto_auto] gap-x-4 gap-y-1.5 items-baseline text-sm">
+        <span />
+        <span className="text-[10px] font-bold uppercase tracking-wider text-right" style={{ color: "var(--ink-soft)" }}>Guest</span>
+        <span className="text-[10px] font-bold uppercase tracking-wider text-right" style={{ color: "var(--leaf-deep)" }}>Member ★</span>
+        {sorted.flatMap((t) => [
+          <span key={`${t.id}-l`} style={{ color: "var(--ink-soft)" }}>
+            {t.withFood ? "🍛 With food" : "No food"}
+            {soldOut(t) && <SoldOutTag />}
+          </span>,
+          <span key={`${t.id}-g`} className="font-[family-name:var(--font-display)] font-bold text-right">
+            {t.priceNonmemberCents < 0 ? "—" : formatCents(t.priceNonmemberCents)}
+          </span>,
+          <span key={`${t.id}-m`} className="font-[family-name:var(--font-display)] font-bold text-right" style={{ color: "var(--leaf-deep)" }}>
+            {formatCents(t.priceMemberCents)}
+          </span>,
+        ])}
       </div>
     </div>
   );
@@ -247,11 +269,20 @@ export default async function EventDetailPage({ params }: { params: Promise<{ sl
 
       <Reveal delay={0.25}>
         <div className="mt-14">
-          <div className="flex items-baseline justify-between flex-wrap gap-2 mb-1">
-            <h2 className="font-[family-name:var(--font-display)] text-2xl font-bold">Tickets</h2>
-            <p className="text-xs" style={{ color: "var(--ink-soft)" }}>
-              Prices: <strong>Guest</strong> / <span style={{ color: "var(--leaf-deep)" }}>Member</span>
+          <h2 className="font-[family-name:var(--font-display)] text-2xl font-bold mb-3">Tickets</h2>
+          <div
+            className="rounded-2xl px-4 py-3.5 mb-6 flex items-center justify-between gap-x-4 gap-y-2 flex-wrap"
+            style={{ background: "var(--accent-soft)" }}
+          >
+            <p className="text-sm leading-relaxed">
+              Every pass has <strong>two prices</strong> —{" "}
+              <span className="font-bold">Guest</span> and the lower{" "}
+              <span className="font-bold" style={{ color: "var(--leaf-deep)" }}>Member ★</span> price. Pragati members save
+              on every pass, all year.
             </p>
+            <Link href="/signup" className="btn-secondary !py-1.5 !px-4 text-xs whitespace-nowrap shrink-0">
+              Become a member →
+            </Link>
           </div>
 
           {adultGroups.length > 0 && (
