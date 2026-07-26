@@ -62,7 +62,7 @@ function Eyebrow({
   en,
   center = false,
 }: {
-  bn: string;
+  bn?: string;
   en: string;
   center?: boolean;
 }) {
@@ -72,7 +72,13 @@ function Eyebrow({
       style={center ? { justifyContent: 'center', width: '100%' } : undefined}
     >
       <span className="bar" />
-      <span className="bn-tag">{bn}</span> · {en}
+      {bn ? (
+        <>
+          <span className="bn-tag">{bn}</span> · {en}
+        </>
+      ) : (
+        en
+      )}
       {center && <span className="bar" />}
     </div>
   );
