@@ -275,7 +275,6 @@ export default async function EventDetailPage({ params }: { params: Promise<{ sl
             style={{ background: "var(--accent-soft)" }}
           >
             <p className="text-sm leading-relaxed">
-              Every pass has <strong>two prices</strong> —{" "}
               <span className="font-bold">Guest</span> and the lower{" "}
               <span className="font-bold" style={{ color: "var(--leaf-deep)" }}>Member ★</span> price. Pragati members save
               on every pass, all year.
