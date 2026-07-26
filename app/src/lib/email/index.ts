@@ -108,6 +108,13 @@ async function enqueue(mail: Mail, reason?: string) {
   });
 }
 
+// Replies go to a real inbox (Admin → Settings), since From is a no-reply@ domain address.
+async function replyToAddress(): Promise<string | undefined> {
+  const { getConfig } = await import("@/lib/system-config");
+  const v = await getConfig<string | undefined>("system_email_reply_to");
+  return v && v.includes("@") ? v : undefined;
+}
+
 // ── the public API (same signature as before) ───────────────────
 
 export async function sendMail(mail: Mail): Promise<void> {
@@ -129,7 +136,7 @@ export async function sendMail(mail: Mail): Promise<void> {
   }
 
   const { to, subject } = applyTestOverride(mail);
-  const result = await deliver({ to, subject, text: mail.text, attachments: mail.attachments });
+  const result = await deliver({ to, subject, text: mail.text, attachments: mail.attachments, replyTo: await replyToAddress() });
   await logEmail(mail, to, subject, result.ok ? result : { ok: false, provider: result.provider, error: result.error });
   if (!result.ok) {
     await enqueue(mail, result.error); // don't lose it — the outbox retries with backoff
@@ -185,9 +192,10 @@ export async function drainOutbox(maxSends = 40): Promise<{ sent: number; digest
   let digests = 0;
   let deferred = 0;
 
+  const replyTo = await replyToAddress();
   const attempt = async (mail: Mail): Promise<{ ok: boolean; error?: string }> => {
     const { to, subject } = applyTestOverride(mail);
-    const result = await deliver({ to, subject, text: mail.text, attachments: mail.attachments });
+    const result = await deliver({ to, subject, text: mail.text, attachments: mail.attachments, replyTo });
     await logEmail(mail, to, subject, result.ok ? result : { ok: false, provider: result.provider, error: result.error });
     return result.ok ? { ok: true } : { ok: false, error: result.error };
   };

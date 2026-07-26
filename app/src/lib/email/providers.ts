@@ -15,6 +15,7 @@ export type OutboundMail = {
   subject: string;
   text: string;
   attachments?: MailAttachment[];
+  replyTo?: string; // real inbox for replies (the From is a no-reply@ domain address)
 };
 
 export type ProviderResult =
@@ -41,6 +42,7 @@ async function sendViaBrevo(mail: OutboundMail): Promise<ProviderResult> {
       body: JSON.stringify({
         sender: { name: from.name, email: from.email },
         to: [{ email: mail.to }],
+        ...(mail.replyTo ? { replyTo: { email: mail.replyTo } } : {}),
         subject: mail.subject,
         textContent: mail.text,
         ...(mail.attachments?.length
@@ -70,6 +72,7 @@ async function sendViaResend(mail: OutboundMail): Promise<ProviderResult> {
       body: JSON.stringify({
         from: from.raw,
         to: mail.to,
+        ...(mail.replyTo ? { reply_to: mail.replyTo } : {}),
         subject: mail.subject,
         text: mail.text,
         ...(mail.attachments?.length ? { attachments: mail.attachments } : {}),
