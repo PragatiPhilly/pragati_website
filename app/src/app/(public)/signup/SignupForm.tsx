@@ -5,7 +5,7 @@ import Link from "next/link";
 import { signupAction } from "@/lib/auth/actions";
 import PhoneInput from "@/components/site/PhoneInput";
 
-export default function SignupForm({ priceLabel }: { priceLabel: string }) {
+export default function SignupForm({ priceLabel, portalEnabled = true }: { priceLabel: string; portalEnabled?: boolean }) {
   const [state, action, pending] = useActionState(signupAction, undefined);
 
   return (
@@ -51,10 +51,12 @@ export default function SignupForm({ priceLabel }: { priceLabel: string }) {
         <button className="btn-primary mt-2" disabled={pending}>
           {pending ? "Creating your account…" : "Create account → pay dues"}
         </button>
-        <p className="text-sm text-center" style={{ color: "var(--ink-soft)" }}>
-          Already a member?{" "}
-          <Link href="/login" className="underline underline-offset-4 font-medium">Sign in</Link>
-        </p>
+        {portalEnabled && (
+          <p className="text-sm text-center" style={{ color: "var(--ink-soft)" }}>
+            Already a member?{" "}
+            <Link href="/login" className="underline underline-offset-4 font-medium">Sign in</Link>
+          </p>
+        )}
       </form>
     </div>
   );

@@ -2,12 +2,16 @@ import Link from "next/link";
 import { site } from "@/config/site";
 import { getSession } from "@/lib/auth/session";
 import { logoutAction } from "@/lib/auth/actions";
+import { memberPortalEnabled } from "@/lib/member-mode";
 import MobileNav from "./MobileNav";
 import HeaderScroll from "./HeaderScroll";
 
 export default async function Header() {
   const session = await getSession();
   const isAdmin = session && (session.role === "admin" || session.role === "super_admin");
+  // Honor mode: members have no accounts, so hide member sign-in + the /m portal
+  // link. Admin sign-in lives at /login (reachable via /admin) and is unaffected.
+  const portalEnabled = await memberPortalEnabled();
 
   return (
     <>
@@ -35,27 +39,29 @@ export default async function Header() {
           </nav>
 
           <div className="flex items-center gap-3 text-sm shrink-0">
-            <MobileNav nav={site.nav} signedIn={!!session} isAdmin={!!isAdmin} />
+            <MobileNav nav={site.nav} signedIn={!!session} isAdmin={!!isAdmin} portalEnabled={portalEnabled} />
             {session ? (
               <>
                 {isAdmin ? (
                   <Link href="/admin" className="btn-secondary !py-2 !px-4 text-sm hidden sm:inline-flex">
                     Admin
                   </Link>
-                ) : (
+                ) : portalEnabled ? (
                   <Link href="/m" className="btn-secondary !py-2 !px-4 text-sm hidden sm:inline-flex">
                     My Pragati
                   </Link>
-                )}
+                ) : null}
                 <form action={logoutAction}>
                   <button className="hover:opacity-70 transition-opacity font-medium">Sign out</button>
                 </form>
               </>
             ) : (
               <>
-                <Link href="/login" className="font-medium hover:opacity-70 transition-opacity hidden sm:inline">
-                  Sign in
-                </Link>
+                {portalEnabled && (
+                  <Link href="/login" className="font-medium hover:opacity-70 transition-opacity hidden sm:inline">
+                    Sign in
+                  </Link>
+                )}
                 <Link href="/signup" className="btn-primary !py-2 !px-4 text-sm hidden sm:inline-flex">
                   Become a member
                 </Link>

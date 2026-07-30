@@ -8,10 +8,12 @@ export default function MobileNav({
   nav,
   signedIn,
   isAdmin,
+  portalEnabled = true,
 }: {
   nav: readonly { label: string; href: string }[];
   signedIn: boolean;
   isAdmin: boolean;
+  portalEnabled?: boolean;
 }) {
   const [open, setOpen] = useState(false);
 
@@ -48,14 +50,18 @@ export default function MobileNav({
                 Register for the next event
               </Link>
               {signedIn ? (
-                <Link href={isAdmin ? "/admin" : "/m"} className="rounded-xl px-4 py-3 font-semibold hover:bg-[var(--accent-soft)] transition-colors" style={{ color: "var(--sindoor)" }} onClick={() => setOpen(false)}>
-                  {isAdmin ? "Admin" : "My Pragati"}
-                </Link>
+                (isAdmin || portalEnabled) && (
+                  <Link href={isAdmin ? "/admin" : "/m"} className="rounded-xl px-4 py-3 font-semibold hover:bg-[var(--accent-soft)] transition-colors" style={{ color: "var(--sindoor)" }} onClick={() => setOpen(false)}>
+                    {isAdmin ? "Admin" : "My Pragati"}
+                  </Link>
+                )
               ) : (
                 <>
-                  <Link href="/login" className="rounded-xl px-4 py-3 font-medium hover:bg-[var(--accent-soft)] transition-colors" onClick={() => setOpen(false)}>
-                    Sign in
-                  </Link>
+                  {portalEnabled && (
+                    <Link href="/login" className="rounded-xl px-4 py-3 font-medium hover:bg-[var(--accent-soft)] transition-colors" onClick={() => setOpen(false)}>
+                      Sign in
+                    </Link>
+                  )}
                   <Link href="/signup" className="rounded-xl px-4 py-3 font-semibold hover:bg-[var(--accent-soft)] transition-colors" style={{ color: "var(--sindoor)" }} onClick={() => setOpen(false)}>
                     Become a member
                   </Link>

@@ -904,16 +904,38 @@ export default function RegisterFlow({
               <H>Namaskar! 🙏</H>
               <Sub>Let&apos;s get you to {event.name}. First — are you a Pragati member?</Sub>
               <div className="grid gap-4">
-                <button className="choice-chip !p-5" onClick={() => router.push(`/login?next=/register?event=${event.slug}`)}>
+                <button
+                  className="choice-chip !p-5"
+                  onClick={() => {
+                    // Honor mode: no sign-in — just note the claim and continue to
+                    // the same details page as everyone else (member pricing applies,
+                    // and we save them as a member once they pay).
+                    if (memberMode === "honor") {
+                      setSelfDeclaredMember(true);
+                      goNext();
+                    } else {
+                      // Verify mode: real accounts — sign in to load family + pricing.
+                      router.push(`/login?next=/register?event=${event.slug}`);
+                    }
+                  }}
+                >
                   <span className="text-2xl">🪔</span>
                   <span>
                     <strong className="text-lg">Yes, I&apos;m a member</strong>
                     <span className="block text-sm mt-0.5" style={{ color: "var(--ink-soft)" }}>
-                      Sign in — your family and member pricing load automatically
+                      {memberMode === "honor"
+                        ? "No sign-in needed — you'll get member pricing on the next step"
+                        : "Sign in — your family and member pricing load automatically"}
                     </span>
                   </span>
                 </button>
-                <button className="choice-chip !p-5" onClick={goNext}>
+                <button
+                  className="choice-chip !p-5"
+                  onClick={() => {
+                    setSelfDeclaredMember(false);
+                    goNext();
+                  }}
+                >
                   <span className="text-2xl">✨</span>
                   <span>
                     <strong className="text-lg">I&apos;m new here</strong>
