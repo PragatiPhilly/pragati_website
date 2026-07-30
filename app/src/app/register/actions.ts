@@ -13,6 +13,7 @@ export type SubmitRegistrationInput = {
   promoCode?: string;
   source: "web" | "day_of_kiosk";
   wantsMembership?: boolean;
+  selfDeclaredMember?: boolean; // honor-system "I'm already a member" claim
   attendees: CheckoutAttendee[];
   addons?: { ticketTypeId: string; qty: number }[];
   donationCents?: number;
@@ -77,6 +78,12 @@ export async function submitRegistration(input: SubmitRegistrationInput): Promis
     }
 
     const session = await getSession();
+    // Honor-system member pricing is only trusted when the site is in "honor"
+    // mode — the backdoor. In "verify" mode a self-declared claim is ignored
+    // server-side (a signed-in member still gets member pricing normally).
+    const memberMode = (await getConfig<string>("member_mode")) ?? "honor";
+    const selfDeclaredMember = !!input.selfDeclaredMember && memberMode === "honor" && !session?.memberId;
+
     const result = await createCheckout({
       eventId: input.eventId,
       buyerName: input.buyerName.trim(),
@@ -85,6 +92,7 @@ export async function submitRegistration(input: SubmitRegistrationInput): Promis
       memberId: session?.memberId,
       isMemberPurchase: !!session?.memberId,
       wantsMembership: input.wantsMembership,
+      selfDeclaredMember,
       source: input.source,
       paymentMethod: input.paymentMethod,
       promoCode: input.promoCode,

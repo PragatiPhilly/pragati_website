@@ -29,6 +29,7 @@ const GROUPS: { title: string; note?: string; keys: { key: string; label: string
     keys: [
       { key: "membership_annual_price_cents", label: "Annual membership price (cents)", type: "number" },
       { key: "member_discount_mode", label: "Member discount mode (per_adult | whole_family)" },
+      { key: "member_mode", label: "Member claim mode at registration (honor = trust \"I'm a member\", no check | verify = require account/DB match)" },
     ],
   },
   {

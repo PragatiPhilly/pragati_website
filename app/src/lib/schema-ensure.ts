@@ -26,6 +26,8 @@ export function ensureExtraColumns(): Promise<void> {
       sql`ALTER TABLE users ADD COLUMN IF NOT EXISTS failed_login_count integer NOT NULL DEFAULT 0;`,
       sql`ALTER TABLE users ADD COLUMN IF NOT EXISTS last_failed_login_at timestamptz;`,
       sql`ALTER TABLE users ADD COLUMN IF NOT EXISTS locked_until timestamptz;`,
+      sql`ALTER TABLE members ADD COLUMN IF NOT EXISTS source text NOT NULL DEFAULT 'account';`,
+      sql`ALTER TABLE registrations ADD COLUMN IF NOT EXISTS self_declared_member boolean NOT NULL DEFAULT false;`,
     ];
     for (const s of stmts) {
       try {

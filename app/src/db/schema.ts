@@ -66,6 +66,9 @@ export const members = pgTable(
     squareOrderId: text("square_order_id"), // set when paying dues by card; matched by the Square webhook
     membershipExpiresAt: timestamp("membership_expires_at", { withTimezone: true }), // active membership valid until
     memberNumber: text("member_number"), // friendly member ID shown to the member
+    // account = created via signup/join flow · self_declared = honor-system claim
+    // made during registration (no DB check; see member_mode config for the backdoor)
+    source: text("source").notNull().default("account"),
     notes: text("notes"),
     createdAt: createdAt(),
     updatedAt: updatedAt(),
@@ -197,6 +200,7 @@ export const registrations = pgTable(
     processingFeeCents: integer("processing_fee_cents").notNull().default(0), // card surcharge, added when paying by Square
     donationCents: integer("donation_cents").notNull().default(0), // optional donation added during checkout
     membershipSignup: boolean("membership_signup").notNull().default(false), // buyer opted to become a member during this registration
+    selfDeclaredMember: boolean("self_declared_member").notNull().default(false), // honor-system "I'm already a member" claim (no DB check)
     promoCodeId: text("promo_code_id").references(() => promoCodes.id),
     paymentMethod: text("payment_method").notNull(), // square | zelle | offline
     status: text("status").notNull().default("pending_payment"),

@@ -454,6 +454,7 @@ export default function RegisterFlow({
   zelleEnabled = true,
   membershipPriceCents = 3500,
   concertDay = null,
+  memberMode = "honor",
 }: {
   event: FlowEvent;
   member: FlowMemberContext | null;
@@ -464,6 +465,7 @@ export default function RegisterFlow({
   zelleEnabled?: boolean;
   membershipPriceCents?: number;
   concertDay?: string | null;
+  memberMode?: "honor" | "verify";
 }) {
   const router = useRouter();
   const dayCount = Math.max(event.days.length, 1);
@@ -497,7 +499,9 @@ export default function RegisterFlow({
   }, [event.days]);
 
   const isMemberPurchase = !!member?.isActiveMember;
-  const canJoinMembership = !isMemberPurchase && !dayOfMode;
+  // Honor-system "I'm already a member" — only when NOT signed in as a member,
+  // not the day-of kiosk, and the site is in "honor" mode (the backdoor).
+  const canDeclareMember = !isMemberPurchase && !dayOfMode && memberMode === "honor";
 
   // ── state ──
   const [step, setStep] = useState<StepId>(member || dayOfMode || initialConcertDay ? "you" : "welcome");
@@ -513,6 +517,10 @@ export default function RegisterFlow({
   const [doneConf, setDoneConf] = useState("");
   const [doneTotal, setDoneTotal] = useState(0);
   const [wantsMembership, setWantsMembership] = useState(false);
+  const [selfDeclaredMember, setSelfDeclaredMember] = useState(false);
+  // The "become a member for $X" upsell is always offered to guests, EXCEPT
+  // once they've claimed existing membership (the two are mutually exclusive).
+  const canJoinMembership = !isMemberPurchase && !dayOfMode && !selfDeclaredMember;
   const [addonQty, setAddonQty] = useState<Record<string, number>>({});
   const [donationCents, setDonationCents] = useState(0);
   const [selfIsStudent, setSelfIsStudent] = useState(false);
@@ -584,6 +592,8 @@ export default function RegisterFlow({
 
   // ── pricing mirror (display only — server re-prices authoritatively) ──
   const quote = useMemo(() => {
+    // Joining now OR claiming existing membership → whole-household member pricing.
+    const householdMemberPricing = wantsMembership || selfDeclaredMember;
     const lines: { person: Person | null; label: string; typeName: string; price: number; memberPricing: boolean }[] = [];
     const issues: { person: Person; band: string; reason: string; combos: { key: string; days: string[]; label: string }[]; food: { withFood: boolean; noFood: boolean } }[] = [];
     for (const p of people) {
@@ -592,7 +602,7 @@ export default function RegisterFlow({
         for (const dayKey of p.days) {
           const pass = concertPasses.find((t) => t.dayKeys == null || (t.dayKeys ?? []).includes(dayKey));
           if (!pass) continue;
-          const memberPricing = wantsMembership || (isMemberPurchase && (p.isMemberFlagged || discountMode === "whole_family"));
+          const memberPricing = householdMemberPricing || (isMemberPurchase && (p.isMemberFlagged || discountMode === "whole_family"));
           const unit = memberPricing ? pass.priceMemberCents : pass.priceNonmemberCents;
           const dLabel = event.days.find((d) => d.key === dayKey)?.label ?? dayKey.toUpperCase();
           lines.push({ person: p, label: `🎶 ${dLabel}`, typeName: pass.name, price: unit < 0 ? 0 : unit, memberPricing });
@@ -623,7 +633,7 @@ export default function RegisterFlow({
         continue;
       }
       const { type, exact } = m;
-      const memberPricing = wantsMembership || (isMemberPurchase && (p.isKid || discountMode === "whole_family" || p.isMemberFlagged));
+      const memberPricing = householdMemberPricing || (isMemberPurchase && (p.isKid || discountMode === "whole_family" || p.isMemberFlagged));
       const unit = memberPricing ? type.priceMemberCents : type.priceNonmemberCents;
       const units = exact ? 1 : p.days.length;
       lines.push({ person: p, label, typeName: type.name, price: (unit < 0 ? 0 : unit) * units, memberPricing });
@@ -632,13 +642,13 @@ export default function RegisterFlow({
     for (const t of addonPasses) {
       const qty = addonQty[t.id] ?? 0;
       if (qty <= 0) continue;
-      const memberPricing = wantsMembership || isMemberPurchase;
+      const memberPricing = householdMemberPricing || isMemberPurchase;
       const unit = memberPricing ? t.priceMemberCents : t.priceNonmemberCents;
       lines.push({ person: null, label: `×${qty}`, typeName: t.name, price: (unit < 0 ? 0 : unit) * qty, memberPricing });
     }
     const subtotal = lines.reduce((s, l) => s + l.price, 0);
     return { lines, subtotal, issues };
-  }, [people, event.ticketTypes, event.days, concertPasses, addonPasses, addonQty, dayCount, isMemberPurchase, discountMode, wantsMembership]);
+  }, [people, event.ticketTypes, event.days, concertPasses, addonPasses, addonQty, dayCount, isMemberPurchase, discountMode, wantsMembership, selfDeclaredMember]);
 
   const firstName = buyerName.trim().split(" ")[0] || "friend";
   const membershipCents = wantsMembership ? membershipPriceCents : 0;
@@ -833,6 +843,7 @@ export default function RegisterFlow({
       promoCode: promo.state === "applied" ? promoCode : undefined,
       source: dayOfMode ? "day_of_kiosk" : "web",
       wantsMembership,
+      selfDeclaredMember,
       attendees: people.map((p) => ({
         firstName: p.firstName,
         lastName: p.lastName || undefined,
@@ -949,6 +960,22 @@ export default function RegisterFlow({
                       <input className="input !py-3" placeholder="City" value={selfStudent.city} onChange={(e) => setSelfStudent((s) => ({ ...s, city: e.target.value }))} />
                       <input className="input !py-3" type="text" inputMode="numeric" maxLength={4} placeholder="Expected grad year (e.g. 2027)" value={selfStudent.gradYear} onChange={(e) => setSelfStudent((s) => ({ ...s, gradYear: e.target.value.replace(/\D/g, "").slice(0, 4) }))} />
                     </div>
+                  )}
+                </>
+              )}
+
+              {canDeclareMember && (
+                <>
+                  <label className="mt-4 flex items-start gap-3 rounded-xl px-4 py-3 cursor-pointer" style={{ background: "var(--accent-soft)" }}>
+                    <input type="checkbox" className="accent-[var(--sindoor)] w-4 h-4 mt-0.5" checked={selfDeclaredMember} onChange={(e) => setSelfDeclaredMember(e.target.checked)} />
+                    <span className="text-sm">
+                      <strong>🌟 I&apos;m already a Pragati member</strong> — your household gets member pricing. No sign-in needed; just your name and email above.
+                    </span>
+                  </label>
+                  {selfDeclaredMember && (
+                    <p className="mt-2 text-xs leading-relaxed" style={{ color: "var(--ink-soft)" }}>
+                      We&apos;ll take your word for it this year and save you as a member. If your membership has lapsed, please renew when we email you — no charge is added here.
+                    </p>
                   )}
                 </>
               )}

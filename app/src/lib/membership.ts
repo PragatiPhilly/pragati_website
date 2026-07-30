@@ -57,6 +57,92 @@ export async function activateMembershipPaid(
 const YEAR_MS = 365 * 86_400_000;
 
 /**
+ * Honor-system member: the buyer ticked "I'm already a member" during
+ * registration. There is NO database/sign-in check (see the `member_mode`
+ * config — this is the "honor" path). We still save them as a real member so
+ * the roster is complete and we can remind them to formalize later.
+ *
+ * Creates or reuses a shadow account (an unusable random password — they never
+ * signed up, so they can't log in until they reset), marks the member active,
+ * tags source='self_declared', and assigns a member number. Idempotent, and it
+ * never sends a welcome/login email (they didn't ask for an account). If a real
+ * account already exists for this email it is reused and left untouched apart
+ * from being (re)activated. Best-effort: never throws into the payment path.
+ */
+export async function recordSelfDeclaredMember(input: {
+  email: string;
+  name: string;
+  phone?: string | null;
+}): Promise<string | null> {
+  try {
+    const db = getDb();
+    await ensureExtraColumns();
+    await ensureMembershipColumn();
+    const email = input.email.trim().toLowerCase();
+    if (!email) return null;
+
+    let [user] = await db.select().from(schema.users).where(eq(schema.users.email, email));
+    if (!user) {
+      [user] = await db
+        .insert(schema.users)
+        .values({ email, passwordHash: hashPassword(randomUUID() + randomUUID()), role: "member" })
+        .returning();
+    }
+
+    const [first, ...rest] = input.name.trim().split(" ");
+    const last = rest.join(" ");
+    let [member] = await db.select().from(schema.members).where(eq(schema.members.userId, user.id));
+    if (!member) {
+      [member] = await db
+        .insert(schema.members)
+        .values({
+          userId: user.id,
+          familyName: last ? `${last} family` : `${first || input.name} family`,
+          primaryFirstName: first || input.name,
+          primaryLastName: last,
+          phone: input.phone ?? undefined,
+          membershipStatus: "pending_payment",
+          source: "self_declared",
+        })
+        .returning();
+    }
+
+    // Already an active, unexpired member → nothing to do.
+    if (member.membershipStatus === "active" && member.membershipExpiresAt && member.membershipExpiresAt > new Date()) {
+      return member.id;
+    }
+
+    const now = new Date();
+    const expires = new Date(now.getTime() + YEAR_MS);
+    const memberNumber = member.memberNumber ?? `PGM-${member.id.slice(0, 8).toUpperCase()}`;
+    await db
+      .update(schema.members)
+      .set({
+        membershipStatus: "active",
+        membershipStartedAt: member.membershipStartedAt ?? now.toISOString().slice(0, 10),
+        membershipExpiresAt: expires,
+        memberNumber,
+        // fill a missing phone but don't clobber an existing account's details
+        phone: member.phone ?? input.phone ?? undefined,
+        updatedAt: now,
+      })
+      .where(eq(schema.members.id, member.id));
+
+    await db.insert(schema.auditLog).values({
+      userId: user.id,
+      action: "create",
+      entityType: "members",
+      entityId: member.id,
+      changes: { via: "self_declared_registration", membershipStatus: { from: member.membershipStatus, to: "active" } },
+    });
+    return member.id;
+  } catch {
+    // The roster entry is a nicety — never block a paid registration on it.
+    return null;
+  }
+}
+
+/**
  * A guest opted to become a member during registration and has now paid.
  * Create / reuse their account + member, activate for one year, assign a member
  * number, pull their family in, and email a welcome with the member ID and a

@@ -40,6 +40,7 @@ export type CheckoutInput = {
   memberId?: string;
   isMemberPurchase: boolean;
   wantsMembership?: boolean; // guest opted to become a member: adds dues + whole-family member pricing
+  selfDeclaredMember?: boolean; // honor-system "I'm already a member": whole-family member pricing, no dues, saved as a member on payment
   source?: "web" | "day_of_kiosk" | "admin";
   paymentMethod: "square" | "zelle" | "offline";
   promoCode?: string;
@@ -130,8 +131,12 @@ export async function createCheckout(input: CheckoutInput): Promise<CheckoutResu
 
   const discountMode = (await getConfig<string>("member_discount_mode")) as "per_adult" | "whole_family";
   const wantsMembership = !!input.wantsMembership;
-  const effMemberPurchase = input.isMemberPurchase || wantsMembership;
-  const effDiscountMode: "per_adult" | "whole_family" = wantsMembership ? "whole_family" : discountMode;
+  const selfDeclaredMember = !!input.selfDeclaredMember;
+  const effMemberPurchase = input.isMemberPurchase || wantsMembership || selfDeclaredMember;
+  // Both the join-now upsell and the honor-system claim price the whole household
+  // at member rates (matches the "whole_family" intent the buyer is signalling).
+  const effDiscountMode: "per_adult" | "whole_family" =
+    wantsMembership || selfDeclaredMember ? "whole_family" : discountMode;
 
   const expanded: { attendee: AttendeeInput; day?: string; studentInfo?: StudentInfo | null }[] = [];
   const concertPasses = types.filter((t) => t.ageBand === "concert");
@@ -284,7 +289,8 @@ export async function createCheckout(input: CheckoutInput): Promise<CheckoutResu
       buyerEmail: input.buyerEmail,
       buyerName: input.buyerName,
       buyerPhone: input.buyerPhone,
-      isMemberPurchase: input.isMemberPurchase,
+      isMemberPurchase: input.isMemberPurchase || selfDeclaredMember,
+      selfDeclaredMember,
       source: input.source ?? "web",
       subtotalCents: quote.subtotalCents,
       discountCents: quote.discountCents,
@@ -424,6 +430,11 @@ export async function markRegistrationPaid(
   if (reg.membershipSignup) {
     const { enrollMemberFromPaidRegistration } = await import("@/lib/membership");
     await enrollMemberFromPaidRegistration(reg);
+  } else if (reg.selfDeclaredMember && !reg.memberId) {
+    // Honor-system member claim — save them to the roster (best-effort). Skipped
+    // when they signed up for real above, or were already a linked member.
+    const { recordSelfDeclaredMember } = await import("@/lib/membership");
+    await recordSelfDeclaredMember({ email: reg.buyerEmail, name: reg.buyerName, phone: reg.buyerPhone });
   }
 }
 

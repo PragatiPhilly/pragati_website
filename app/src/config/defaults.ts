@@ -13,6 +13,13 @@ export const systemConfigDefaults: Record<string, unknown> = {
   member_discount_mode: "per_adult", // per_adult | whole_family
   adult_age: 18,
 
+  // ── membership ↔ registration coupling (the backdoor)
+  //    honor  = trust "I'm already a member" claims at registration; give member
+  //             pricing, save a member record, NO database/sign-in check.
+  //    verify = require a real account / DB match (incl. multi-email lookup).
+  //    This event runs on honor; flip to "verify" in Admin → Settings later.
+  member_mode: "honor",
+
   active_event_slug: "durga-pujo-2026",
 
   // ── Zelle (TEST: Sayantan's email; switch to org email in Admin → Settings)
