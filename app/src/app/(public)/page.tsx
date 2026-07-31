@@ -24,6 +24,8 @@ import Daypart from '@/components/site/Daypart';
 import PetalTrail from '@/components/site/PetalTrail';
 import ScrollToTop from '@/components/site/ScrollToTop';
 import HomeBanner from '@/components/site/HomeBanner';
+import PandalCurtain from '@/components/site/PandalCurtain';
+import FloatingRegister from '@/components/site/FloatingRegister';
 import { getDonationMode, DONATION_COPY } from '@/lib/donation-mode';
 import PhotoCarousel from '@/components/site/PhotoCarousel';
 import PhotoSlideshow from '@/components/site/PhotoSlideshow';
@@ -101,6 +103,7 @@ export default async function HomePage() {
     bannerHref,
     bannerDeadline,
     bannerStyle,
+    bannerReveal,
   ] = await Promise.all([
     getActiveEvent(),
     listPublishedEvents(),
@@ -115,6 +118,7 @@ export default async function HomePage() {
     getConfig<string>('home_banner_href'),
     getConfig<string>('home_banner_deadline'),
     getConfig<string>('home_banner_style'),
+    getConfig<string>('home_banner_reveal'),
   ]);
   const showBanner = bannerEnabled === 'yes' && !!bannerText?.trim();
   const donationCopy = DONATION_COPY[await getDonationMode()];
@@ -150,6 +154,11 @@ export default async function HomePage() {
       <Daypart />
       <PetalTrail targetId="hero" />
       <ScrollToTop />
+      {/* One CTA at a time: only appears when no real Register button is in view */}
+      <FloatingRegister
+        label={featured ? `Register for ${featured.name}` : 'Register'}
+        note={showBanner && bannerDeadline?.trim() ? 'Early Bird ends soon' : undefined}
+      />
 
       {/* ══════════ HERO — compact, countdown floats on the seam below ══════════ */}
       <section id="hero" className="relative overflow-hidden">
@@ -213,21 +222,35 @@ export default async function HomePage() {
           </>
         )}
 
-        {showBanner && (
-          <div className="relative z-[3]">
-            <HomeBanner
-              text={bannerText}
-              ctaLabel={bannerCta?.trim() || undefined}
-              href={bannerHref?.trim() || '/register'}
-              deadline={bannerDeadline?.trim() || undefined}
-              style={
-                bannerStyle === 'alpona' || bannerStyle === 'toran'
-                  ? bannerStyle
-                  : 'aurora'
-              }
-            />
-          </div>
-        )}
+        {showBanner &&
+          (() => {
+            const banner = (
+              <HomeBanner
+                text={bannerText}
+                ctaLabel={bannerCta?.trim() || undefined}
+                href={bannerHref?.trim() || '/register'}
+                deadline={bannerDeadline?.trim() || undefined}
+                style={
+                  bannerStyle === 'alpona' || bannerStyle === 'toran'
+                    ? bannerStyle
+                    : 'aurora'
+                }
+              />
+            );
+            return (
+              <div className="relative z-[3]">
+                {bannerReveal === 'yes' ? (
+                  <div className="mx-auto w-full max-w-6xl px-5 pt-5">
+                    <PandalCurtain>
+                      <div className="-mx-5 -mt-5">{banner}</div>
+                    </PandalCurtain>
+                  </div>
+                ) : (
+                  banner
+                )}
+              </div>
+            );
+          })()}
 
         <div className="mx-auto w-full max-w-6xl px-5 pt-5 pb-12 md:pt-6 md:pb-16 grid md:grid-cols-[1fr_1.12fr] gap-8 items-center relative z-[2]">
           <div>
@@ -284,6 +307,7 @@ export default async function HomePage() {
               <div className="mt-8 flex flex-col sm:flex-row sm:flex-nowrap gap-4 sm:items-center">
                 <Link
                   href="/register"
+                  data-register-cta
                   className="btn-primary sm:whitespace-nowrap !px-7"
                 >
                   Register for {featured ? featured.name : 'the next event'} →
@@ -582,6 +606,7 @@ export default async function HomePage() {
               <div className="mt-9 flex flex-wrap gap-4 items-center">
                 <Link
                   href="/register"
+                  data-register-cta
                   className="inline-flex items-center gap-2.5 rounded-full px-9 py-4 text-lg font-bold transition-transform hover:-translate-y-0.5"
                   style={{
                     background: 'var(--cream)',

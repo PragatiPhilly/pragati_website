@@ -76,6 +76,7 @@ export const systemConfigDefaults: Record<string, unknown> = {
   // ── home hero announcement banner (animated; Admin → Settings)
   home_banner_enabled: "yes", // yes = show the animated banner in the home hero
   home_banner_style: "aurora", // aurora | alpona | toran (three animated designs)
+  home_banner_reveal: "yes", // yes = pandal curtains part to reveal it, once per visit
   home_banner_text: "Register soon — Early Bird pricing ends September 5.",
   // Blank by default: the hero already has a big Register button, so the banner
   // stays an announcement (the whole strip is clickable). Fill this in to add a

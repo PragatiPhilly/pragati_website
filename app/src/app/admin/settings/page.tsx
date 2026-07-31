@@ -45,6 +45,7 @@ const GROUPS: { title: string; note?: string; keys: { key: string; label: string
     keys: [
       { key: "home_banner_enabled", label: "Show the home banner", type: "toggle" },
       { key: "home_banner_style", label: "Banner design (aurora = glowing marigold ring | alpona = self-drawing alpona + garland | toran = red panel with hanging marigold strings)" },
+      { key: "home_banner_reveal", label: "Pandal curtain reveal (curtains part to reveal the banner, once per visit)", type: "toggle" },
       { key: "home_banner_text", label: "Banner message" },
       { key: "home_banner_cta_label", label: "Button label (blank = no button)" },
       { key: "home_banner_href", label: "Button link (e.g. /register)" },
