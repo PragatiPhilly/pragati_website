@@ -41,8 +41,8 @@ What the seed gives you:
 
 | Thing | Value |
 |---|---|
-| Super admin login | `sayantankundu93@gmail.com` / `pragati-admin-2026` |
-| Demo member login | `member.demo@example.com` / `member-demo-2026` (Arjun, with Mira + Rohan age 7 in the family) |
+| Super admin login | `sayantankundu93@gmail.com` / `####` |
+| Demo member login | `member.demo@example.com` / `####` (Arjun, with Mira + Rohan age 7 in the family) |
 | Event | Durga Pujo 2026, Oct 16–18, published, 7 ticket types |
 | Promo code | `EARLYBIRD` — 10% off, valid until Sep 15, 2026 |
 | Zelle recipient (test) | `sayantankundu93@gmail.com` — changeable in Admin → Settings |

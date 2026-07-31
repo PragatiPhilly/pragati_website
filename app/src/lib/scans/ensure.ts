@@ -56,6 +56,7 @@ export function ensureScanTables(): Promise<void> {
         year integer NOT NULL,
         title text NOT NULL,
         file_url text NOT NULL,
+        cover_url text,
         bytes integer NOT NULL DEFAULT 0,
         uploaded_by text,
         created_at timestamptz NOT NULL DEFAULT now()

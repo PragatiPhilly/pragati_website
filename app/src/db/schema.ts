@@ -309,6 +309,7 @@ export const magazines = pgTable(
     year: integer("year").notNull(),
     title: text("title").notNull(), // e.g. "Pragati Patrika · Vol. XIII"
     fileUrl: text("file_url").notNull(), // Vercel Blob URL (or /magazines/*.pdf in local dev)
+    coverUrl: text("cover_url"), // page-1 thumbnail, rendered in the browser at upload
     bytes: integer("bytes").notNull().default(0),
     uploadedBy: text("uploaded_by"),
     createdAt: createdAt(),

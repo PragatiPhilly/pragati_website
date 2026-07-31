@@ -889,7 +889,16 @@ export default async function HomePage() {
       <section className="mx-auto max-w-6xl px-5 py-20 grid md:grid-cols-[auto_1fr] gap-16 items-center">
         <Reveal>
           <MagazineShelf
-            magazines={magazines.map((m) => ({ year: m.year, title: m.title }))}
+            magazines={magazines.map((m) => ({
+              year: m.year,
+              title: m.title,
+              // private-store covers stream through our own route
+              coverUrl: m.coverUrl
+                ? m.coverUrl.startsWith('blob:')
+                  ? `/api/magazines/${m.year}/cover`
+                  : m.coverUrl
+                : null,
+            }))}
           />
         </Reveal>
         <Reveal delay={0.12}>

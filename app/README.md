@@ -23,8 +23,8 @@ Optional: `npx tsx scripts/smoke-seed.ts` creates two sample registrations (one 
 
 | Who | Email | Password |
 |---|---|---|
-| Super admin | sayantankundu93@gmail.com | pragati-admin-2026 |
-| Demo member family | member.demo@example.com | member-demo-2026 |
+| Super admin | sayantankundu93@gmail.com | #### |
+| Demo member family | member.demo@example.com | #### |
 
 ## The important URLs
 

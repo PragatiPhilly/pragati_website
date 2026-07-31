@@ -33,6 +33,7 @@ export default function MagazineManager({
   const [fileName, setFileName] = useState("");
   const [fileSize, setFileSize] = useState(0);
   const [progress, setProgress] = useState<number | null>(null);
+  const [stage, setStage] = useState("");
   const [pending, startTransition] = useTransition();
 
   const done = () => {
@@ -42,6 +43,26 @@ export default function MagazineManager({
     setTitle("");
     setProgress(null);
     router.refresh();
+  };
+
+  /** Render page 1 in the browser and store it as the shelf cover (best-effort). */
+  const makeCover = async (file: File, yr: string): Promise<string | undefined> => {
+    try {
+      setStage("Making the cover…");
+      const { renderPdfCover } = await import("@/lib/pdf-cover");
+      const blob = await renderPdfCover(file);
+      if (!blob) return undefined;
+      const form = new FormData();
+      form.set("cover", new File([blob], `cover-${yr}.jpg`, { type: "image/jpeg" }));
+      form.set("year", yr);
+      const res = await fetch("/api/admin/magazines/cover", { method: "POST", body: form });
+      if (!res.ok) return undefined;
+      return (await res.json()).coverUrl as string | undefined;
+    } catch {
+      return undefined; // a missing thumbnail must never block the upload
+    } finally {
+      setStage("");
+    }
   };
 
   const upload = async () => {
@@ -66,12 +87,14 @@ export default function MagazineManager({
           multipart: true, // parallel chunks + retries: survives a flaky connection
           onUploadProgress: ({ percentage }) => setProgress(Math.round(percentage)),
         });
+        const coverUrl = await makeCover(file, year);
         const fin = await finalizeMagazineUploadAction({
           year: Number(year),
           title,
           url: result.url,
           pathname: result.pathname,
           bytes: file.size,
+          coverUrl,
         });
         if (!fin.ok) setError(fin.error);
         else done();
@@ -159,9 +182,7 @@ export default function MagazineManager({
                 />
               </div>
               <p className="text-xs mt-1.5" style={{ color: "var(--ink-soft)" }}>
-                {progress < 100
-                  ? `Uploading directly to storage — ${progress}%`
-                  : "Upload complete — saving…"}
+                {stage || (progress < 100 ? `Uploading directly to storage — ${progress}%` : "Upload complete — saving…")}
               </p>
             </div>
           )}

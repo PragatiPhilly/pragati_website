@@ -25,6 +25,7 @@ export async function finalizeMagazineUploadAction(input: {
   url: string;
   pathname: string;
   bytes: number;
+  coverUrl?: string;
 }): Promise<{ ok: true } | { ok: false; error: string }> {
   try {
     const s = await requireAdmin();
@@ -51,6 +52,8 @@ export async function finalizeMagazineUploadAction(input: {
           title: input.title?.trim() || existing.title,
           fileUrl,
           bytes: input.bytes,
+          // keep the old cover if this upload didn't produce one
+          coverUrl: input.coverUrl ?? existing.coverUrl,
           uploadedBy: s.userId,
         })
         .where(eq(schema.magazines.id, existing.id));
@@ -60,6 +63,7 @@ export async function finalizeMagazineUploadAction(input: {
         title: input.title?.trim() || `Pragati Patrika · ${year}`,
         fileUrl,
         bytes: input.bytes,
+        coverUrl: input.coverUrl,
         uploadedBy: s.userId,
       });
     }

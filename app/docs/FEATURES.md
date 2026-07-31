@@ -48,7 +48,7 @@ Companion docs: [TESTING.md](./TESTING.md) (how to try it all) · [../../archive
 | **"Nothing on me" rescue** | Desk search by **name, phone, or email** — finds attendees AND buyers across paid registrations |
 | **Party check-in** | One tap checks in the whole family (✓✓ Check in all N) |
 | **Undo check-in** | Scanned the wrong person? One-tap undo, audit-logged |
-| Volunteer role | `volunteer` accounts can use ONLY the check-in desk and scan pages — no money, members, or settings. Seeded demo: volunteer.demo@example.com / volunteer-2026 |
+| Volunteer role | `volunteer` accounts can use ONLY the check-in desk and scan pages — no money, members, or settings. Seeded demo: volunteer.demo@example.com / #### |
 | Pujo Pass | Elegant keepsake ticket on lookup: sindoor header, garland edge, per-person QRs, print/save button |
 | Printable sheets | Print page: one bordered pass per person, browser print → PDF |
 | Complete ticket email | Per-person pass links + all-passes link + print link + "any organizer can resend" note |
@@ -112,6 +112,6 @@ Companion docs: [TESTING.md](./TESTING.md) (how to try it all) · [../../archive
 
 | Role | Email | Password |
 |---|---|---|
-| Super admin | sayantankundu93@gmail.com | pragati-admin-2026 |
-| Member family | member.demo@example.com | member-demo-2026 |
-| Gate volunteer | volunteer.demo@example.com | volunteer-2026 |
+| Super admin | sayantankundu93@gmail.com | #### |
+| Member family | member.demo@example.com | #### |
+| Gate volunteer | volunteer.demo@example.com | #### |

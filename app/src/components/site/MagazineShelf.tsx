@@ -8,7 +8,7 @@
  */
 import { useEffect, useState } from "react";
 
-export type MagazineItem = { year: number; title: string };
+export type MagazineItem = { year: number; title: string; coverUrl?: string | null };
 
 const BN_DIGITS = ["০", "১", "২", "৩", "৪", "৫", "৬", "৭", "৮", "৯"];
 
@@ -37,10 +37,10 @@ export default function MagazineShelf({ magazines }: { magazines: MagazineItem[]
   const [open, setOpen] = useState(false);
   const has = magazines.length > 0;
 
-  // stack shows the three most recent years (real when available, decorative otherwise)
-  const coverYears = has
-    ? magazines.slice(0, 3).map((m) => m.year)
-    : [2024, 2023, 2022];
+  // stack shows the three most recent issues (real when available, decorative otherwise)
+  const covers: MagazineItem[] = has
+    ? magazines.slice(0, 3)
+    : [{ year: 2024, title: "" }, { year: 2023, title: "" }, { year: 2022, title: "" }];
 
   useEffect(() => {
     if (!open) return;
@@ -63,21 +63,34 @@ export default function MagazineShelf({ magazines }: { magazines: MagazineItem[]
         aria-label={has ? "Open the magazine archive" : undefined}
         disabled={!has}
       >
-        {coverYears.map((y) => (
-          <div key={y} className="mag-cover">
-            <div>
-              <span className="label">{bengaliEraLabel(y)}</span>
-              <div className="rule" />
+        {covers.map((m) =>
+          m.coverUrl ? (
+            // Real page-1 artwork. The year sits in a gradient scrim along the
+            // bottom so it stays legible over any cover.
+            <div key={m.year} className="mag-cover mag-cover--art">
+              {/* eslint-disable-next-line @next/next/no-img-element */}
+              <img src={m.coverUrl} alt={`${m.title || "Pragati Patrika"} — ${m.year} cover`} loading="lazy" />
+              <span className="scrim">
+                <span className="era">{bengaliEraLabel(m.year)}</span>
+                <span className="year">{m.year}</span>
+              </span>
             </div>
-            <h4>
-              <span className="bn">প্রগতি</span>Pragati
-            </h4>
-            <div>
-              <div className="rule" />
-              <span className="year">{y}</span>
+          ) : (
+            <div key={m.year} className="mag-cover">
+              <div>
+                <span className="label">{bengaliEraLabel(m.year)}</span>
+                <div className="rule" />
+              </div>
+              <h4>
+                <span className="bn">প্রগতি</span>Pragati
+              </h4>
+              <div>
+                <div className="rule" />
+                <span className="year">{m.year}</span>
+              </div>
             </div>
-          </div>
-        ))}
+          )
+        )}
       </button>
 
       {has && (
@@ -125,15 +138,31 @@ export default function MagazineShelf({ magazines }: { magazines: MagazineItem[]
                 <a
                   key={m.year}
                   href={`/api/magazines/${m.year}`}
-                  className="group rounded-2xl p-4 text-center transition-transform hover:-translate-y-0.5"
-                  style={{ background: "linear-gradient(160deg, var(--sindoor, #c8102e), #7e1020)", color: "#fff" }}
+                  className="group rounded-2xl overflow-hidden text-center transition-transform hover:-translate-y-0.5"
+                  style={{
+                    background: "linear-gradient(160deg, var(--sindoor, #c8102e), #7e1020)",
+                    color: "#fff",
+                    boxShadow: "0 10px 26px -10px rgba(0,0,0,0.45)",
+                  }}
                   download
                 >
-                  <p className="text-[11px] font-semibold tracking-wide opacity-85 font-[family-name:var(--font-bangla)]">
-                    {bengaliEraLabel(m.year)}
-                  </p>
-                  <p className="font-[family-name:var(--font-display)] text-3xl font-black my-1">{m.year}</p>
-                  <p className="text-[11px] font-semibold opacity-90 group-hover:opacity-100">⤓ Download PDF</p>
+                  {m.coverUrl && (
+                    // eslint-disable-next-line @next/next/no-img-element
+                    <img
+                      src={m.coverUrl}
+                      alt=""
+                      loading="lazy"
+                      className="w-full block"
+                      style={{ aspectRatio: "3 / 4", objectFit: "cover" }}
+                    />
+                  )}
+                  <span className="block p-4">
+                    <span className="block text-[11px] font-semibold tracking-wide opacity-85 font-[family-name:var(--font-bangla)]">
+                      {bengaliEraLabel(m.year)}
+                    </span>
+                    <span className="block font-[family-name:var(--font-display)] text-3xl font-black my-1">{m.year}</span>
+                    <span className="block text-[11px] font-semibold opacity-90 group-hover:opacity-100">⤓ Download PDF</span>
+                  </span>
                 </a>
               ))}
             </div>
