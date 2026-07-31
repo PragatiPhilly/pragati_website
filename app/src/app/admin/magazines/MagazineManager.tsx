@@ -2,16 +2,26 @@
 
 import { useRef, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
-import { deleteMagazineAction } from "./actions";
+import { deleteMagazineAction, finalizeMagazineUploadAction } from "./actions";
 
 type Mag = { id: string; year: number; title: string; bytes: number; uploadedAt: string };
+
+/** Serverless functions cap request bodies at 4.5 MB — anything near that must
+ *  go browser → Blob directly. We keep a margin. */
+const SERVER_ROUTE_LIMIT = 4 * 1024 * 1024;
 
 function fmtBytes(n: number) {
   if (n > 1024 * 1024) return `${(n / 1024 / 1024).toFixed(1)} MB`;
   return `${Math.max(1, Math.round(n / 1024))} KB`;
 }
 
-export default function MagazineManager({ magazines }: { magazines: Mag[] }) {
+export default function MagazineManager({
+  magazines,
+  blobEnabled,
+}: {
+  magazines: Mag[];
+  blobEnabled: boolean;
+}) {
   const router = useRouter();
   const fileRef = useRef<HTMLInputElement>(null);
   const [year, setYear] = useState(String(new Date().getFullYear()));
@@ -19,30 +29,67 @@ export default function MagazineManager({ magazines }: { magazines: Mag[] }) {
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
   const [fileName, setFileName] = useState("");
+  const [fileSize, setFileSize] = useState(0);
+  const [progress, setProgress] = useState<number | null>(null);
   const [pending, startTransition] = useTransition();
+
+  const done = () => {
+    if (fileRef.current) fileRef.current.value = "";
+    setFileName("");
+    setFileSize(0);
+    setTitle("");
+    setProgress(null);
+    router.refresh();
+  };
 
   const upload = async () => {
     const file = fileRef.current?.files?.[0];
     if (!file) return setError("Choose a PDF first.");
     setBusy(true);
     setError("");
-    const form = new FormData();
-    form.set("file", file);
-    form.set("year", year);
-    form.set("title", title);
+    setProgress(null);
+
     try {
-      const res = await fetch("/api/admin/magazines/upload", { method: "POST", body: form });
-      const data = await res.json();
-      if (!res.ok) {
-        setError(data.error ?? "Upload failed.");
+      // Big files (and anything on Blob-backed production) go straight from the
+      // browser to Blob storage — never through a serverless function, which
+      // would reject the body at 4.5 MB.
+      if (blobEnabled && file.size > SERVER_ROUTE_LIMIT) {
+        const { upload: blobUpload } = await import("@vercel/blob/client");
+        setProgress(0);
+        const result = await blobUpload(`magazines/pragati-magazine-${year}.pdf`, file, {
+          access: "public", // the server token overrides this to match the store
+          handleUploadUrl: "/api/admin/magazines/upload-url",
+          contentType: "application/pdf",
+          multipart: true, // parallel chunks + retries: survives a flaky connection
+          onUploadProgress: ({ percentage }) => setProgress(Math.round(percentage)),
+        });
+        const fin = await finalizeMagazineUploadAction({
+          year: Number(year),
+          title,
+          url: result.url,
+          pathname: result.pathname,
+          bytes: file.size,
+        });
+        if (!fin.ok) setError(fin.error);
+        else done();
       } else {
-        if (fileRef.current) fileRef.current.value = "";
-        setFileName("");
-        setTitle("");
-        router.refresh();
+        const form = new FormData();
+        form.set("file", file);
+        form.set("year", year);
+        form.set("title", title);
+        const res = await fetch("/api/admin/magazines/upload", { method: "POST", body: form });
+        const data = await res.json();
+        if (!res.ok) setError(data.error ?? "Upload failed.");
+        else done();
       }
-    } catch {
-      setError("Upload failed — check your connection and try again.");
+    } catch (e) {
+      const msg = e instanceof Error ? e.message : "";
+      setError(
+        /413|payload|too large/i.test(msg)
+          ? "That file is too large for this route. Blob storage isn't configured — connect a Blob store in Vercel → Storage."
+          : msg || "Upload failed — check your connection and try again."
+      );
+      setProgress(null);
     }
     setBusy(false);
   };
@@ -81,7 +128,9 @@ export default function MagazineManager({ magazines }: { magazines: Mag[] }) {
             accept="application/pdf,.pdf"
             className="hidden"
             onChange={(e) => {
-              setFileName(e.target.files?.[0]?.name ?? "");
+              const f = e.target.files?.[0];
+              setFileName(f?.name ?? "");
+              setFileSize(f?.size ?? 0);
               setError("");
             }}
           />
@@ -94,8 +143,25 @@ export default function MagazineManager({ magazines }: { magazines: Mag[] }) {
             </button>
             <span className="text-sm truncate" style={{ color: fileName ? "var(--ink)" : "var(--ink-soft)" }}>
               {fileName || "No file chosen yet"}
+              {fileSize > 0 && <span style={{ color: "var(--ink-soft)" }}> · {fmtBytes(fileSize)}</span>}
             </span>
           </div>
+
+          {progress !== null && (
+            <div>
+              <div className="h-2.5 rounded-full overflow-hidden" style={{ background: "var(--accent-soft)" }}>
+                <div
+                  className="h-full rounded-full transition-[width] duration-200"
+                  style={{ width: `${progress}%`, background: "var(--sindoor)" }}
+                />
+              </div>
+              <p className="text-xs mt-1.5" style={{ color: "var(--ink-soft)" }}>
+                {progress < 100
+                  ? `Uploading directly to storage — ${progress}%`
+                  : "Upload complete — saving…"}
+              </p>
+            </div>
+          )}
           <div className="flex items-center gap-4">
             <button
               className="btn-primary !py-2.5 !px-6 text-sm disabled:opacity-50 disabled:cursor-not-allowed"
@@ -116,7 +182,14 @@ export default function MagazineManager({ magazines }: { magazines: Mag[] }) {
             )}
           </div>
           <p className="text-xs" style={{ color: "var(--ink-soft)" }}>
-            PDF only, up to 50 MB. Uploading for a year that already has a magazine replaces it.
+            PDF only, up to 300 MB — large files upload straight to storage, so they aren&apos;t limited by the
+            server. Uploading for a year that already has a magazine replaces it.
+            {fileSize > 40 * 1024 * 1024 && (
+              <span className="block mt-1" style={{ color: "var(--sindoor)" }}>
+                Heads up: {fmtBytes(fileSize)} is a big download for phone readers. Compressing the PDF (Preview →
+                Export → Reduce File Size, or ilovepdf.com) usually cuts it by 70–90% with no visible loss.
+              </span>
+            )}
           </p>
         </div>
       </div>
