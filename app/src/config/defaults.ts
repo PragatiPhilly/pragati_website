@@ -22,6 +22,10 @@ export const systemConfigDefaults: Record<string, unknown> = {
 
   active_event_slug: "durga-pujo-2026",
 
+  // ── donations framing: generic | pujo (Pujo Sponsorship). Flip to "generic"
+  //    after the festival to restore year-round giving + in-honor/in-memory.
+  donation_mode: "pujo",
+
   // ── Zelle (TEST: Sayantan's email; switch to org email in Admin → Settings)
   zelle_recipient_email: "sayantankundu93@gmail.com",
   zelle_recipient_display_name: "Pragati",
@@ -68,4 +72,12 @@ export const systemConfigDefaults: Record<string, unknown> = {
   // Day-of kiosk
   dayof_enabled: true,
   dayof_idle_reset_seconds: 90,
+
+  // ── home hero announcement banner (animated; Admin → Settings)
+  home_banner_enabled: "yes", // yes = show the animated banner in the home hero
+  home_banner_style: "aurora", // aurora | alpona | toran (three animated designs)
+  home_banner_text: "Register soon — Early Bird pricing ends September 5.",
+  home_banner_cta_label: "Register now",
+  home_banner_href: "/register",
+  home_banner_deadline: "2026-09-05", // optional YYYY-MM-DD → live "N days left" chip (blank to hide)
 };

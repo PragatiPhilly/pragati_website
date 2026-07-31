@@ -455,6 +455,8 @@ export default function RegisterFlow({
   membershipPriceCents = 3500,
   concertDay = null,
   memberMode = "honor",
+  donateTitle = "Add a little extra? 🙏",
+  donateIntro = "Pragati is a volunteer-run 501(c)(3) nonprofit. A small donation on top of your tickets helps keep the pujo, the bhog, and the culture thriving — and it's tax-deductible. Totally optional.",
 }: {
   event: FlowEvent;
   member: FlowMemberContext | null;
@@ -466,6 +468,8 @@ export default function RegisterFlow({
   membershipPriceCents?: number;
   concertDay?: string | null;
   memberMode?: "honor" | "verify";
+  donateTitle?: string;
+  donateIntro?: string;
 }) {
   const router = useRouter();
   const dayCount = Math.max(event.days.length, 1);
@@ -518,6 +522,9 @@ export default function RegisterFlow({
   const [doneTotal, setDoneTotal] = useState(0);
   const [wantsMembership, setWantsMembership] = useState(false);
   const [selfDeclaredMember, setSelfDeclaredMember] = useState(false);
+  // True once they pick "Yes, I'm a member" at the welcome fork. Guests who pick
+  // "I'm new here" never see the member checkbox (it would just confuse them).
+  const [enteredAsMember, setEnteredAsMember] = useState(false);
   // The "become a member for $X" upsell is always offered to guests, EXCEPT
   // once they've claimed existing membership (the two are mutually exclusive).
   const canJoinMembership = !isMemberPurchase && !dayOfMode && !selfDeclaredMember;
@@ -912,6 +919,7 @@ export default function RegisterFlow({
                     // and we save them as a member once they pay).
                     if (memberMode === "honor") {
                       setSelfDeclaredMember(true);
+                      setEnteredAsMember(true);
                       goNext();
                     } else {
                       // Verify mode: real accounts — sign in to load family + pricing.
@@ -933,6 +941,7 @@ export default function RegisterFlow({
                   className="choice-chip !p-5"
                   onClick={() => {
                     setSelfDeclaredMember(false);
+                    setEnteredAsMember(false);
                     goNext();
                   }}
                 >
@@ -986,7 +995,7 @@ export default function RegisterFlow({
                 </>
               )}
 
-              {canDeclareMember && (
+              {canDeclareMember && enteredAsMember && (
                 <>
                   <label className="mt-4 flex items-start gap-3 rounded-xl px-4 py-3 cursor-pointer" style={{ background: "var(--accent-soft)" }}>
                     <input type="checkbox" className="accent-[var(--sindoor)] w-4 h-4 mt-0.5" checked={selfDeclaredMember} onChange={(e) => setSelfDeclaredMember(e.target.checked)} />
@@ -996,7 +1005,7 @@ export default function RegisterFlow({
                   </label>
                   {selfDeclaredMember && (
                     <p className="mt-2 text-xs leading-relaxed" style={{ color: "var(--ink-soft)" }}>
-                      We&apos;ll take your word for it this year and save you as a member. If your membership has lapsed, please renew when we email you — no charge is added here.
+                      If your membership has lapsed, please renew now.
                     </p>
                   )}
                 </>
@@ -1389,11 +1398,8 @@ export default function RegisterFlow({
           {/* ── DONATION ── */}
           {step === "donate" && (
             <Card k="donate" direction={direction} onBack={stepIndex > 0 ? goBack : undefined}>
-              <H>Add a little extra? 🙏</H>
-              <Sub>
-                Pragati is a volunteer-run 501(c)(3) nonprofit. A small donation on top of your tickets helps keep the pujo,
-                the bhog, and the culture thriving — and it&apos;s tax-deductible. Totally optional.
-              </Sub>
+              <H>{donateTitle}</H>
+              <Sub>{donateIntro}</Sub>
               <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
                 {[1000, 2500, 5000, 10000].map((amt) => (
                   <button

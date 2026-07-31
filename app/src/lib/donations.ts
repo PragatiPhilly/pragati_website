@@ -15,6 +15,7 @@ export type DonationInput = {
   donorPhone?: string;
   amountCents: number;
   inHonorOrMemory: "none" | "in_honor_of" | "in_memory_of";
+  designation?: string; // pujo-mode earmark (bhog, dakshina…)
   honoreeName?: string;
   honoreeNotifyEmail?: string;
   message?: string;
@@ -40,6 +41,7 @@ export async function createDonation(input: DonationInput): Promise<DonationResu
       donorPhone: input.donorPhone,
       amountCents: input.amountCents,
       inHonorOrMemory: input.inHonorOrMemory,
+      designation: input.designation,
       honoreeName: input.honoreeName,
       honoreeNotifyEmail: input.honoreeNotifyEmail,
       message: input.message,
@@ -50,11 +52,13 @@ export async function createDonation(input: DonationInput): Promise<DonationResu
     .returning();
 
   if (input.paymentMethod === "square") {
+    const { getDonationMode } = await import("@/lib/donation-mode");
+    const label = (await getDonationMode()) === "pujo" ? "Pujo Sponsorship" : "Donation to Pragati";
     const link = await createSquarePaymentLink({
       referenceId: don.id,
       confirmationNumber: conf,
       amountCents: input.amountCents + cardProcessingFeeCents(input.amountCents),
-      description: `Donation to Pragati — ${conf}`,
+      description: `${label} — ${conf}`,
     });
     await db.update(schema.donations).set({ squareOrderId: link.squareOrderId }).where(eq(schema.donations.id, don.id));
     return { kind: "square_redirect", confirmationNumber: conf, url: link.url };

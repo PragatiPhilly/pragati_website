@@ -8,16 +8,31 @@ import PhoneInput from "@/components/site/PhoneInput";
 
 const AMOUNTS = [25, 50, 100, 500];
 
+type Copy = { pageBengali: string; pageTitle: string; pageIntro: string };
+
 export default function DonateForm({
   squareEnabled = true,
   zelleEnabled = true,
+  mode = "generic",
+  copy,
+  designations = [],
 }: {
   squareEnabled?: boolean;
   zelleEnabled?: boolean;
+  mode?: "generic" | "pujo";
+  copy?: Copy;
+  designations?: { value: string; label: string }[];
 }) {
+  const c: Copy = copy ?? {
+    pageBengali: "আপনার আশীর্বাদে",
+    pageTitle: "Donate to Pragati",
+    pageIntro: "Pragati is a 501(c)(3) nonprofit — donations are tax-deductible and go straight to pujo, prasad, and programs.",
+  };
+  const isPujo = mode === "pujo";
   const [state, action, pending] = useActionState(donateAction, undefined);
   const [amount, setAmount] = useState<string>("50");
   const [honor, setHonor] = useState("none");
+  const [designation, setDesignation] = useState(designations[0]?.value ?? "where_needed");
   const [method, setMethod] = useState(squareEnabled ? "square" : "zelle");
   const [customAmount, setCustomAmount] = useState("");
   const dollars = amount === "custom" ? Number(customAmount) || 0 : Number(amount) || 0;
@@ -27,11 +42,11 @@ export default function DonateForm({
   return (
     <div className="mx-auto max-w-2xl px-5 py-16">
       <p className="font-[family-name:var(--font-bangla)] text-2xl mb-2" style={{ color: "var(--sindoor)" }}>
-        আপনার আশীর্বাদে
+        {c.pageBengali}
       </p>
-      <h1 className="font-[family-name:var(--font-display)] text-4xl md:text-5xl font-black mb-3">Donate to Pragati</h1>
+      <h1 className="font-[family-name:var(--font-display)] text-4xl md:text-5xl font-black mb-3">{c.pageTitle}</h1>
       <p className="mb-10" style={{ color: "var(--ink-soft)" }}>
-        Pragati is a 501(c)(3) nonprofit — donations are tax-deductible and go straight to pujo, prasad, and programs.
+        {c.pageIntro}
       </p>
 
       <form action={action} className="festive-card p-7 flex flex-col gap-6">
@@ -59,27 +74,42 @@ export default function DonateForm({
           )}
         </div>
 
-        <div>
-          <p className="text-sm font-semibold mb-3">This donation is…</p>
-          <div className="flex flex-wrap gap-3">
-            {[
-              ["none", "Just a gift"],
-              ["in_honor_of", "In honor of…"],
-              ["in_memory_of", "In memory of…"],
-            ].map(([v, label]) => (
-              <button key={v} type="button" className="choice-chip !py-3" data-selected={honor === v} onClick={() => setHonor(v)}>
-                {label}
-              </button>
-            ))}
-          </div>
-          <input type="hidden" name="inHonorOrMemory" value={honor} />
-          {honor !== "none" && (
-            <div className="grid sm:grid-cols-2 gap-3 mt-3">
-              <input name="honoreeName" placeholder="Honoree's name" className="input" />
-              <input name="honoreeNotifyEmail" type="email" placeholder="Notify them at (optional)" className="input" />
+        {isPujo ? (
+          <div>
+            <p className="text-sm font-semibold mb-3">Sponsor toward…</p>
+            <div className="flex flex-wrap gap-3">
+              {designations.map((d) => (
+                <button key={d.value} type="button" className="choice-chip !py-3" data-selected={designation === d.value} onClick={() => setDesignation(d.value)}>
+                  {d.label}
+                </button>
+              ))}
             </div>
-          )}
-        </div>
+            <input type="hidden" name="designation" value={designation} />
+            <input type="hidden" name="inHonorOrMemory" value="none" />
+          </div>
+        ) : (
+          <div>
+            <p className="text-sm font-semibold mb-3">This donation is…</p>
+            <div className="flex flex-wrap gap-3">
+              {[
+                ["none", "Just a gift"],
+                ["in_honor_of", "In honor of…"],
+                ["in_memory_of", "In memory of…"],
+              ].map(([v, label]) => (
+                <button key={v} type="button" className="choice-chip !py-3" data-selected={honor === v} onClick={() => setHonor(v)}>
+                  {label}
+                </button>
+              ))}
+            </div>
+            <input type="hidden" name="inHonorOrMemory" value={honor} />
+            {honor !== "none" && (
+              <div className="grid sm:grid-cols-2 gap-3 mt-3">
+                <input name="honoreeName" placeholder="Honoree's name" className="input" />
+                <input name="honoreeNotifyEmail" type="email" placeholder="Notify them at (optional)" className="input" />
+              </div>
+            )}
+          </div>
+        )}
 
         <div className="grid sm:grid-cols-2 gap-3">
           <input name="donorName" required placeholder="Your name" className="input" />

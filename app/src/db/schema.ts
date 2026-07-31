@@ -328,6 +328,7 @@ export const donations = pgTable(
     donorPhone: text("donor_phone"),
     amountCents: integer("amount_cents").notNull(),
     inHonorOrMemory: text("in_honor_or_memory").notNull().default("none"), // none | in_honor_of | in_memory_of
+    designation: text("designation"), // pujo-mode earmark: bhog | dakshina | alpona | pushpanjali | where_needed
     honoreeName: text("honoree_name"),
     honoreeNotifyEmail: text("honoree_notify_email"),
     message: text("message"),

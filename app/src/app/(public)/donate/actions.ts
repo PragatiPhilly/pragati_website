@@ -29,6 +29,9 @@ export async function donateAction(_prev: DonateState, formData: FormData): Prom
   const honoreeName = String(formData.get("honoreeName") ?? "").trim();
   if (inHonorOrMemory !== "none" && !honoreeName) return { error: "Please tell us the honoree's name." };
 
+  // Pujo mode: the gift can be earmarked (bhog, dakshina…) instead of honor/memory.
+  const designation = String(formData.get("designation") ?? "").trim() || undefined;
+
   // Emergency kill-switches (Admin → Settings) — enforced server-side
   const method = String(formData.get("paymentMethod") ?? "square") as "square" | "zelle";
   const { getConfig } = await import("@/lib/system-config");
@@ -46,6 +49,7 @@ export async function donateAction(_prev: DonateState, formData: FormData): Prom
     donorPhone: donorPhone || undefined,
     amountCents: Math.round(dollars * 100),
     inHonorOrMemory,
+    designation,
     honoreeName: honoreeName || undefined,
     honoreeNotifyEmail: honoreeNotifyEmail || undefined,
     message: String(formData.get("message") ?? "").trim() || undefined,

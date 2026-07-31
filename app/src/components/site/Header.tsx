@@ -3,6 +3,7 @@ import { site } from "@/config/site";
 import { getSession } from "@/lib/auth/session";
 import { logoutAction } from "@/lib/auth/actions";
 import { memberPortalEnabled } from "@/lib/member-mode";
+import { getDonationMode, DONATION_COPY } from "@/lib/donation-mode";
 import MobileNav from "./MobileNav";
 import HeaderScroll from "./HeaderScroll";
 
@@ -12,6 +13,9 @@ export default async function Header() {
   // Honor mode: members have no accounts, so hide member sign-in + the /m portal
   // link. Admin sign-in lives at /login (reachable via /admin) and is unaffected.
   const portalEnabled = await memberPortalEnabled();
+  // In Pujo mode the "Donate" nav item reads "Pujo Sponsorship".
+  const donationLabel = DONATION_COPY[await getDonationMode()].navLabel;
+  const nav = site.nav.map((n) => (n.href === "/donate" ? { ...n, label: donationLabel } : n));
 
   return (
     <>
@@ -28,7 +32,7 @@ export default async function Header() {
           </Link>
 
           <nav className="hidden md:flex items-center gap-6 text-sm font-medium">
-            {site.nav.map((n) => (
+            {nav.map((n) => (
               <Link key={n.href} href={n.href} className="group text-center hover:opacity-75 transition-opacity">
                 <span className="block font-[family-name:var(--font-bangla)] text-[11px] leading-none mb-0.5" style={{ color: "var(--terracotta)" }}>
                   {n.bn}
@@ -39,7 +43,7 @@ export default async function Header() {
           </nav>
 
           <div className="flex items-center gap-3 text-sm shrink-0">
-            <MobileNav nav={site.nav} signedIn={!!session} isAdmin={!!isAdmin} portalEnabled={portalEnabled} />
+            <MobileNav nav={nav} signedIn={!!session} isAdmin={!!isAdmin} portalEnabled={portalEnabled} />
             {session ? (
               <>
                 {isAdmin ? (

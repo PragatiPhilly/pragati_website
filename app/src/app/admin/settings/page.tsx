@@ -33,6 +33,25 @@ const GROUPS: { title: string; note?: string; keys: { key: string; label: string
     ],
   },
   {
+    title: "Donations",
+    note: "pujo = festival framing (\"Pujo Sponsorship\": donors earmark bhog, dakshina, alpona…). generic = year-round giving with in-honor / in-memory options. Applies to the Donate page, the nav label, and the registration donation step.",
+    keys: [
+      { key: "donation_mode", label: "Donation mode (pujo | generic)" },
+    ],
+  },
+  {
+    title: "Home banner",
+    note: "An animated announcement banner in the top hero of the homepage. Turn it on, set the message, and it appears instantly — no redeploy.",
+    keys: [
+      { key: "home_banner_enabled", label: "Show the home banner", type: "toggle" },
+      { key: "home_banner_style", label: "Banner design (aurora = glowing marigold ring | alpona = self-drawing alpona + garland | toran = red panel with hanging marigold strings)" },
+      { key: "home_banner_text", label: "Banner message" },
+      { key: "home_banner_cta_label", label: "Button label (blank = no button)" },
+      { key: "home_banner_href", label: "Button link (e.g. /register)" },
+      { key: "home_banner_deadline", label: "Deadline date for live countdown (YYYY-MM-DD; blank = no countdown)" },
+    ],
+  },
+  {
     title: "Emails",
     note: "In test mode all outbound email is redirected to TEST_EMAIL_OVERRIDE from .env — these become live values in production.",
     keys: [

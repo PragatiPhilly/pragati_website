@@ -23,6 +23,7 @@ import ScrollLink from '@/components/site/ScrollLink';
 import Daypart from '@/components/site/Daypart';
 import PetalTrail from '@/components/site/PetalTrail';
 import ScrollToTop from '@/components/site/ScrollToTop';
+import HomeBanner from '@/components/site/HomeBanner';
 import PhotoCarousel from '@/components/site/PhotoCarousel';
 import PhotoSlideshow from '@/components/site/PhotoSlideshow';
 import PosterPanels from '@/components/site/PosterPanels';
@@ -93,6 +94,12 @@ export default async function HomePage() {
     slideshowImages,
     posterImages,
     magazines,
+    bannerEnabled,
+    bannerText,
+    bannerCta,
+    bannerHref,
+    bannerDeadline,
+    bannerStyle,
   ] = await Promise.all([
     getActiveEvent(),
     listPublishedEvents(),
@@ -101,7 +108,14 @@ export default async function HomePage() {
     getSlideshowImages(),
     getPosterImages(),
     listMagazines(),
+    getConfig<string>('home_banner_enabled'),
+    getConfig<string>('home_banner_text'),
+    getConfig<string>('home_banner_cta_label'),
+    getConfig<string>('home_banner_href'),
+    getConfig<string>('home_banner_deadline'),
+    getConfig<string>('home_banner_style'),
   ]);
+  const showBanner = bannerEnabled === 'yes' && !!bannerText?.trim();
   const carouselPhotos = carouselImages.map(toPhoto);
   const slideshowPhotos = slideshowImages.map(toPhoto);
   const posterPhotos = posterImages.map(toPhoto);
@@ -195,6 +209,22 @@ export default async function HomePage() {
               <KolaBou flip />
             </div>
           </>
+        )}
+
+        {showBanner && (
+          <div className="relative z-[3]">
+            <HomeBanner
+              text={bannerText}
+              ctaLabel={bannerCta?.trim() || undefined}
+              href={bannerHref?.trim() || '/register'}
+              deadline={bannerDeadline?.trim() || undefined}
+              style={
+                bannerStyle === 'alpona' || bannerStyle === 'toran'
+                  ? bannerStyle
+                  : 'aurora'
+              }
+            />
+          </div>
         )}
 
         <div className="mx-auto w-full max-w-6xl px-5 pt-5 pb-12 md:pt-6 md:pb-16 grid md:grid-cols-[1fr_1.12fr] gap-8 items-center relative z-[2]">

@@ -57,6 +57,8 @@ export default async function RegisterPage({
   const zelleEnabled = (await getConfig<string>("payments_zelle_enabled")) === "yes";
   const membershipPriceCents = Number(await getConfig<number>("membership_annual_price_cents")) || 3500;
   const memberMode = ((await getConfig<string>("member_mode")) === "verify" ? "verify" : "honor") as "honor" | "verify";
+  const { getDonationMode, DONATION_COPY } = await import("@/lib/donation-mode");
+  const donateCopy = DONATION_COPY[await getDonationMode()];
   if (paused) {
     const pauseMessage = await getConfig<string>("registration_pause_message");
     return (
@@ -105,6 +107,8 @@ export default async function RegisterPage({
         membershipPriceCents={membershipPriceCents}
         concertDay={concert ?? null}
         memberMode={memberMode}
+        donateTitle={donateCopy.regTitle}
+        donateIntro={donateCopy.regIntro}
       />
     </>
   );
