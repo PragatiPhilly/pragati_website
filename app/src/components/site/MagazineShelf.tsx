@@ -10,23 +10,30 @@ import { useEffect, useState } from "react";
 
 export type MagazineItem = { year: number; title: string };
 
-function roman(n: number): string {
-  const table: [number, string][] = [
-    [1000, "M"], [900, "CM"], [500, "D"], [400, "CD"], [100, "C"], [90, "XC"],
-    [50, "L"], [40, "XL"], [10, "X"], [9, "IX"], [5, "V"], [4, "IV"], [1, "I"],
-  ];
-  let out = "";
-  for (const [v, s] of table) while (n >= v) { out += s; n -= v; }
-  return out;
+const BN_DIGITS = ["০", "১", "২", "৩", "৪", "৫", "৬", "৭", "৮", "৯"];
+
+/** 2025 → "২০২৫" */
+export function toBengaliDigits(n: number | string): string {
+  return String(n).replace(/\d/g, (d) => BN_DIGITS[Number(d)]);
 }
 
-export default function MagazineShelf({
-  magazines,
-  firstYear = 2012, // Vol. I
-}: {
-  magazines: MagazineItem[];
-  firstYear?: number;
-}) {
+/**
+ * Bengali era (বঙ্গাব্দ) year for a Pujo issue.
+ *
+ * The Bengali new year, Pohela Boishakh, falls in mid-April — and the patrika
+ * is published at Durga Pujo in the autumn, always after it. So the Bengali
+ * year is simply the Gregorian year minus 593: 2025 CE → ১৪৩২ বঙ্গাব্দ.
+ */
+export function bengaliEraYear(gregorianYear: number): number {
+  return gregorianYear - 593;
+}
+
+/** "১৪৩২ বঙ্গাব্দ" — what a Bengali magazine actually prints on its cover. */
+export function bengaliEraLabel(gregorianYear: number): string {
+  return `${toBengaliDigits(bengaliEraYear(gregorianYear))} বঙ্গাব্দ`;
+}
+
+export default function MagazineShelf({ magazines }: { magazines: MagazineItem[] }) {
   const [open, setOpen] = useState(false);
   const has = magazines.length > 0;
 
@@ -59,7 +66,7 @@ export default function MagazineShelf({
         {coverYears.map((y) => (
           <div key={y} className="mag-cover">
             <div>
-              <span className="label">Vol. {roman(Math.max(1, y - firstYear + 1))}</span>
+              <span className="label">{bengaliEraLabel(y)}</span>
               <div className="rule" />
             </div>
             <h4>
@@ -122,8 +129,8 @@ export default function MagazineShelf({
                   style={{ background: "linear-gradient(160deg, var(--sindoor, #c8102e), #7e1020)", color: "#fff" }}
                   download
                 >
-                  <p className="text-[10px] font-bold uppercase tracking-[0.25em] opacity-80">
-                    Vol. {roman(Math.max(1, m.year - firstYear + 1))}
+                  <p className="text-[11px] font-semibold tracking-wide opacity-85 font-[family-name:var(--font-bangla)]">
+                    {bengaliEraLabel(m.year)}
                   </p>
                   <p className="font-[family-name:var(--font-display)] text-3xl font-black my-1">{m.year}</p>
                   <p className="text-[11px] font-semibold opacity-90 group-hover:opacity-100">⤓ Download PDF</p>
