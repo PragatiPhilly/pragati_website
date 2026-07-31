@@ -50,22 +50,17 @@ export async function submitContactAction(
     });
 
     const topicLabel = TOPIC_LABELS[topic] ?? topic;
-    await sendMail({
-      to: site.contactEmail,
-      subject: `New contact message — ${topicLabel} — ${name}`,
-      template: "contact_form",
-      text: `A new message was submitted through the Pragati website.
-
-Topic:   ${topicLabel}
-Name:    ${name}
-Email:   ${email}
-Phone:   ${phone || "—"}
-
-Message:
-${message}
-
-— Reply directly to ${email} to respond.`,
+    const { contactFormEmail } = await import("@/lib/email/templates");
+    const { siteUrl } = await import("@/lib/site-url");
+    const mail = contactFormEmail({
+      name,
+      email,
+      phone: phone || undefined,
+      topicLabel,
+      message,
+      adminUrl: siteUrl("/admin/messages"),
     });
+    await sendMail({ to: site.contactEmail, ...mail, template: "contact_form" });
 
     return { ok: true };
   } catch (e) {

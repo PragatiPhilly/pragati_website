@@ -16,10 +16,13 @@ export default function ScrollToTop() {
     <button
       aria-label="Back to top"
       onClick={() => window.scrollTo({ top: 0, behavior: "smooth" })}
-      className="fixed bottom-6 right-6 z-40 grid place-items-center rounded-full"
+      /* Sits above the floating Register pill (which owns the bottom-right
+         corner) so the two never collide on any screen size. */
+      className="fixed bottom-24 right-4 sm:right-6 z-40 grid place-items-center rounded-full print:hidden"
       style={{
         width: 50,
         height: 50,
+        marginBottom: "env(safe-area-inset-bottom)",
         background: "var(--sindoor)",
         color: "var(--cream)",
         boxShadow: "0 12px 32px rgba(0,0,0,0.28)",

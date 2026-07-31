@@ -121,27 +121,22 @@ export async function deleteRegistrationAction(registrationId: string): Promise<
   const ticketLines = snapshot.tickets
     .map((t) => `  • ${t.attendee} — ${t.day === "all" ? "all days" : t.day} — ${formatCents(t.priceCents)}${t.checkedInAt ? " — WAS CHECKED IN" : ""}`)
     .join("\n");
-  await sendMail({
-    to: alertTo,
-    subject: `⚠️ Registration DELETED: ${reg.confirmationNumber} (${formatCents(reg.totalCents)})`,
-    text: `An admin deleted a registration. Full snapshot for your records:
-
-Deleted by: ${admin.email}
-When: ${new Date().toLocaleString("en-US", { timeZone: "America/New_York" })}
-
-Confirmation: ${snapshot.confirmationNumber}
-Event: ${snapshot.event}
-Buyer: ${snapshot.buyerName} · ${snapshot.buyerEmail}${snapshot.buyerPhone ? ` · ${snapshot.buyerPhone}` : ""}
-Status at deletion: ${snapshot.status} · paid via ${snapshot.paymentMethod}
-Total: ${formatCents(snapshot.totalCents)}
-Originally created: ${snapshot.createdAt}
-
-Passes:
-${ticketLines}
-
-This snapshot is also preserved permanently in the admin audit log.`,
-    template: "registration_deleted_alert",
+  const { registrationDeletedEmail } = await import("@/lib/email/templates");
+  const deletedMail = registrationDeletedEmail({
+    adminEmail: admin.email,
+    whenLocal: new Date().toLocaleString("en-US", { timeZone: "America/New_York" }),
+    conf: snapshot.confirmationNumber,
+    event: snapshot.event,
+    buyerName: snapshot.buyerName,
+    buyerEmail: snapshot.buyerEmail,
+    buyerPhone: snapshot.buyerPhone ?? undefined,
+    status: snapshot.status,
+    paymentMethod: snapshot.paymentMethod,
+    totalLabel: formatCents(snapshot.totalCents),
+    createdAt: String(snapshot.createdAt),
+    ticketLines,
   });
+  await sendMail({ to: alertTo, ...deletedMail, template: "registration_deleted_alert" });
 
   revalidatePath("/admin/registrations");
   revalidatePath("/admin");

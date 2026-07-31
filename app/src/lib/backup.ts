@@ -181,30 +181,36 @@ export async function sendBackupEmail(trigger: "cron" | "manual"): Promise<{
 
   const b64 = (s: string) => Buffer.from(s, "utf8").toString("base64");
 
+  const { backupEmail } = await import("@/lib/email/templates");
+  const { siteUrl } = await import("@/lib/site-url");
+  const mail = backupEmail({
+    trigger,
+    date,
+    regCount,
+    ticketCount,
+    memberCount: membersCsv.count,
+    donationCount: donationsCsv.count,
+    settingsCount: settingsCsv.count,
+    snapshotIso: new Date().toISOString(),
+    restoreUrl: siteUrl("/admin/registrations"),
+    files: [
+      {
+        name: `pragati-registrations-backup-${stamp}.csv`,
+        note: 'The critical one. If the database is ever lost, a super admin restores it from Admin → Registrations → "Restore from backup CSV" using this exact file.',
+      },
+      {
+        name: `pragati-members-backup-${stamp}.csv`,
+        note: "Families, contact info, membership status (no passwords — members reset by email after a rebuild).",
+      },
+      { name: `pragati-donations-backup-${stamp}.csv`, note: "Full donation history for the treasurer's records." },
+      { name: `pragati-settings-backup-${stamp}.csv`, note: "Admin → Settings values, to re-enter after a rebuild." },
+    ],
+  });
+
   await sendMail({
     to,
     template: "registration_backup",
-    subject: `Pragati daily backup — ${date} (${regCount} registrations, ${membersCsv.count} members)`,
-    text: [
-      `Daily data backup (${trigger === "cron" ? "scheduled" : "sent manually from admin"}).`,
-      ``,
-      `Registrations: ${regCount} (${ticketCount} tickets/attendees)`,
-      `Member families: ${membersCsv.count}`,
-      `Donations: ${donationsCsv.count}`,
-      `Settings keys: ${settingsCsv.count}`,
-      `Snapshot taken: ${new Date().toISOString()}`,
-      ``,
-      `Attached:`,
-      `· registrations CSV — the critical one. If the database is ever lost, a`,
-      `  super admin restores it from Admin → Registrations → "Restore from`,
-      `  backup CSV" using this exact file.`,
-      `· members CSV — families, contact info, membership status (no passwords;`,
-      `  members reset by email after a rebuild).`,
-      `· donations CSV — full donation history for the treasurer's records.`,
-      `· settings CSV — Admin → Settings values, to re-enter after a rebuild.`,
-      ``,
-      `Keep these emails — the newest one is always the freshest backup.`,
-    ].join("\n"),
+    ...mail,
     attachments: [
       { filename: `pragati-registrations-backup-${stamp}.csv`, content: b64(csv) },
       { filename: `pragati-members-backup-${stamp}.csv`, content: b64(membersCsv.csv) },

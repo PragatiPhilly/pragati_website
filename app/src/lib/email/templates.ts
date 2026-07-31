@@ -12,6 +12,7 @@
 import { formatCents } from "@/lib/pricing";
 import {
   shell,
+  systemShell,
   para,
   small,
   alertBlock,
@@ -22,6 +23,10 @@ import {
   buttonRow,
   divider,
   sectionLabel,
+  dataRows,
+  statRow,
+  fileList,
+  quote,
   esc,
   C,
 } from "./layout";
@@ -398,6 +403,240 @@ ${roleNote}${sig(p.orgName)}`,
         buttonRow([button("Set your password", p.setupUrl)]) +
         para(esc(roleNote)) +
         small("This link works once and expires in 7 days."),
+    }),
+  };
+}
+
+// ═══════════════════════════════════════════════════════════════
+//  Internal / operational mail — slate "system" styling, not festive
+// ═══════════════════════════════════════════════════════════════
+
+/** Nightly data backup with the CSVs attached. */
+export function backupEmail(p: {
+  trigger: "cron" | "manual";
+  date: string;
+  regCount: number;
+  ticketCount: number;
+  memberCount: number;
+  donationCount: number;
+  settingsCount: number;
+  files: { name: string; note: string }[];
+  snapshotIso: string;
+  restoreUrl?: string;
+}) {
+  const how = p.trigger === "cron" ? "scheduled" : "sent manually from admin";
+  return {
+    subject: `Pragati daily backup — ${p.date} (${p.regCount} registrations, ${p.memberCount} members)`,
+    text: [
+      `Daily data backup (${how}).`,
+      ``,
+      `Registrations: ${p.regCount} (${p.ticketCount} tickets/attendees)`,
+      `Member families: ${p.memberCount}`,
+      `Donations: ${p.donationCount}`,
+      `Settings keys: ${p.settingsCount}`,
+      `Snapshot taken: ${p.snapshotIso}`,
+      ``,
+      `Attached:`,
+      ...p.files.map((f) => `· ${f.name} — ${f.note}`),
+      ``,
+      `Keep these emails — the newest one is always the freshest backup.`,
+    ].join("\n"),
+    html: systemShell({
+      preheader: `${p.regCount} registrations · ${p.memberCount} members · ${p.donationCount} donations captured.`,
+      eyebrow: "Daily backup",
+      title: `Backup for ${p.date}`,
+      body:
+        para(`<span style="color:#6B7784;font-size:13px;">Snapshot ${how} — here's what it captured.</span>`) +
+        statRow([
+          { label: "Registrations", value: p.regCount },
+          { label: "Attendees", value: p.ticketCount },
+          { label: "Members", value: p.memberCount },
+          { label: "Donations", value: p.donationCount },
+        ]) +
+        (p.regCount === 0
+          ? alertBlock({
+              tone: "warn",
+              icon: "⚠️",
+              title: "No registrations in this snapshot",
+              body: "That's expected before sales open — but if sales are live, check the database connection.",
+            })
+          : "") +
+        sectionLabel("Attached files") +
+        fileList(p.files) +
+        dataRows([
+          ["Snapshot taken", p.snapshotIso],
+          ["Trigger", how],
+          ["Settings keys", String(p.settingsCount)],
+        ]) +
+        (p.restoreUrl ? buttonRow([button("Open restore tool", p.restoreUrl, "ghost")]) : "") +
+        small("Keep these emails — the newest one is always the freshest backup. To rebuild after data loss, a super admin restores the registrations CSV from Admin → Registrations."),
+    }),
+  };
+}
+
+/** Someone used the website contact form. */
+export function contactFormEmail(p: {
+  name: string;
+  email: string;
+  phone?: string;
+  topicLabel: string;
+  message: string;
+  adminUrl?: string;
+}) {
+  return {
+    subject: `New contact message — ${p.topicLabel} — ${p.name}`,
+    text: `A new message was submitted through the Pragati website.
+
+Topic:   ${p.topicLabel}
+Name:    ${p.name}
+Email:   ${p.email}
+Phone:   ${p.phone || "—"}
+
+Message:
+${p.message}`,
+    html: systemShell({
+      preheader: `${p.topicLabel} — from ${p.name}`,
+      eyebrow: "Contact form",
+      title: `${p.topicLabel} — ${p.name}`,
+      body:
+        dataRows([
+          ["Topic", p.topicLabel],
+          ["Name", p.name],
+          ["Email", p.email],
+          ["Phone", p.phone || "—"],
+        ]) +
+        sectionLabel("Message") +
+        quote(p.message) +
+        buttonRow([
+          button("Reply by email", `mailto:${p.email}`),
+          ...(p.adminUrl ? [button("Open in admin", p.adminUrl, "ghost")] : []),
+        ]),
+    }),
+  };
+}
+
+/** Super-admin role granted or revoked — the keys to the kingdom. */
+export function roleChangeAlertEmail(p: {
+  actorEmail: string;
+  targetEmail: string;
+  fromRole: string;
+  toRole: string;
+  auditUrl?: string;
+}) {
+  return {
+    subject: `🔑 Role change: ${p.targetEmail} → ${p.toRole}`,
+    text: `${p.actorEmail} changed ${p.targetEmail} from "${p.fromRole}" to "${p.toRole}".\n\nIf this wasn't expected, review the audit log immediately.`,
+    html: systemShell({
+      tone: "alert",
+      preheader: `${p.actorEmail} changed ${p.targetEmail} to ${p.toRole}.`,
+      eyebrow: "Security alert",
+      title: "A super-admin role was changed",
+      body:
+        dataRows([
+          ["Changed by", p.actorEmail],
+          ["Account", p.targetEmail],
+          ["From", p.fromRole],
+          ["To", p.toRole],
+        ]) +
+        alertBlock({
+          tone: "warn",
+          icon: "🔑",
+          title: "If this wasn't expected, act now",
+          body: "Super admins can change payments, delete registrations, and grant access. Review the audit log and revoke immediately if this is unfamiliar.",
+        }) +
+        (p.auditUrl ? buttonRow([button("Review audit log", p.auditUrl)]) : ""),
+    }),
+  };
+}
+
+/** A registration was deleted — permanent snapshot for the record. */
+export function registrationDeletedEmail(p: {
+  adminEmail: string;
+  whenLocal: string;
+  conf: string;
+  event: string;
+  buyerName: string;
+  buyerEmail: string;
+  buyerPhone?: string;
+  status: string;
+  paymentMethod: string;
+  totalLabel: string;
+  createdAt: string;
+  ticketLines: string;
+}) {
+  return {
+    subject: `⚠️ Registration DELETED: ${p.conf} (${p.totalLabel})`,
+    text: `An admin deleted a registration. Full snapshot for your records:
+
+Deleted by: ${p.adminEmail}
+When: ${p.whenLocal}
+
+Confirmation: ${p.conf}
+Event: ${p.event}
+Buyer: ${p.buyerName} · ${p.buyerEmail}${p.buyerPhone ? ` · ${p.buyerPhone}` : ""}
+Status at deletion: ${p.status} · paid via ${p.paymentMethod}
+Total: ${p.totalLabel}
+Originally created: ${p.createdAt}
+
+Passes:
+${p.ticketLines}
+
+This snapshot is also preserved permanently in the admin audit log.`,
+    html: systemShell({
+      tone: "alert",
+      preheader: `${p.conf} · ${p.totalLabel} · deleted by ${p.adminEmail}`,
+      eyebrow: "Deletion alert",
+      title: `Registration ${p.conf} was deleted`,
+      body:
+        dataRows([
+          ["Deleted by", p.adminEmail],
+          ["When", p.whenLocal],
+          ["Confirmation", p.conf],
+          ["Event", p.event],
+          ["Buyer", `${p.buyerName} · ${p.buyerEmail}${p.buyerPhone ? ` · ${p.buyerPhone}` : ""}`],
+          ["Status at deletion", `${p.status} · ${p.paymentMethod}`],
+          ["Total", p.totalLabel],
+          ["Originally created", p.createdAt],
+        ]) +
+        sectionLabel("Passes on this registration") +
+        quote(p.ticketLines) +
+        small("This snapshot is preserved permanently in the admin audit log."),
+    }),
+  };
+}
+
+/** Tell someone a gift was made in their honour / in memory of someone. */
+export function honoreeNotifyEmail(p: {
+  honoreeName: string;
+  donorName: string;
+  isAnonymous: boolean;
+  honorType: string;
+  message?: string;
+  orgName: string;
+  noun?: string;
+}) {
+  const noun = p.noun ?? "donation";
+  const inWhat = p.honorType === "in_memory_of" ? "in memory of" : "in honor of";
+  const who = p.isAnonymous ? "Someone" : p.donorName;
+  return {
+    subject: `A ${noun} was made ${inWhat} ${p.honoreeName}`,
+    text: `Namaskar,
+
+${who} has made a ${noun} to ${p.orgName} ${inWhat} ${p.honoreeName}.
+
+${p.message ? `Their message: "${p.message}"\n\n` : ""}With warmth,
+${p.orgName}`,
+    html: shell({
+      orgName: p.orgName,
+      preheader: `${who} gave ${inWhat} ${p.honoreeName}.`,
+      eyebrow: "A gift in your name",
+      title: `A ${noun} was made ${inWhat} ${p.honoreeName} 🪔`,
+      body:
+        para(`<strong>${esc(who)}</strong> has made a ${esc(noun)} to ${esc(p.orgName)} ${esc(inWhat)} <strong>${esc(p.honoreeName)}</strong>.`) +
+        (p.message
+          ? alertBlock({ tone: "info", icon: "💌", title: "Their message", body: esc(p.message) })
+          : "") +
+        para("Gifts like this keep our pujo, our culture, and our community thriving. Thank you for being part of it."),
     }),
   };
 }

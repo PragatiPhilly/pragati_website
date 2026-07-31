@@ -71,12 +71,16 @@ export async function setRoleAction(userId: string, role: Role): Promise<{ ok: b
   // alert on super-admin grants & revocations — the keys to the kingdom
   if (role === "super_admin" || target.role === "super_admin") {
     const alertTo = await getConfig<string>("admin_alert_email");
-    await sendMail({
-      to: alertTo,
-      subject: `🔑 Role change: ${target.email} → ${role}`,
-      text: `${me.email} changed ${target.email} from "${target.role}" to "${role}".\n\nIf this wasn't expected, review the audit log immediately.`,
-      template: "role_change_alert",
+    const { roleChangeAlertEmail } = await import("@/lib/email/templates");
+    const { siteUrl } = await import("@/lib/site-url");
+    const mail = roleChangeAlertEmail({
+      actorEmail: me.email,
+      targetEmail: target.email,
+      fromRole: target.role,
+      toRole: role,
+      auditUrl: siteUrl("/admin/audit"),
     });
+    await sendMail({ to: alertTo, ...mail, template: "role_change_alert" });
   }
 
   revalidatePath("/admin/roles");

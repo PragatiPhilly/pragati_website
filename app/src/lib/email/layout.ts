@@ -24,6 +24,7 @@ export const C = {
 };
 
 const FONT = "-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif";
+const MONO = "ui-monospace,SFMono-Regular,Menlo,Consolas,'Courier New',monospace";
 
 export function esc(s: string): string {
   return String(s)
@@ -79,6 +80,102 @@ export function shell(p: {
 </table>
 </td></tr></table>
 </body></html>`;
+}
+
+/**
+ * Operational shell — for internal mail (backups, alerts, form submissions).
+ * Deliberately unlike the festive member-facing shell: slate header, monospace
+ * data, no warmth. You should be able to tell at a glance in a crowded inbox
+ * whether an email is for a member or for you.
+ */
+export function systemShell(p: {
+  preheader: string;
+  eyebrow: string;
+  title: string;
+  body: string;
+  tone?: "neutral" | "alert";
+}): string {
+  const bar = p.tone === "alert" ? C.sindoor : "#3B4654";
+  return `<!doctype html>
+<html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="color-scheme" content="light only"><title>${esc(p.title)}</title></head>
+<body style="margin:0;padding:0;background:#EEF1F4;">
+<div style="display:none;max-height:0;overflow:hidden;opacity:0;">${esc(p.preheader)}</div>
+<table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background:#EEF1F4;padding:24px 12px;">
+<tr><td align="center">
+<table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="max-width:640px;width:100%;">
+
+  <tr><td style="background:${bar};border-radius:12px 12px 0 0;padding:16px 24px;">
+    <table role="presentation" width="100%"><tr>
+      <td style="font-family:${MONO};color:#fff;font-size:12px;letter-spacing:2px;text-transform:uppercase;font-weight:700;">
+        Pragati · ${esc(p.eyebrow)}
+      </td>
+      <td align="right" style="font-family:${MONO};color:rgba(255,255,255,.65);font-size:11px;">system</td>
+    </tr></table>
+  </td></tr>
+
+  <tr><td style="background:#fff;padding:26px 24px;border-left:1px solid #D9DFE6;border-right:1px solid #D9DFE6;">
+    <h1 style="margin:0 0 16px;font-family:${FONT};font-size:20px;line-height:1.3;color:#1B2430;font-weight:800;">${esc(p.title)}</h1>
+    ${p.body}
+  </td></tr>
+
+  <tr><td style="background:#F7F9FB;border-radius:0 0 12px 12px;border:1px solid #D9DFE6;border-top:0;padding:14px 24px;font-family:${MONO};font-size:11px;color:#6B7784;">
+    Automated message from the Pragati website. No reply needed.
+  </td></tr>
+
+</table>
+</td></tr></table>
+</body></html>`;
+}
+
+/** Monospace key/value rows — for operational detail. */
+export function dataRows(rows: [string, string][]): string {
+  return `<table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="margin:0 0 18px;border:1px solid #E3E8ED;border-radius:8px;">
+  ${rows
+    .map(
+      ([k, v], i) =>
+        `<tr style="background:${i % 2 ? "#F7F9FB" : "#fff"};">
+      <td style="padding:9px 12px;font-family:${MONO};font-size:12px;color:#6B7784;width:38%;white-space:nowrap;">${esc(k)}</td>
+      <td style="padding:9px 12px;font-family:${MONO};font-size:12px;color:#1B2430;font-weight:700;">${esc(v)}</td>
+    </tr>`
+    )
+    .join("")}
+</table>`;
+}
+
+/** Big glanceable counts — the "did the backup actually capture things?" check. */
+export function statRow(stats: { label: string; value: string | number }[]): string {
+  return `<table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="margin:0 0 18px;"><tr>
+  ${stats
+    .map(
+      (s) =>
+        `<td align="center" style="padding:12px 6px;background:#F2F6F9;border:1px solid #E3E8ED;border-radius:8px;font-family:${FONT};">
+      <div style="font-size:24px;font-weight:800;color:#1B2430;line-height:1;">${esc(String(s.value))}</div>
+      <div style="font-size:10px;letter-spacing:1px;text-transform:uppercase;color:#6B7784;margin-top:4px;">${esc(s.label)}</div>
+    </td><td style="width:8px;">&nbsp;</td>`
+    )
+    .join("")}
+</tr></table>`;
+}
+
+/** Attached-file manifest with a one-line purpose for each. */
+export function fileList(files: { name: string; note: string }[]): string {
+  return `<table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="margin:0 0 18px;">
+  ${files
+    .map(
+      (f) =>
+        `<tr><td style="padding:9px 12px;border-left:3px solid ${C.marigold};background:#FFFDF7;font-family:${FONT};">
+      <div style="font-family:${MONO};font-size:12px;font-weight:700;color:#1B2430;">📎 ${esc(f.name)}</div>
+      <div style="font-size:12px;color:#6B7784;margin-top:2px;line-height:1.5;">${esc(f.note)}</div>
+    </td></tr><tr><td style="height:6px;"></td></tr>`
+    )
+    .join("")}
+</table>`;
+}
+
+/** Quoted free text (a contact-form message, for example). */
+export function quote(text: string): string {
+  return `<div style="margin:0 0 18px;padding:14px 16px;background:#F7F9FB;border-left:4px solid #9AA7B4;border-radius:6px;font-family:${FONT};font-size:14px;line-height:1.65;color:#1B2430;white-space:pre-wrap;">${esc(text)}</div>`;
 }
 
 export function para(html: string): string {

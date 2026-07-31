@@ -100,13 +100,15 @@ export async function markDonationPaid(donationId: string, via: { method: "squar
   await sendMail({ to: don.donorEmail, ...receipt, template: "donation_receipt", priority: 1 });
 
   if (don.honoreeNotifyEmail && don.inHonorOrMemory !== "none") {
-    await sendMail({
-      to: don.honoreeNotifyEmail,
-      subject: `A donation was made ${don.inHonorOrMemory === "in_memory_of" ? "in memory of" : "in honor of"} ${don.honoreeName}`,
-      text: `Namaskar,\n\n${don.isAnonymous ? "Someone" : don.donorName} has made a donation to ${orgName} ${
-        don.inHonorOrMemory === "in_memory_of" ? "in memory of" : "in honor of"
-      } ${don.honoreeName}.\n\n${don.message ? `Their message: "${don.message}"\n\n` : ""}With warmth,\n${orgName}`,
-      template: "honoree_notify",
+    const honoreeMail = T.honoreeNotifyEmail({
+      honoreeName: don.honoreeName ?? "",
+      donorName: don.donorName,
+      isAnonymous: don.isAnonymous,
+      honorType: don.inHonorOrMemory,
+      message: don.message ?? undefined,
+      orgName,
+      noun: DONATION_COPY[mode].receiptNoun,
     });
+    await sendMail({ to: don.honoreeNotifyEmail, ...honoreeMail, template: "honoree_notify" });
   }
 }
