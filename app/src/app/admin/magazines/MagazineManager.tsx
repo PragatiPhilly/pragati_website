@@ -18,9 +18,11 @@ function fmtBytes(n: number) {
 export default function MagazineManager({
   magazines,
   blobEnabled,
+  blobAccess = "public",
 }: {
   magazines: Mag[];
   blobEnabled: boolean;
+  blobAccess?: "public" | "private";
 }) {
   const router = useRouter();
   const fileRef = useRef<HTMLInputElement>(null);
@@ -57,7 +59,8 @@ export default function MagazineManager({
         const { upload: blobUpload } = await import("@vercel/blob/client");
         setProgress(0);
         const result = await blobUpload(`magazines/pragati-magazine-${year}.pdf`, file, {
-          access: "public", // the server token overrides this to match the store
+          // must match the store's real mode, or the token and upload disagree
+          access: blobAccess,
           handleUploadUrl: "/api/admin/magazines/upload-url",
           contentType: "application/pdf",
           multipart: true, // parallel chunks + retries: survives a flaky connection

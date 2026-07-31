@@ -13,6 +13,10 @@ export default async function MagazinesPage() {
   await requireSectionAccess("magazines"); // matrix decides who opens this page
   const magazines = await listMagazines();
   const blobConfigured = !!process.env.BLOB_READ_WRITE_TOKEN;
+  // The client upload must request the SAME access mode the store uses,
+  // otherwise the signed token and the upload disagree and it stalls.
+  const { getBlobAccess } = await import("@/lib/blob");
+  const blobAccess = await getBlobAccess();
 
   return (
     <div className="max-w-2xl">
@@ -38,6 +42,7 @@ export default async function MagazinesPage() {
           uploadedAt: m.createdAt.toLocaleDateString("en-US", { timeZone: "America/New_York", month: "short", day: "numeric", year: "numeric" }),
         }))}
         blobEnabled={blobConfigured}
+        blobAccess={blobAccess}
       />
     </div>
   );
