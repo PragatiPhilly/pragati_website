@@ -174,6 +174,7 @@ type OrderData = {
   promoDiscount: number;
   membershipCents: number;
   donationCents: number;
+  donationLabel?: string;
   total: number;
   cardFee: number;
   passes: FlowEvent["ticketTypes"];
@@ -201,7 +202,7 @@ const PASS_GROUPS: { keys: string[]; label: string }[] = [
   { keys: ["addon"], label: "Extras" },
 ];
 
-function OrderLines({ lines, promoApplied, promoCode, promoDiscount, membershipCents, donationCents }: OrderData) {
+function OrderLines({ lines, promoApplied, promoCode, promoDiscount, membershipCents, donationCents, donationLabel = "Donation" }: OrderData) {
   return (
     <div className="divide-y" style={{ borderColor: "var(--line)" }}>
       {lines.length === 0 ? (
@@ -240,7 +241,7 @@ function OrderLines({ lines, promoApplied, promoCode, promoDiscount, membershipC
       )}
       {donationCents > 0 && (
         <div className="flex items-center justify-between py-2 text-sm">
-          <span>🙏 Donation</span>
+          <span>🙏 {donationLabel}</span>
           <span className="font-semibold">{formatCents(donationCents)}</span>
         </div>
       )}
@@ -455,6 +456,8 @@ export default function RegisterFlow({
   membershipPriceCents = 3500,
   concertDay = null,
   memberMode = "honor",
+  donateLineLabel = "Donation",
+  donateLineLabelLong = "Donation to Pragati",
   donateTitle = "Add a little extra? 🙏",
   donateIntro = "Pragati is a volunteer-run 501(c)(3) nonprofit. A small donation on top of your tickets helps keep the pujo, the bhog, and the culture thriving — and it's tax-deductible. Totally optional.",
 }: {
@@ -470,6 +473,8 @@ export default function RegisterFlow({
   memberMode?: "honor" | "verify";
   donateTitle?: string;
   donateIntro?: string;
+  donateLineLabel?: string;
+  donateLineLabelLong?: string;
 }) {
   const router = useRouter();
   const dayCount = Math.max(event.days.length, 1);
@@ -690,6 +695,7 @@ export default function RegisterFlow({
     promoDiscount: promo.discountCents,
     membershipCents,
     donationCents,
+    donationLabel: donateLineLabel,
     total,
     cardFee,
     passes: event.ticketTypes,
@@ -1484,7 +1490,7 @@ export default function RegisterFlow({
                 )}
                 {donationCents > 0 && (
                   <div className="flex items-center justify-between px-5 py-3.5">
-                    <p className="text-sm font-semibold">🙏 Donation to Pragati</p>
+                    <p className="text-sm font-semibold">🙏 {donateLineLabelLong}</p>
                     <p className="font-semibold">{formatCents(donationCents)}</p>
                   </div>
                 )}

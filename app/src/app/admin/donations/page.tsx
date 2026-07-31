@@ -3,6 +3,7 @@ import { getDb, schema } from "@/db/client";
 import { formatCents } from "@/lib/pricing";
 import StatusBadge from "@/components/admin/StatusBadge";
 import { requireSectionAccess } from "@/lib/auth/access";
+import { getDonationMode, DONATION_COPY, pujoDesignationLabel } from "@/lib/donation-mode";
 
 export const dynamic = "force-dynamic";
 
@@ -10,10 +11,13 @@ export default async function AdminDonationsPage() {
   await requireSectionAccess("donations");
   const db = getDb();
   const dons = await db.select().from(schema.donations).orderBy(desc(schema.donations.createdAt)).limit(200);
+  const mode = await getDonationMode();
 
   return (
     <div>
-      <h1 className="font-[family-name:var(--font-display)] text-3xl font-black mb-6">Donations</h1>
+      <h1 className="font-[family-name:var(--font-display)] text-3xl font-black mb-6">
+        {mode === "pujo" ? DONATION_COPY.pujo.navLabel : "Donations"}
+      </h1>
       <div className="festive-card overflow-x-auto">
         <table className="w-full text-sm">
           <thead>
@@ -21,7 +25,7 @@ export default async function AdminDonationsPage() {
               <th className="px-4 py-3">Conf #</th>
               <th className="px-4 py-3">Donor</th>
               <th className="px-4 py-3">Amount</th>
-              <th className="px-4 py-3">Honoree</th>
+              <th className="px-4 py-3">Toward / honoree</th>
               <th className="px-4 py-3">Anon</th>
               <th className="px-4 py-3">Method</th>
               <th className="px-4 py-3">Status</th>
@@ -38,7 +42,11 @@ export default async function AdminDonationsPage() {
                 </td>
                 <td className="px-4 py-3 font-semibold">{formatCents(d.amountCents)}</td>
                 <td className="px-4 py-3">
-                  {d.inHonorOrMemory !== "none" ? `${d.inHonorOrMemory === "in_memory_of" ? "In memory of" : "In honor of"} ${d.honoreeName}` : "—"}
+                  {d.designation
+                    ? pujoDesignationLabel(d.designation)
+                    : d.inHonorOrMemory !== "none"
+                      ? `${d.inHonorOrMemory === "in_memory_of" ? "In memory of" : "In honor of"} ${d.honoreeName}`
+                      : "—"}
                 </td>
                 <td className="px-4 py-3">{d.isAnonymous ? "✓" : "—"}</td>
                 <td className="px-4 py-3">{d.paymentMethod}</td>

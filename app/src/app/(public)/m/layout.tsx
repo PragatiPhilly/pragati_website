@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { redirect } from "next/navigation";
-import { memberPortalEnabled } from "@/lib/member-mode";
+import { getSession } from "@/lib/auth/session";
+import { canUseMemberPortal } from "@/lib/member-mode";
 
 export const dynamic = "force-dynamic";
 
@@ -12,8 +13,10 @@ const TABS = [
 ];
 
 export default async function MemberLayout({ children }: { children: React.ReactNode }) {
-  // Honor mode: no member portal. Nobody should be here — send them home.
-  if (!(await memberPortalEnabled())) redirect("/");
+  const session = await getSession();
+  if (!session) redirect("/login?next=/m");
+  // Honor-system members never set a password and have no portal — send them home.
+  if (!(await canUseMemberPortal(session.memberId))) redirect("/");
 
   return (
     <div className="mx-auto max-w-4xl px-5 py-12">

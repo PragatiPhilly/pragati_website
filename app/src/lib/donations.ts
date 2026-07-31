@@ -84,6 +84,8 @@ export async function markDonationPaid(donationId: string, via: { method: "squar
     .where(eq(schema.donations.id, donationId));
 
   const [orgName, orgAddress] = await Promise.all([getConfig<string>("org_name"), getConfig<string>("org_address")]);
+  const { getDonationMode, DONATION_COPY, pujoDesignationLabel } = await import("@/lib/donation-mode");
+  const mode = await getDonationMode();
   const receipt = T.donationReceiptEmail({
     donorName: don.donorName,
     conf: don.confirmationNumber,
@@ -92,6 +94,8 @@ export async function markDonationPaid(donationId: string, via: { method: "squar
     honorType: don.inHonorOrMemory,
     orgName,
     orgAddress,
+    noun: DONATION_COPY[mode].receiptNoun,
+    designation: mode === "pujo" ? pujoDesignationLabel(don.designation) : undefined,
   });
   await sendMail({ to: don.donorEmail, ...receipt, template: "donation_receipt", priority: 1 });
 

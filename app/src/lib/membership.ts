@@ -231,12 +231,10 @@ export async function enrollMemberFromPaidRegistration(
 
   const orgName = await getConfig<string>("org_name");
   const validUntil = expires.toLocaleDateString("en-US", { timeZone: "America/New_York", year: "numeric", month: "long", day: "numeric" });
-  // In honor mode there is no member portal, so don't invite them to set a
-  // password / sign in — that link would lead to a page they can't use yet.
-  const { memberPortalEnabled } = await import("@/lib/member-mode");
-  const portalEnabled = await memberPortalEnabled();
+  // They paid dues, so they're a real account-holder: invite them to set a
+  // password and use the portal (honor-system claims never reach this path).
   let loginUrl: string | undefined;
-  if (isNewUser && portalEnabled) {
+  if (isNewUser) {
     const token = await createResetToken(user.id, "invite");
     loginUrl = siteUrl(`/reset-password?token=${token}`);
   }

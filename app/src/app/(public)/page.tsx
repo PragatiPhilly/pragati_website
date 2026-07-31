@@ -24,6 +24,7 @@ import Daypart from '@/components/site/Daypart';
 import PetalTrail from '@/components/site/PetalTrail';
 import ScrollToTop from '@/components/site/ScrollToTop';
 import HomeBanner from '@/components/site/HomeBanner';
+import { getDonationMode, DONATION_COPY } from '@/lib/donation-mode';
 import PhotoCarousel from '@/components/site/PhotoCarousel';
 import PhotoSlideshow from '@/components/site/PhotoSlideshow';
 import PosterPanels from '@/components/site/PosterPanels';
@@ -116,6 +117,7 @@ export default async function HomePage() {
     getConfig<string>('home_banner_style'),
   ]);
   const showBanner = bannerEnabled === 'yes' && !!bannerText?.trim();
+  const donationCopy = DONATION_COPY[await getDonationMode()];
   const carouselPhotos = carouselImages.map(toPhoto);
   const slideshowPhotos = slideshowImages.map(toPhoto);
   const posterPhotos = posterImages.map(toPhoto);
@@ -1005,22 +1007,20 @@ export default async function HomePage() {
               className="font-[family-name:var(--font-display)] text-3xl md:text-4xl font-bold"
               style={{ color: 'var(--cream)' }}
             >
-              Keep the dhaak beating.
+              {donationCopy.homeTitle}
             </h2>
             <p
               className="mt-3 max-w-xl mx-auto"
               style={{ color: 'var(--marigold-pale)' }}
             >
-              Pragati runs on the generosity of this community. Every donation
-              goes straight to pujo, prasad and programs — and it&apos;s
-              tax-deductible.
+              {donationCopy.homeIntro}
             </p>
             <Link
               href="/donate"
               className="inline-block mt-7 rounded-full px-8 py-3 font-semibold transition-transform hover:-translate-y-0.5"
               style={{ background: 'var(--cream)', color: 'var(--sindoor)' }}
             >
-              Donate to Pragati
+              {donationCopy.homeCta}
             </Link>
           </div>
         </Reveal>

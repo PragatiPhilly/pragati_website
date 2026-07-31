@@ -77,7 +77,10 @@ export const systemConfigDefaults: Record<string, unknown> = {
   home_banner_enabled: "yes", // yes = show the animated banner in the home hero
   home_banner_style: "aurora", // aurora | alpona | toran (three animated designs)
   home_banner_text: "Register soon — Early Bird pricing ends September 5.",
-  home_banner_cta_label: "Register now",
+  // Blank by default: the hero already has a big Register button, so the banner
+  // stays an announcement (the whole strip is clickable). Fill this in to add a
+  // second, explicit button.
+  home_banner_cta_label: "",
   home_banner_href: "/register",
   home_banner_deadline: "2026-09-05", // optional YYYY-MM-DD → live "N days left" chip (blank to hide)
 };

@@ -137,7 +137,24 @@ export async function lookupTicketsAction(rawQuery: string): Promise<CheckinTick
 }
 
 export type EntryScanResult =
-  | { kind: "checked_in"; attendee: string; conf: string; food: string; count: number; total: number }
+  | {
+      kind: "checked_in";
+      attendee: string;
+      conf: string;
+      food: string;
+      count: number;
+      total: number;
+      /** pass name, e.g. "Adult · All days" */
+      passName: string;
+      /** this booking's progress, e.g. 3 of 5 in the party */
+      partyIn: number;
+      partyTotal: number;
+      /** gate must verify a student ID */
+      isStudent: boolean;
+      /** concert / timed-entry pass */
+      isConcert: boolean;
+      day: string;
+    }
   | { kind: "duplicate"; attendee: string; conf: string; checkedInAt: string }
   | { kind: "list" } // several matches (or none) — client falls back to the list UI
   | { kind: "invalid"; reason: string };
@@ -189,6 +206,19 @@ export async function entryScanAction(rawQuery: string): Promise<EntryScanResult
   const all = await db.select().from(schema.tickets);
   const count = all.filter((t) => t.checkedInAt).length;
 
+  // This booking's own progress — "3 of 5 in this party" is what the gate
+  // actually needs to know (is the rest of the family still coming?).
+  const party = all.filter((t) => t.registrationId === ticket.registrationId);
+  const partyIn = party.filter((t) => t.checkedInAt || t.id === ticket.id).length;
+
+  const [tt] = await db.select().from(schema.ticketTypes).where(eq(schema.ticketTypes.id, ticket.ticketTypeId));
+  const [event] = await db.select().from(schema.events).where(eq(schema.events.id, reg.eventId));
+  const days = (event?.days as { key: string; label?: string }[] | null) ?? [];
+  const dayLabel =
+    ticket.dayKey && ticket.dayKey !== "all"
+      ? (days.find((d) => d.key === ticket.dayKey)?.label ?? ticket.dayKey.toUpperCase())
+      : "All days";
+
   return {
     kind: "checked_in",
     attendee,
@@ -196,6 +226,12 @@ export async function entryScanAction(rawQuery: string): Promise<EntryScanResult
     food: ticket.foodPref ?? "none",
     count,
     total: all.length,
+    passName: tt?.name ?? "Pass",
+    partyIn,
+    partyTotal: party.length,
+    isStudent: ticket.studentInfo != null,
+    isConcert: tt?.ageBand === "concert",
+    day: dayLabel,
   };
 }
 

@@ -109,6 +109,8 @@ export default async function RegisterPage({
         memberMode={memberMode}
         donateTitle={donateCopy.regTitle}
         donateIntro={donateCopy.regIntro}
+        donateLineLabel={donateCopy.lineLabel}
+        donateLineLabelLong={donateCopy.lineLabelLong}
       />
     </>
   );

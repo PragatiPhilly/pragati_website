@@ -33,6 +33,21 @@ function daysLabel(d: number): string {
   return d === 0 ? "Last day" : `${d} day${d === 1 ? "" : "s"} left`;
 }
 
+/** Nudge arrow shown when the whole banner is the link (no explicit button). */
+function Arrow({ color = "var(--sindoor)" }: { color?: string }) {
+  return (
+    <motion.span
+      aria-hidden
+      className="shrink-0 text-lg font-bold"
+      style={{ color }}
+      animate={{ x: [0, 5, 0] }}
+      transition={{ duration: 1.6, ease: "easeInOut", repeat: Infinity }}
+    >
+      →
+    </motion.span>
+  );
+}
+
 /** Shared CTA with a sheen sweep. */
 function Cta({ label, href, dark = false }: { label: string; href: string; dark?: boolean }) {
   return (
@@ -53,16 +68,29 @@ function Cta({ label, href, dark = false }: { label: string; href: string; dark?
   );
 }
 
-function Shell({ children }: { children: React.ReactNode }) {
+/**
+ * When there's no explicit CTA button, the whole banner becomes the link — the
+ * hero already carries the primary Register button, so we avoid stacking two.
+ */
+function Shell({ children, href, linkify }: { children: React.ReactNode; href: string; linkify: boolean }) {
+  const inner = (
+    <motion.div
+      initial={{ opacity: 0, y: -14 }}
+      animate={{ opacity: 1, y: 0 }}
+      transition={{ duration: 0.5, ease: [0.22, 1, 0.36, 1] }}
+    >
+      {children}
+    </motion.div>
+  );
   return (
     <div className="mx-auto w-full max-w-6xl px-5 pt-5">
-      <motion.div
-        initial={{ opacity: 0, y: -14 }}
-        animate={{ opacity: 1, y: 0 }}
-        transition={{ duration: 0.5, ease: [0.22, 1, 0.36, 1] }}
-      >
-        {children}
-      </motion.div>
+      {linkify ? (
+        <Link href={href} className="block transition-transform hover:-translate-y-0.5" aria-label="Registration announcement">
+          {inner}
+        </Link>
+      ) : (
+        inner
+      )}
     </div>
   );
 }
@@ -133,7 +161,7 @@ function AuroraBanner({ text, ctaLabel, href = "/register", deadline }: Props) {
             {daysLabel(daysLeft)}
           </span>
         )}
-        {ctaLabel && <Cta label={ctaLabel} href={href} />}
+        {ctaLabel ? <Cta label={ctaLabel} href={href} /> : <Arrow />}
       </div>
     </div>
   );
@@ -247,7 +275,7 @@ function AlponaBanner({ text, ctaLabel, href = "/register", deadline }: Props) {
             {daysLabel(daysLeft)}
           </span>
         )}
-        {ctaLabel && <Cta label={ctaLabel} href={href} />}
+        {ctaLabel ? <Cta label={ctaLabel} href={href} /> : <Arrow />}
       </div>
     </div>
   );
@@ -329,15 +357,16 @@ function ToranBanner({ text, ctaLabel, href = "/register", deadline }: Props) {
             {daysLabel(daysLeft)}
           </motion.span>
         )}
-        {ctaLabel && <Cta label={ctaLabel} href={href} dark />}
+        {ctaLabel ? <Cta label={ctaLabel} href={href} dark /> : <Arrow color="#FFD88A" />}
       </div>
     </div>
   );
 }
 
 export default function HomeBanner({ style = "aurora", ...props }: Props) {
+  const href = props.href ?? "/register";
   return (
-    <Shell>
+    <Shell href={href} linkify={!props.ctaLabel}>
       {style === "alpona" ? <AlponaBanner {...props} /> : style === "toran" ? <ToranBanner {...props} /> : <AuroraBanner {...props} />}
     </Shell>
   );

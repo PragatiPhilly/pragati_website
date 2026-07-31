@@ -467,17 +467,37 @@ export async function sendTicketsEmail(registrationId: string, opts: { resend?: 
   const membership = Math.max(0, (reg.totalCents ?? 0) - (subtotal - discount) - donation); // dues folded into total
   const totalPaid = (reg.totalCents ?? 0) + fee; // card fee is on top of the grand total
   const studentReminder = tix.some((t) => t.studentInfo != null);
+  const { getDonationMode, DONATION_COPY } = await import("@/lib/donation-mode");
+  const dCopy = DONATION_COPY[await getDonationMode()];
   const mail = T.ticketsEmail({
     buyerName: reg.buyerName,
     conf: reg.confirmationNumber,
     eventName: event?.name ?? "the event",
-    lines: tix.map((t) => ({
-      name: [t.attendeeFirstName, t.attendeeLastName].filter(Boolean).join(" ") + (t.dayKey && t.dayKey !== "all" ? ` (${t.dayKey})` : ""),
-      type: typeName(t.ticketTypeId),
-      price: t.priceCents,
-      passUrl: `${base}/t/${t.qrCode}`,
-      note: checkInNote(t),
-    })),
+    lines: tix.map((t) => {
+      const tt = types.find((x) => x.id === t.ticketTypeId);
+      const dayLabel =
+        t.dayKey && t.dayKey !== "all"
+          ? (eventDays.find((d) => d.key === t.dayKey)?.label ?? t.dayKey.toUpperCase())
+          : "All days";
+      const foodLabel =
+        t.foodPref === "veg" ? "Veg" : t.foodPref === "non_veg" ? "Non-veg" : t.foodPref === "kid" ? "Kid's meal" : "No meal";
+      return {
+        name: [t.attendeeFirstName, t.attendeeLastName].filter(Boolean).join(" "),
+        type: typeName(t.ticketTypeId),
+        meta: `${dayLabel} · ${foodLabel}`,
+        price: t.priceCents,
+        passUrl: `${base}/t/${t.qrCode}`,
+        note: checkInNote(t),
+        badge:
+          tt?.ageBand === "concert"
+            ? "CONCERT · TIMED ENTRY"
+            : t.studentInfo != null
+              ? "STUDENT · ID REQUIRED"
+              : tt?.ageBand === "addon"
+                ? "ADD-ON"
+                : undefined,
+      };
+    }),
     subtotalCents: subtotal,
     discountCents: discount,
     membershipCents: membership,
@@ -485,6 +505,9 @@ export async function sendTicketsEmail(registrationId: string, opts: { resend?: 
     feeCents: fee,
     totalPaidCents: totalPaid,
     studentReminder,
+    donationLabel: dCopy.lineLabel,
+    donationNoun: dCopy.receiptNoun,
+    venue: event?.venueName ?? undefined,
     lookupUrl: `${base}/lookup?email=${encodeURIComponent(reg.buyerEmail)}&conf=${reg.confirmationNumber}`,
     printUrl: `${base}/tickets/${reg.confirmationNumber}/print?email=${encodeURIComponent(reg.buyerEmail)}`,
     orgName,

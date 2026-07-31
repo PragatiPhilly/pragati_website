@@ -58,10 +58,18 @@ export default function LoginPage() {
   return (
     <div className="mx-auto max-w-md px-5 py-16">
       <h1 className="font-[family-name:var(--font-display)] text-4xl font-black mb-2 text-center">
-        Welcome Admins
+        Sign in
       </h1>
       <p className="text-center mb-8" style={{ color: 'var(--ink-soft)' }}>
-        Admins sign in with your email and password to access the dashboard.
+        For members with an account, gate volunteers, and organizers.
+        <br />
+        <span className="text-sm">
+          Buying tickets? You don&apos;t need an account —{' '}
+          <Link href="/register" className="underline underline-offset-4 font-medium">
+            register here
+          </Link>
+          .
+        </span>
       </p>
       <Suspense>
         <LoginForm />

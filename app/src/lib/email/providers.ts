@@ -14,6 +14,8 @@ export type OutboundMail = {
   to: string;
   subject: string;
   text: string;
+  /** Branded HTML body. Text is always sent too, as the fallback. */
+  html?: string;
   attachments?: MailAttachment[];
   replyTo?: string; // real inbox for replies (the From is a no-reply@ domain address)
 };
@@ -45,6 +47,7 @@ async function sendViaBrevo(mail: OutboundMail): Promise<ProviderResult> {
         ...(mail.replyTo ? { replyTo: { email: mail.replyTo } } : {}),
         subject: mail.subject,
         textContent: mail.text,
+        ...(mail.html ? { htmlContent: mail.html } : {}),
         ...(mail.attachments?.length
           ? { attachment: mail.attachments.map((a) => ({ name: a.filename, content: a.content })) }
           : {}),
@@ -75,6 +78,7 @@ async function sendViaResend(mail: OutboundMail): Promise<ProviderResult> {
         ...(mail.replyTo ? { reply_to: mail.replyTo } : {}),
         subject: mail.subject,
         text: mail.text,
+        ...(mail.html ? { html: mail.html } : {}),
         ...(mail.attachments?.length ? { attachments: mail.attachments } : {}),
       }),
     });

@@ -21,7 +21,7 @@ import { getConfig } from "@/lib/system-config";
 export type SectionKey =
   | "dashboard" | "zelle" | "registrations" | "donations" | "members" | "events"
   | "checkin" | "scans" | "kitchen" | "media" | "magazines" | "messages" | "emails"
-  | "roles" | "audit" | "settings";
+  | "email_preview" | "roles" | "audit" | "settings";
 
 export type Section = { key: SectionKey; label: string; href: string; icon: string };
 
@@ -40,13 +40,14 @@ export const SECTIONS: Section[] = [
   { key: "magazines", label: "Magazines", href: "/admin/magazines", icon: "📖" },
   { key: "messages", label: "Messages", href: "/admin/messages", icon: "✉" },
   { key: "emails", label: "Email log", href: "/admin/emails", icon: "📧" },
+  { key: "email_preview", label: "Email previews", href: "/admin/emails/preview", icon: "🔍" },
   { key: "roles", label: "Roles & access", href: "/admin/roles", icon: "🔑" },
   { key: "audit", label: "Audit log", href: "/admin/audit", icon: "📜" },
   { key: "settings", label: "Settings", href: "/admin/settings", icon: "⚙" },
 ];
 
 /** Never grantable — super admins only, regardless of the matrix. */
-export const LOCKED_SECTIONS: SectionKey[] = ["roles", "audit", "settings"];
+export const LOCKED_SECTIONS: SectionKey[] = ["roles", "audit", "settings", "email_preview"];
 
 /** What the matrix can hand out. */
 export const CONFIGURABLE_SECTIONS = SECTIONS.filter((s) => !LOCKED_SECTIONS.includes(s.key));

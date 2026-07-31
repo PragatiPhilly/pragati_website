@@ -2,7 +2,7 @@ import Link from "next/link";
 import { site } from "@/config/site";
 import { getSession } from "@/lib/auth/session";
 import { logoutAction } from "@/lib/auth/actions";
-import { memberPortalEnabled } from "@/lib/member-mode";
+import { canUseMemberPortal } from "@/lib/member-mode";
 import { getDonationMode, DONATION_COPY } from "@/lib/donation-mode";
 import MobileNav from "./MobileNav";
 import HeaderScroll from "./HeaderScroll";
@@ -10,9 +10,10 @@ import HeaderScroll from "./HeaderScroll";
 export default async function Header() {
   const session = await getSession();
   const isAdmin = session && (session.role === "admin" || session.role === "super_admin");
-  // Honor mode: members have no accounts, so hide member sign-in + the /m portal
-  // link. Admin sign-in lives at /login (reachable via /admin) and is unaffected.
-  const portalEnabled = await memberPortalEnabled();
+  // "My Pragati" only for real account-holders — honor-system members have no
+  // portal. The header stays free of a public "Sign in"; that lives in the
+  // footer (admins/volunteers also reach it via /admin → /login).
+  const portalEnabled = await canUseMemberPortal(session?.memberId);
   // In Pujo mode the "Donate" nav item reads "Pujo Sponsorship".
   const donationLabel = DONATION_COPY[await getDonationMode()].navLabel;
   const nav = site.nav.map((n) => (n.href === "/donate" ? { ...n, label: donationLabel } : n));

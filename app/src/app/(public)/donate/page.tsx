@@ -3,7 +3,10 @@ import { getDonationMode, DONATION_COPY, PUJO_DESIGNATIONS } from "@/lib/donatio
 import DonateForm from "./DonateForm";
 
 export const dynamic = "force-dynamic";
-export const metadata = { title: "Donate" };
+
+export async function generateMetadata() {
+  return { title: DONATION_COPY[await getDonationMode()].metaTitle };
+}
 
 export default async function DonatePage() {
   const squareEnabled = (await getConfig<string>("payments_square_enabled")) !== "no";

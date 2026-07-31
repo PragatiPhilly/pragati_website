@@ -34,6 +34,8 @@ export default async function ZelleInstructionsPage({
   }
 
   const zelle = await getZelleInstructions(conf, amountCents);
+  const { getDonationMode, DONATION_COPY } = await import("@/lib/donation-mode");
+  const donationNoun = DONATION_COPY[await getDonationMode()].receiptNoun;
 
   return (
     <div className="mx-auto max-w-xl px-5 py-14">
@@ -41,8 +43,10 @@ export default async function ZelleInstructionsPage({
         Send your Zelle payment 🏦
       </h1>
       <p className="mb-8" style={{ color: "var(--ink-soft)" }}>
-        Your {kind === "donation" ? "donation" : "seats are reserved"}. Complete the Zelle transfer from your
-        bank app, then tap the button below.
+        {kind === "donation"
+          ? `Your ${donationNoun} is recorded.`
+          : "Your seats are reserved."}{" "}
+        Complete the Zelle transfer from your bank app, then tap the button below.
       </p>
 
       <div className="festive-card p-7">

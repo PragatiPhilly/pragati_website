@@ -15,8 +15,6 @@ export default async function CheckoutSuccessPage({
   const { conf, membership } = await searchParams;
 
   if (membership === "1") {
-    const { memberPortalEnabled } = await import("@/lib/member-mode");
-    const portalEnabled = await memberPortalEnabled();
     const session = await getSession();
     const db0 = getDb();
     const member = session?.memberId
@@ -41,8 +39,8 @@ export default async function CheckoutSuccessPage({
             ? "Your dues are paid and your membership is now active. A welcome email is on its way. 🪔"
             : "Your payment went through — we're finalizing your membership now. This page refreshes on its own; it usually takes a few seconds."}
         </p>
-        <Link href={portalEnabled ? "/m" : "/"} className="btn-primary mt-8 inline-flex">
-          {portalEnabled ? "Go to My Pragati →" : "Back to home →"}
+        <Link href="/m" className="btn-primary mt-8 inline-flex">
+          Go to My Pragati →
         </Link>
       </div>
     );

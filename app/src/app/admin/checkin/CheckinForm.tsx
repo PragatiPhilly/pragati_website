@@ -26,19 +26,25 @@ import {
   type ScanSessionInfo,
 } from "../scans/actions";
 import QrScanner from "./QrScanner";
+import ScanResult, { type ScanVerdict } from "./ScanResult";
 
 type Colors = { veg: string; non_veg: string; kid: string };
 
-type Banner =
-  | { tone: "ok"; title: string; detail: string; color?: string; foodLabel?: string }
-  | { tone: "dup"; title: string; detail: string }
-  | { tone: "bad"; title: string; detail: string };
+type Banner = ScanVerdict;
 
 const FOOD_LABEL: Record<string, string> = {
   veg: "🥬 VEG",
   non_veg: "🐟 NON-VEG",
   kid: "🍚 KID'S MEAL",
   none: "no food",
+};
+
+/** Big single word for the food takeover — no emoji, readable at arm's length. */
+const FOOD_WORD: Record<string, string> = {
+  veg: "VEG",
+  non_veg: "NON-VEG",
+  kid: "KID'S MEAL",
+  none: "NO MEAL",
 };
 
 export default function CheckinForm({
@@ -83,20 +89,24 @@ export default function CheckinForm({
       if (r.kind === "checked_in") {
         setBanner({
           tone: "ok",
-          title: `✓ ${r.attendee} — welcome in!`,
-          detail: `${r.conf} · ${r.count} of ${r.total} checked in`,
-          color: "var(--leaf-deep)",
+          color: "#1E6B2A",
+          name: r.attendee,
+          line1: r.partyTotal > 1 ? `${r.partyIn} of ${r.partyTotal} in this party` : "Welcome in!",
+          line2: `${r.passName} · ${r.day} · ${r.conf}`,
+          needsId: r.isStudent,
+          timed: r.isConcert,
         });
         setTickets(null);
       } else if (r.kind === "duplicate") {
         setBanner({
           tone: "dup",
-          title: `⛔ ALREADY CHECKED IN — ${r.attendee}`,
-          detail: `This QR was used at ${r.checkedInAt}. If this person hasn't entered, check photo ID against ${r.conf}.`,
+          name: `ALREADY CHECKED IN`,
+          line1: `${r.attendee} — scanned at ${r.checkedInAt}`,
+          line2: `If they haven't entered, check photo ID against ${r.conf}.`,
         });
         setTickets(null);
       } else if (r.kind === "invalid") {
-        setBanner({ tone: "bad", title: "⛔ Not valid", detail: r.reason });
+        setBanner({ tone: "bad", name: "NOT VALID", line1: r.reason });
         setTickets(null);
       } else {
         setBanner(null);
@@ -117,20 +127,21 @@ export default function CheckinForm({
       if (r.kind === "served") {
         setBanner({
           tone: "ok",
-          title: `✓ ${r.attendee}`,
-          detail: `${r.sessionLabel} · ${r.count} served`,
           color: foodColor(r.food),
-          foodLabel: FOOD_LABEL[r.food] ?? r.food,
+          foodWord: FOOD_WORD[r.food] ?? r.food.toUpperCase(),
+          name: r.attendee,
+          line1: `${r.sessionLabel} · ${r.count} served`,
         });
         setSessionCount(r.count);
       } else if (r.kind === "duplicate") {
         setBanner({
           tone: "dup",
-          title: `⛔ ALREADY SERVED — ${r.attendee}`,
-          detail: `This QR already went through ${r.sessionLabel} at ${r.scannedAt}. (${r.conf})`,
+          name: "ALREADY SERVED",
+          line1: `${r.attendee} — ${r.sessionLabel} at ${r.scannedAt}`,
+          line2: r.conf,
         });
       } else {
-        setBanner({ tone: "bad", title: "⛔ Not valid", detail: r.reason });
+        setBanner({ tone: "bad", name: "NOT VALID", line1: r.reason });
       }
       if (refreshQ) setMealTickets(await mealLookupAction(session.id, refreshQ));
       else setMealTickets(null);
@@ -145,12 +156,13 @@ export default function CheckinForm({
         if (t.servedAt) {
           setBanner({
             tone: "dup",
-            title: `⛔ ALREADY SERVED — ${t.attendee}`,
-            detail: `This QR already went through ${session.label} at ${t.servedAt}. (${t.conf})`,
+            name: "ALREADY SERVED",
+            line1: `${t.attendee} — ${session.label} at ${t.servedAt}`,
+            line2: t.conf,
           });
           setMealTickets(null);
         } else if (!t.eligible) {
-          setBanner({ tone: "bad", title: "⛔ Not valid for this window", detail: t.reason ?? "" });
+          setBanner({ tone: "bad", name: "NOT VALID HERE", line1: t.reason ?? "" });
           setMealTickets(null);
         } else {
           await serve(t.id);
@@ -216,24 +228,8 @@ export default function CheckinForm({
         )}
       </div>
 
-      {/* ── result banner (big, glanceable) ────────────────────── */}
-      {banner && (
-        <div
-          className="rounded-2xl px-5 py-5 mb-4 text-center"
-          style={{
-            background:
-              banner.tone === "ok" ? (banner.color ?? "var(--leaf-deep)") : banner.tone === "dup" ? "#8f1d1d" : "#6b7280",
-            color: "#fff",
-            boxShadow: "var(--shadow)",
-          }}
-        >
-          {banner.tone === "ok" && banner.foodLabel && (
-            <p className="text-3xl font-black tracking-wide mb-1">{banner.foodLabel}</p>
-          )}
-          <p className="text-xl font-black">{banner.title}</p>
-          <p className="text-sm mt-1 opacity-90">{banner.detail}</p>
-        </div>
-      )}
+      {/* ── the verdict, full-bleed (see ScanResult) ───────────── */}
+      <ScanResult verdict={banner} onDismiss={() => setBanner(null)} />
 
       <QrScanner onScan={handleScan} />
 

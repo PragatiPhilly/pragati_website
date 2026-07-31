@@ -33,6 +33,8 @@ export type Mail = {
   to: string;
   subject: string;
   text: string;
+  /** Branded HTML body (see email/layout.ts). Text is the fallback. */
+  html?: string;
   template: string;
   relatedRegistrationId?: string;
   relatedUserId?: string;
@@ -136,7 +138,7 @@ export async function sendMail(mail: Mail): Promise<void> {
   }
 
   const { to, subject } = applyTestOverride(mail);
-  const result = await deliver({ to, subject, text: mail.text, attachments: mail.attachments, replyTo: await replyToAddress() });
+  const result = await deliver({ to, subject, text: mail.text, html: mail.html, attachments: mail.attachments, replyTo: await replyToAddress() });
   await logEmail(mail, to, subject, result.ok ? result : { ok: false, provider: result.provider, error: result.error });
   if (!result.ok) {
     await enqueue(mail, result.error); // don't lose it — the outbox retries with backoff
@@ -195,7 +197,7 @@ export async function drainOutbox(maxSends = 40): Promise<{ sent: number; digest
   const replyTo = await replyToAddress();
   const attempt = async (mail: Mail): Promise<{ ok: boolean; error?: string }> => {
     const { to, subject } = applyTestOverride(mail);
-    const result = await deliver({ to, subject, text: mail.text, attachments: mail.attachments, replyTo });
+    const result = await deliver({ to, subject, text: mail.text, html: mail.html, attachments: mail.attachments, replyTo });
     await logEmail(mail, to, subject, result.ok ? result : { ok: false, provider: result.provider, error: result.error });
     return result.ok ? { ok: true } : { ok: false, error: result.error };
   };

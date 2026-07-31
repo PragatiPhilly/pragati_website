@@ -12,10 +12,8 @@ export const dynamic = "force-dynamic";
 export const metadata = { title: "Membership dues" };
 
 export default async function MembershipPaymentPage() {
-  const { memberPortalEnabled } = await import("@/lib/member-mode");
-  const portalEnabled = await memberPortalEnabled();
   const session = await getSession();
-  if (!session) redirect(portalEnabled ? "/login?next=/signup/membership" : "/signup");
+  if (!session) redirect("/login?next=/signup/membership");
 
   const db = getDb();
   const member = session.memberId
@@ -43,15 +41,9 @@ export default async function MembershipPaymentPage() {
         <p style={{ color: "var(--ink-soft)" }}>
           Your Pragati membership is active and a welcome email is on its way. Namaskar, and welcome to the family. 🪔
         </p>
-        {portalEnabled ? (
-          <Link href="/m" className="btn-primary mt-8 inline-flex">
-            Go to My Pragati →
-          </Link>
-        ) : (
-          <Link href="/" className="btn-primary mt-8 inline-flex">
-            Back to home →
-          </Link>
-        )}
+        <Link href="/m" className="btn-primary mt-8 inline-flex">
+          Go to My Pragati →
+        </Link>
       </div>
     );
   }
