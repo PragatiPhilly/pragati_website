@@ -114,13 +114,17 @@ export default function LeadershipBoards({ boards }: { boards: [Board, Board] })
                 style={{ boxShadow: "var(--shadow)" }}
                 aria-label={`View ${b.title} larger`}
               >
-                {/* eager: the panel must not fly in as an empty box */}
+                {/* eager: the panel must not fly in as an empty box.
+                    Fixed 16:9 box + contain: if a future board photo has a
+                    different aspect ratio it letterboxes instead of making the
+                    two panels different heights. */}
                 {/* eslint-disable-next-line @next/next/no-img-element */}
                 <img
                   src={b.src}
                   alt={b.alt}
                   loading="eager"
-                  className="w-full h-auto block transition-transform duration-500 group-hover:scale-[1.02]"
+                  className="w-full block transition-transform duration-500 group-hover:scale-[1.02]"
+                  style={{ aspectRatio: "16 / 9", objectFit: "contain", background: "var(--accent-soft)" }}
                 />
               </button>
               <motion.figcaption
