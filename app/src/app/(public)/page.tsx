@@ -26,6 +26,7 @@ import ScrollToTop from '@/components/site/ScrollToTop';
 import HomeBanner from '@/components/site/HomeBanner';
 import PandalCurtain from '@/components/site/PandalCurtain';
 import FloatingRegister from '@/components/site/FloatingRegister';
+import LeadershipBoards from '@/components/site/LeadershipBoards';
 import { getDonationMode, DONATION_COPY } from '@/lib/donation-mode';
 import PhotoCarousel from '@/components/site/PhotoCarousel';
 import PhotoSlideshow from '@/components/site/PhotoSlideshow';
@@ -861,27 +862,27 @@ export default async function HomePage() {
             ))}
           </div> */}
 
-          {/* Executive Committee — shown within the numbers section */}
-          <Reveal delay={0.1}>
-            <div className="mt-16">
-              <Eyebrow
-                bn="কার্যকরী সমিতি"
-                en="Executive Committee 2026–2027"
-                center
-              />
-              <div
-                className="rounded-[24px] overflow-hidden max-w-4xl mx-auto"
-                style={{ boxShadow: 'var(--shadow)' }}
-              >
-                {/* eslint-disable-next-line @next/next/no-img-element */}
-                <img
-                  src="/about/committee-2026.jpg"
-                  alt="Pragati Executive Committee 2026–2027 members"
-                  className="w-full h-auto block"
-                />
-              </div>
-            </div>
-          </Reveal>
+          {/* Leadership — EC + Board of Trustees, flying in from either side */}
+          <div className="mt-16">
+            <Eyebrow bn="নেতৃত্ব" en="Our leadership" center />
+            <LeadershipBoards
+              boards={[
+                {
+                  src: '/about/committee-2026.jpg',
+                  alt: 'Pragati Executive Committee 2026–2027 members',
+                  title: 'Executive Committee',
+                  bn: 'কার্যকরী সমিতি',
+                  meta: '2026–2027',
+                },
+                {
+                  src: '/about/trustees.jpg',
+                  alt: 'Pragati Board of Trustees members',
+                  title: 'Board of Trustees',
+                  bn: 'অছি পরিষদ',
+                },
+              ]}
+            />
+          </div>
         </div>
       </section>
 
