@@ -3,15 +3,18 @@
 /**
  * Leadership — the Executive Committee and the Board of Trustees, side by side.
  *
- * As the section scrolls into view the two boards fly in from opposite sides and
- * settle into place, straightening from a slight tilt (like two framed photos
- * being hung). They stagger, so the eye lands on one and then the other.
+ * As the section reaches the viewport the two boards fly in from opposite edges
+ * of the screen and meet in the middle, straightening from a tilt like two
+ * framed photos being hung.
  *
- * Both are wide group photos with names printed inside them, so at half width
- * those names get small — tapping either one opens it full screen, which is
- * also the natural gesture on a phone.
+ * Robustness note: the panels start off-screen and clipped, so if the reveal
+ * never fired the section would render blank. Rather than relying on
+ * `whileInView`, this drives the animation from an IntersectionObserver we own,
+ * with a timer as a backstop — if anything at all goes wrong (observer
+ * unsupported, callback missed, element measured oddly) the boards are shown
+ * anyway. Content must never be able to stay hidden.
  */
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { motion, useReducedMotion } from "framer-motion";
 
 export type Board = {
@@ -25,6 +28,35 @@ export type Board = {
 export default function LeadershipBoards({ boards }: { boards: [Board, Board] }) {
   const reduce = useReducedMotion();
   const [zoom, setZoom] = useState<Board | null>(null);
+  const [shown, setShown] = useState(false);
+  const wrapRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    const el = wrapRef.current;
+    // Backstop: reveal regardless after a moment, so a missed observer callback
+    // can never leave the section empty.
+    const failsafe = setTimeout(() => setShown(true), 2500);
+
+    if (!el || typeof IntersectionObserver === "undefined") {
+      setShown(true);
+      return () => clearTimeout(failsafe);
+    }
+    const io = new IntersectionObserver(
+      (entries) => {
+        if (entries.some((e) => e.isIntersecting)) {
+          setShown(true);
+          io.disconnect();
+          clearTimeout(failsafe);
+        }
+      },
+      { threshold: 0.08 }
+    );
+    io.observe(el);
+    return () => {
+      io.disconnect();
+      clearTimeout(failsafe);
+    };
+  }, []);
 
   useEffect(() => {
     if (!zoom) return;
@@ -40,31 +72,32 @@ export default function LeadershipBoards({ boards }: { boards: [Board, Board] })
   return (
     <>
       {/* clip-x so the off-screen start positions never create a sideways scrollbar */}
-      <div className="grid md:grid-cols-2 gap-8 md:gap-7 max-w-6xl mx-auto" style={{ overflowX: "clip" }}>
+      <div
+        ref={wrapRef}
+        className="grid md:grid-cols-2 gap-8 md:gap-7 max-w-6xl mx-auto"
+        style={{ overflowX: "clip" }}
+      >
         {boards.map((b, i) => {
           const fromLeft = i === 0;
+          const hidden = reduce
+            ? { opacity: 0, y: 24 }
+            : { opacity: 0, x: fromLeft ? "-115%" : "115%", rotate: fromLeft ? -7 : 7, scale: 0.88 };
+          const visible = reduce
+            ? { opacity: 1, y: 0 }
+            : { opacity: 1, x: "0%", rotate: 0, scale: 1 };
           return (
             <motion.figure
               key={b.src}
               className="m-0"
-              // Travel is a % of the panel's own width, so each board genuinely
-              // starts off the side of the screen at every breakpoint.
-              initial={
-                reduce
-                  ? { opacity: 0, y: 24 }
-                  : { opacity: 0, x: fromLeft ? "-115%" : "115%", rotate: fromLeft ? -7 : 7, scale: 0.88 }
-              }
-              whileInView={reduce ? { opacity: 1, y: 0 } : { opacity: 1, x: "0%", rotate: 0, scale: 1 }}
-              // fires a little before the panel is fully on screen, so the
-              // movement is still happening while you're looking at it
-              viewport={{ once: true, amount: 0.1, margin: "0px 0px -12% 0px" }}
+              initial={false}
+              animate={shown ? visible : hidden}
               transition={
                 reduce
                   ? { duration: 0.4 }
                   : {
                       type: "spring",
                       stiffness: 52,
-                      damping: 15, // a little overshoot, then settles
+                      damping: 15, // slight overshoot, then settles
                       mass: 1.1,
                       delay: i * 0.18,
                       opacity: { duration: 0.45, delay: i * 0.18 },
@@ -89,10 +122,9 @@ export default function LeadershipBoards({ boards }: { boards: [Board, Board] })
               </button>
               <motion.figcaption
                 className="text-center mt-4"
-                initial={reduce ? { opacity: 0 } : { opacity: 0, y: 14 }}
-                whileInView={{ opacity: 1, y: 0 }}
-                viewport={{ once: true, amount: 0.1 }}
-                transition={{ duration: 0.5, delay: 0.55 + i * 0.18, ease: "easeOut" }}
+                initial={false}
+                animate={shown ? { opacity: 1, y: 0 } : { opacity: 0, y: 14 }}
+                transition={{ duration: 0.5, delay: shown ? 0.55 + i * 0.18 : 0, ease: "easeOut" }}
               >
                 <p
                   className="font-[family-name:var(--font-bangla)] text-lg leading-none mb-1"
