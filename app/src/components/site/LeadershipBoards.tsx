@@ -31,25 +31,28 @@ export default function LeadershipBoards({ boards }: { boards: [Board, Board] })
   const [shown, setShown] = useState(false);
   const wrapRef = useRef<HTMLDivElement>(null);
 
+  const firedRef = useRef(false);
+
   useEffect(() => {
     const el = wrapRef.current;
-    // Backstop: reveal regardless after a moment, so a missed observer callback
-    // can never leave the section empty.
-    const failsafe = setTimeout(() => setShown(true), 2500);
+    // Backstop: if the observer never reports at all, show the boards anyway —
+    // an entrance animation must never be the only thing revealing content.
+    const failsafe = setTimeout(() => {
+      if (!firedRef.current) setShown(true);
+    }, 2500);
 
     if (!el || typeof IntersectionObserver === "undefined") {
       setShown(true);
       return () => clearTimeout(failsafe);
     }
+    // Replays every pass, scrolling down OR back up — matching the site's
+    // other section reveals (see Reveal.tsx, which uses `once: false`).
     const io = new IntersectionObserver(
       (entries) => {
-        if (entries.some((e) => e.isIntersecting)) {
-          setShown(true);
-          io.disconnect();
-          clearTimeout(failsafe);
-        }
+        firedRef.current = true;
+        setShown(entries[0]?.isIntersecting ?? true);
       },
-      { threshold: 0.08 }
+      { threshold: 0.08, rootMargin: "-80px 0px -80px 0px" }
     );
     io.observe(el);
     return () => {
