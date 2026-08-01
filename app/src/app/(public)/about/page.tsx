@@ -1,4 +1,5 @@
 import Reveal from "@/components/site/Reveal";
+import LeadershipBoards from "@/components/site/LeadershipBoards";
 import { site } from "@/config/site";
 
 export const metadata = { title: "About" };
@@ -126,28 +127,35 @@ export default function AboutPage() {
         </Reveal>
       </div>
 
-      {/* ── Executive Committee ── */}
-      <section className="mx-auto max-w-5xl px-5 pb-16">
+      {/* ── Leadership: Executive Committee + Board of Trustees ── */}
+      <section className="mx-auto max-w-6xl px-5 pb-16">
         <Reveal>
           <div className="text-center mb-8">
             <p className="font-[family-name:var(--font-bangla)] text-xl" style={{ color: "var(--terracotta)" }}>
-              কার্যকরী সমিতি
+              নেতৃত্ব
             </p>
             <h2 className="font-[family-name:var(--font-display)] text-3xl md:text-4xl font-black">
-              Executive Committee 2026–2027
+              Our leadership
             </h2>
           </div>
         </Reveal>
-        <Reveal delay={0.08}>
-          <div className="rounded-[24px] overflow-hidden" style={{ boxShadow: "var(--shadow)" }}>
-            {/* eslint-disable-next-line @next/next/no-img-element */}
-            <img
-              src="/about/committee-2026.jpg"
-              alt="Pragati Executive Committee 2026–2027 members"
-              className="w-full h-auto block"
-            />
-          </div>
-        </Reveal>
+        <LeadershipBoards
+          boards={[
+            {
+              src: "/about/committee-2026.jpg",
+              alt: "Pragati Executive Committee 2026–2027 members",
+              title: "Executive Committee",
+              bn: "কার্যকরী সমিতি",
+              meta: "2026–2027",
+            },
+            {
+              src: "/about/trustees.jpg",
+              alt: "Pragati Board of Trustees members",
+              title: "Board of Trustees",
+              bn: "অছি পরিষদ",
+            },
+          ]}
+        />
       </section>
 
       {/* ── Contact ── */}
