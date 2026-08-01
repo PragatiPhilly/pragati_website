@@ -39,21 +39,37 @@ export default function LeadershipBoards({ boards }: { boards: [Board, Board] })
 
   return (
     <>
-      <div className="grid md:grid-cols-2 gap-8 md:gap-7 max-w-6xl mx-auto">
+      {/* clip-x so the off-screen start positions never create a sideways scrollbar */}
+      <div className="grid md:grid-cols-2 gap-8 md:gap-7 max-w-6xl mx-auto" style={{ overflowX: "clip" }}>
         {boards.map((b, i) => {
           const fromLeft = i === 0;
           return (
             <motion.figure
               key={b.src}
               className="m-0"
+              // Travel is a % of the panel's own width, so each board genuinely
+              // starts off the side of the screen at every breakpoint.
               initial={
                 reduce
-                  ? { opacity: 0 }
-                  : { opacity: 0, x: fromLeft ? -70 : 70, rotate: fromLeft ? -2.5 : 2.5, scale: 0.96 }
+                  ? { opacity: 0, y: 24 }
+                  : { opacity: 0, x: fromLeft ? "-115%" : "115%", rotate: fromLeft ? -7 : 7, scale: 0.88 }
               }
-              whileInView={reduce ? { opacity: 1 } : { opacity: 1, x: 0, rotate: 0, scale: 1 }}
-              viewport={{ once: true, amount: 0.3 }}
-              transition={{ duration: 0.85, delay: i * 0.16, ease: [0.22, 1, 0.36, 1] }}
+              whileInView={reduce ? { opacity: 1, y: 0 } : { opacity: 1, x: "0%", rotate: 0, scale: 1 }}
+              // fires a little before the panel is fully on screen, so the
+              // movement is still happening while you're looking at it
+              viewport={{ once: true, amount: 0.1, margin: "0px 0px -12% 0px" }}
+              transition={
+                reduce
+                  ? { duration: 0.4 }
+                  : {
+                      type: "spring",
+                      stiffness: 52,
+                      damping: 15, // a little overshoot, then settles
+                      mass: 1.1,
+                      delay: i * 0.18,
+                      opacity: { duration: 0.45, delay: i * 0.18 },
+                    }
+              }
             >
               <button
                 type="button"
@@ -62,14 +78,22 @@ export default function LeadershipBoards({ boards }: { boards: [Board, Board] })
                 style={{ boxShadow: "var(--shadow)" }}
                 aria-label={`View ${b.title} larger`}
               >
+                {/* eager: the panel must not fly in as an empty box */}
                 {/* eslint-disable-next-line @next/next/no-img-element */}
                 <img
                   src={b.src}
                   alt={b.alt}
+                  loading="eager"
                   className="w-full h-auto block transition-transform duration-500 group-hover:scale-[1.02]"
                 />
               </button>
-              <figcaption className="text-center mt-4">
+              <motion.figcaption
+                className="text-center mt-4"
+                initial={reduce ? { opacity: 0 } : { opacity: 0, y: 14 }}
+                whileInView={{ opacity: 1, y: 0 }}
+                viewport={{ once: true, amount: 0.1 }}
+                transition={{ duration: 0.5, delay: 0.55 + i * 0.18, ease: "easeOut" }}
+              >
                 <p
                   className="font-[family-name:var(--font-bangla)] text-lg leading-none mb-1"
                   style={{ color: "var(--terracotta)" }}
@@ -87,7 +111,7 @@ export default function LeadershipBoards({ boards }: { boards: [Board, Board] })
                 <p className="text-[11px] mt-1.5 opacity-70" style={{ color: "var(--ink-soft)" }}>
                   tap to enlarge
                 </p>
-              </figcaption>
+              </motion.figcaption>
             </motion.figure>
           );
         })}
