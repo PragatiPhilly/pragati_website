@@ -6,7 +6,7 @@ import { getDb, schema } from "@/db/client";
 import { getConfig } from "@/lib/system-config";
 import { formatCents, cardProcessingFeeCents } from "@/lib/pricing";
 import CopyButton from "@/components/site/CopyButton";
-import MembershipPayButtons from "./MembershipPayButtons";
+import MembershipPayButtons, { MembershipZelleSent } from "./MembershipPayButtons";
 
 export const dynamic = "force-dynamic";
 export const metadata = { title: "Membership dues" };
@@ -92,6 +92,7 @@ export default async function MembershipPaymentPage() {
           <p className="mt-6 text-sm rounded-xl px-4 py-3" style={{ background: "var(--accent-soft)" }}>
             ⚠️ Include the memo so we can match your payment — our treasurer activates your membership once it arrives.
           </p>
+          <MembershipZelleSent />
         </div>
       )}
 

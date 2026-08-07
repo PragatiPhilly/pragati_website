@@ -32,7 +32,7 @@ export default function SignupForm({ priceLabel }: { priceLabel: string }) {
         <div className="text-sm font-semibold">
           Phone
           <div className="mt-1.5">
-            <PhoneInput name="phone" />
+            <PhoneInput name="phone" required />
           </div>
         </div>
         <label className="text-sm font-semibold">

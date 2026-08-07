@@ -13,25 +13,45 @@ import { hashPassword } from "@/lib/auth/password";
 import { createResetToken } from "@/lib/auth/reset";
 import { ensureExtraColumns } from "@/lib/schema-ensure";
 import { ensureMembershipColumn } from "@/lib/membership-ensure";
+import { settlePayments, linkPaymentsToMember } from "@/lib/ledger";
 import { siteUrl } from "@/lib/site-url";
+
+const YEAR_MS = 365 * 86_400_000;
 
 export async function activateMembershipPaid(
   memberId: string,
-  opts: { squarePaymentId?: string } = {}
+  opts: { squarePaymentId?: string; method?: "square" | "zelle" | "offline" | "comped"; verifiedBy?: string; reference?: string } = {}
 ): Promise<boolean> {
   const db = getDb();
+  await ensureMembershipColumn();
   const [member] = await db.select().from(schema.members).where(eq(schema.members.id, memberId));
   if (!member) return false;
   if (member.membershipStatus === "active") return true; // idempotent
+
+  // Dues-payers used to be the ONLY members who got no expiry date and no member
+  // number — honor-system claims got both. Set them here so every active
+  // membership has a term and an ID, and so the expiry sweep can see it.
+  const now = new Date();
+  const expires = new Date(now.getTime() + YEAR_MS);
+  const memberNumber = member.memberNumber ?? `PGM-${member.id.slice(0, 8).toUpperCase()}`;
 
   await db
     .update(schema.members)
     .set({
       membershipStatus: "active",
-      membershipStartedAt: member.membershipStartedAt ?? new Date().toISOString().slice(0, 10),
-      updatedAt: new Date(),
+      membershipStartedAt: member.membershipStartedAt ?? now.toISOString().slice(0, 10),
+      membershipExpiresAt: expires,
+      memberNumber,
+      updatedAt: now,
     })
     .where(eq(schema.members.id, memberId));
+
+  await settlePayments("membership", memberId, {
+    method: opts.method ?? "square",
+    squarePaymentId: opts.squarePaymentId ?? null,
+    verifiedBy: opts.verifiedBy ?? null,
+    reference: opts.reference ?? null,
+  });
 
   await db.insert(schema.auditLog).values({
     userId: member.userId,
@@ -40,7 +60,7 @@ export async function activateMembershipPaid(
     entityId: memberId,
     changes: {
       membershipStatus: { from: member.membershipStatus, to: "active" },
-      via: "square_card",
+      via: opts.method ?? "square_card",
       squarePaymentId: opts.squarePaymentId,
     },
   });
@@ -48,13 +68,12 @@ export async function activateMembershipPaid(
   const [user] = await db.select().from(schema.users).where(eq(schema.users.id, member.userId));
   if (user?.email) {
     const orgName = await getConfig<string>("org_name");
-    const mail = welcomeEmail({ firstName: member.primaryFirstName, familyName: member.familyName, orgName });
+    const validUntil = expires.toLocaleDateString("en-US", { timeZone: "America/New_York", year: "numeric", month: "long", day: "numeric" });
+    const mail = welcomeEmail({ firstName: member.primaryFirstName, familyName: member.familyName, orgName, memberNumber, validUntil });
     await sendMail({ to: user.email, ...mail, template: "welcome", relatedUserId: user.id, priority: 1 });
   }
   return true;
 }
-
-const YEAR_MS = 365 * 86_400_000;
 
 /**
  * Honor-system member: the buyer ticked "I'm already a member" during
@@ -186,6 +205,7 @@ export async function enrollMemberFromPaidRegistration(
   if (member.membershipStatus === "active" && member.membershipExpiresAt && member.membershipExpiresAt > new Date()) {
     // already an active member — just make sure the registration is linked
     await db.update(schema.registrations).set({ memberId: member.id }).where(eq(schema.registrations.id, reg.id));
+    await linkPaymentsToMember(reg.id, member.id);
     return;
   }
 
@@ -228,6 +248,8 @@ export async function enrollMemberFromPaidRegistration(
   }
 
   await db.update(schema.registrations).set({ memberId: member.id }).where(eq(schema.registrations.id, reg.id));
+  // The dues row was written at checkout as a guest — attribute it now.
+  await linkPaymentsToMember(reg.id, member.id);
 
   const orgName = await getConfig<string>("org_name");
   const validUntil = expires.toLocaleDateString("en-US", { timeZone: "America/New_York", year: "numeric", month: "long", day: "numeric" });

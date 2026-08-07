@@ -14,8 +14,7 @@ const schemaIn = z.object({
     .string()
     .trim()
     .max(40)
-    .default("")
-    .refine((v) => isPhone(v), "That phone number doesn't look right — please check it."),
+    .refine((v) => isPhone(v, true), "Please add a mobile number so we can get back to you."),
   topic: z.string().trim().max(60).default("general"),
   message: z.string().trim().min(5, "Please add a little more detail.").max(4000),
 });

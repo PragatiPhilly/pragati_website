@@ -353,6 +353,78 @@ export const donations = pgTable(
   ]
 );
 
+// ── payments (the money ledger) ─────────────────────────────────
+/**
+ * ONE ROW PER MOVEMENT OF MONEY. This is the single source of truth for
+ * "what did we collect", replacing the old arrangement where payment state was
+ * duplicated across registrations.status / donations.status /
+ * members.membership_status with three different vocabularies — and where
+ * membership dues paid by card were recorded nowhere at all.
+ *
+ * The owning tables keep their own status columns (they drive the ticketing and
+ * membership *lifecycles*), but every financial question — totals, what's
+ * outstanding, what was refunded — is answered from here.
+ *
+ * A single checkout can produce SEVERAL rows sharing a `groupId`: buying tickets
+ * with an added donation and membership dues writes three rows (registration /
+ * donation / membership), so each revenue stream sums cleanly on its own.
+ * `amountCents` is the org's revenue for that component; `feeCents` is the card
+ * surcharge collected on top and is deliberately NOT part of amountCents.
+ */
+export const payments = pgTable(
+  "payments",
+  {
+    id: id(),
+    kind: text("kind").notNull(), // registration | donation | membership
+    entityId: text("entity_id").notNull(), // registrations.id | donations.id | members.id
+    groupId: text("group_id"), // ties components of one checkout together
+    memberId: text("member_id"), // denormalised so member revenue is queryable
+    payerName: text("payer_name").notNull(),
+    payerEmail: text("payer_email").notNull(),
+    amountCents: integer("amount_cents").notNull(), // org revenue for this component
+    feeCents: integer("fee_cents").notNull().default(0), // card surcharge collected on top
+    method: text("method").notNull(), // square | zelle | offline | comped
+    status: text("status").notNull().default("pending"),
+    // pending | pending_verification | paid | cancelled | refunded
+    squareOrderId: text("square_order_id"),
+    squarePaymentId: text("square_payment_id"),
+    reference: text("reference"), // Zelle memo, cheque no., confirmation number
+    verifiedBy: text("verified_by").references(() => users.id), // admin who confirmed a manual payment
+    verifiedAt: timestamp("verified_at", { withTimezone: true }),
+    paidAt: timestamp("paid_at", { withTimezone: true }),
+    cancelledAt: timestamp("cancelled_at", { withTimezone: true }),
+    // app = written by a live payment flow · backfill = reconstructed by
+    // scripts/backfill-payments.ts (amount may be inferred, not observed)
+    source: text("source").notNull().default("app"),
+    note: text("note"),
+    createdAt: createdAt(),
+    updatedAt: updatedAt(),
+  },
+  (t) => [
+    index("payments_entity_idx").on(t.kind, t.entityId),
+    index("payments_status_idx").on(t.status),
+    index("payments_group_idx").on(t.groupId),
+    index("payments_member_idx").on(t.memberId),
+  ]
+);
+
+// ── data migrations (one-time backfills) ───────────────────────
+/**
+ * Bookkeeping for one-time data fixes that must run exactly once against a
+ * database — the data equivalent of the lazy schema "ensures". A job claims its
+ * row by inserting it; because `key` is the primary key, only one server
+ * instance can win that race, so concurrent cold starts can't double-run a
+ * backfill. Completed rows are never removed: their presence is what stops the
+ * job running again on the next deploy.
+ */
+export const dataMigrations = pgTable("data_migrations", {
+  key: text("key").primaryKey(),
+  status: text("status").notNull().default("running"), // running | done | failed
+  detail: text("detail"), // human-readable result, or the error if it failed
+  startedAt: timestamp("started_at", { withTimezone: true }).notNull().defaultNow(),
+  finishedAt: timestamp("finished_at", { withTimezone: true }),
+});
+
 // ── sponsors / team ────────────────────────────────────────────
 export const sponsors = pgTable("sponsors", {
   id: id(),

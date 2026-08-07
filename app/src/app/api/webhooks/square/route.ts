@@ -53,49 +53,103 @@ export async function POST(req: NextRequest) {
     // match by reference_id (simulator) or square order id (live)
     const refId = payment.reference_id;
     const orderId = payment.order_id;
+    // The members table predates the card-dues feature; ensure the columns exist
+    // BEFORE any branch queries them (the reference_id branch used to skip this
+    // and would 500 on an older database instead of falling through).
+    await ensureMembershipColumn();
 
-    let handled = false;
-    if (refId) {
-      const [reg] = await db.select().from(schema.registrations).where(eq(schema.registrations.id, refId));
-      if (reg) {
-        await markRegistrationPaid(reg.id, { method: "square", squarePaymentId: payment.id });
-        handled = true;
-      } else {
-        const [don] = await db.select().from(schema.donations).where(eq(schema.donations.id, refId));
-        if (don) {
-          await markDonationPaid(don.id, { method: "square", squarePaymentId: payment.id });
-          handled = true;
-        } else {
-          const [mem] = await db.select().from(schema.members).where(eq(schema.members.id, refId));
-          if (mem) {
-            await activateMembershipPaid(mem.id, { squarePaymentId: payment.id });
-            handled = true;
-          }
-        }
-      }
+    const settle = async (kind: "registration" | "donation" | "membership", id: string) => {
+      if (kind === "registration") await markRegistrationPaid(id, { method: "square", squarePaymentId: payment.id });
+      else if (kind === "donation") await markDonationPaid(id, { method: "square", squarePaymentId: payment.id });
+      else await activateMembershipPaid(id, { method: "square", squarePaymentId: payment.id });
+    };
+
+    /** Which table does this id belong to? Checked in a fixed order — ids are UUIDs, so collisions aren't a real risk. */
+    const locate = async (
+      value: string,
+      by: "id" | "orderId"
+    ): Promise<{ kind: "registration" | "donation" | "membership"; id: string } | null> => {
+      const [reg] = await db
+        .select()
+        .from(schema.registrations)
+        .where(by === "id" ? eq(schema.registrations.id, value) : eq(schema.registrations.squareOrderId, value));
+      if (reg) return { kind: "registration", id: reg.id };
+      const [don] = await db
+        .select()
+        .from(schema.donations)
+        .where(by === "id" ? eq(schema.donations.id, value) : eq(schema.donations.squareOrderId, value));
+      if (don) return { kind: "donation", id: don.id };
+      const [mem] = await db
+        .select()
+        .from(schema.members)
+        .where(by === "id" ? eq(schema.members.id, value) : eq(schema.members.squareOrderId, value));
+      if (mem) return { kind: "membership", id: mem.id };
+      return null;
+    };
+
+    const match = (refId ? await locate(refId, "id") : null) ?? (orderId ? await locate(orderId, "orderId") : null);
+    if (match) {
+      await settle(match.kind, match.id);
+      return NextResponse.json({ ok: true, handled: true, kind: match.kind });
     }
-    if (!handled && orderId) {
-      const [reg] = await db.select().from(schema.registrations).where(eq(schema.registrations.squareOrderId, orderId));
-      if (reg) {
-        await markRegistrationPaid(reg.id, { method: "square", squarePaymentId: payment.id });
-        handled = true;
-      } else {
-        const [don] = await db.select().from(schema.donations).where(eq(schema.donations.squareOrderId, orderId));
-        if (don) {
-          await markDonationPaid(don.id, { method: "square", squarePaymentId: payment.id });
-          handled = true;
-        } else {
-          await ensureMembershipColumn();
-          const [mem] = await db.select().from(schema.members).where(eq(schema.members.squareOrderId, orderId));
-          if (mem) {
-            await activateMembershipPaid(mem.id, { squarePaymentId: payment.id });
-            handled = true;
-          }
-        }
-      }
-    }
-    return NextResponse.json({ ok: true, handled });
+
+    // Money arrived that we can't attribute to anything. Previously this
+    // returned 200 with handled:false and vanished — Square marks the webhook
+    // delivered and nobody ever finds out. Record it and shout.
+    await recordOrphanPayment(payment);
+    return NextResponse.json({ ok: true, handled: false, orphan: true });
   }
 
   return NextResponse.json({ ok: true, ignored: payload.type });
+}
+
+/**
+ * A completed Square payment whose reference_id and order_id match no
+ * registration, donation or member. Lands in the Payments log as an unattributed
+ * entry so the treasurer can reconcile it by hand, and alerts the admins.
+ */
+async function recordOrphanPayment(payment: { id?: string; order_id?: string; reference_id?: string }) {
+  try {
+    const { openPayments } = await import("@/lib/ledger");
+    await openPayments([
+      {
+        kind: "donation", // unattributed money is booked as a gift until reconciled
+        entityId: payment.id ?? payment.order_id ?? "unknown",
+        payerName: "Unknown (unmatched Square payment)",
+        payerEmail: "",
+        amountCents: 0,
+        method: "square",
+        status: "pending_verification",
+        squarePaymentId: payment.id ?? null,
+        squareOrderId: payment.order_id ?? null,
+        reference: payment.reference_id ?? null,
+        source: "orphan",
+        keepZero: true, // amount is unknown until a human reconciles it
+        note: "Square reported a completed payment we could not match to a registration, donation or member. Reconcile manually.",
+      },
+    ]);
+  } catch {
+    /* never fail the webhook on bookkeeping */
+  }
+  try {
+    const { sendMail } = await import("@/lib/email");
+    const { getConfig } = await import("@/lib/system-config");
+    const to = await getConfig<string>("treasurer_notification_email");
+    if (!to) return;
+    const lines = [
+      `Payment id: ${payment.id ?? "—"}`,
+      `Order id: ${payment.order_id ?? "—"}`,
+      `Reference: ${payment.reference_id ?? "—"}`,
+    ];
+    await sendMail({
+      to,
+      subject: "⚠️ Unmatched Square payment needs reconciling",
+      text: `Square reported a COMPLETED payment we could not attribute to any registration, donation or member.\n\n${lines.join("\n")}\n\nIt is sitting in the Payments log as an unattributed entry: ${siteUrl("/admin/payments")}`,
+      html: `<p>Square reported a <strong>COMPLETED</strong> payment we could not attribute to any registration, donation or member.</p><p>${lines.join("<br>")}</p><p>It is sitting in the Payments log as an unattributed entry: <a href="${siteUrl("/admin/payments")}">open the Payments log</a>.</p>`,
+      template: "admin_alert",
+      priority: 1,
+    });
+  } catch {
+    /* alerting is best-effort */
+  }
 }

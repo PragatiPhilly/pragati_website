@@ -5,6 +5,7 @@ import { eq } from "drizzle-orm";
 import { getDb, schema } from "@/db/client";
 import { getSession } from "@/lib/auth/session";
 import { hashPassword, verifyPassword } from "@/lib/auth/password";
+import { isPhone } from "@/lib/validation";
 
 async function requireMember() {
   const s = await getSession();
@@ -47,12 +48,14 @@ export async function removeFamilyMemberAction(id: string) {
 
 export async function updateProfileAction(_p: FormState, formData: FormData): Promise<FormState> {
   const s = await requireMember();
+  const phone = String(formData.get("phone") ?? "").trim();
+  if (!isPhone(phone, true)) return { error: "Please add a mobile number — it's required for your profile." };
   const db = getDb();
   await db
     .update(schema.members)
     .set({
       familyName: String(formData.get("familyName") ?? "").trim() || undefined,
-      phone: String(formData.get("phone") ?? "").trim() || null,
+      phone,
       addressLine1: String(formData.get("addressLine1") ?? "").trim() || null,
       city: String(formData.get("city") ?? "").trim() || null,
       state: String(formData.get("state") ?? "").trim() || null,

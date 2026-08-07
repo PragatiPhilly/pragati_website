@@ -3,6 +3,7 @@ import { getDb, schema } from "@/db/client";
 import { formatCents } from "@/lib/pricing";
 import ZelleQueueRow from "./ZelleQueueRow";
 import { requireSectionAccess } from "@/lib/auth/access";
+import { listPayments } from "@/lib/ledger";
 
 export const dynamic = "force-dynamic";
 
@@ -28,6 +29,11 @@ export default async function PendingZellePage() {
     .from(schema.donations)
     .where(eq(schema.donations.status, "pending_zelle_verification"))
     .orderBy(asc(schema.donations.createdAt));
+  // Membership dues sent by Zelle used to never reach this queue at all — the
+  // member sat at pending_payment until someone happened to spot the bank feed.
+  const duesRows = (await listPayments({ kind: "membership", status: "pending_verification" })).sort(
+    (a, b) => a.createdAt.getTime() - b.createdAt.getTime()
+  );
 
   return (
     <div>
@@ -73,7 +79,7 @@ export default async function PendingZellePage() {
       </div>
 
       <h2 className="font-bold mb-3">Donations ({dons.length})</h2>
-      <div className="festive-card overflow-hidden">
+      <div className="festive-card overflow-hidden mb-10">
         {dons.length === 0 ? (
           <p className="px-5 py-8 text-center text-sm" style={{ color: "var(--ink-soft)" }}>
             No pending donations.
@@ -91,6 +97,35 @@ export default async function PendingZellePage() {
                   amount={formatCents(d.amountCents)}
                   sentClicked="—"
                   created={ago(d.createdAt)}
+                />
+              ))}
+            </tbody>
+          </table>
+        )}
+      </div>
+
+      <h2 className="font-bold mb-3">Membership dues ({duesRows.length})</h2>
+      <p className="text-xs mb-3" style={{ color: "var(--ink-soft)" }}>
+        Marking these paid activates the membership and sends the welcome email.
+      </p>
+      <div className="festive-card overflow-hidden">
+        {duesRows.length === 0 ? (
+          <p className="px-5 py-8 text-center text-sm" style={{ color: "var(--ink-soft)" }}>
+            No dues awaiting verification.
+          </p>
+        ) : (
+          <table className="w-full text-sm">
+            <tbody>
+              {duesRows.map((p) => (
+                <ZelleQueueRow
+                  key={p.id}
+                  kind="membership"
+                  id={p.entityId}
+                  conf={p.reference ?? "MEM"}
+                  who={`${p.payerName} · ${p.payerEmail}`}
+                  amount={formatCents(p.amountCents)}
+                  sentClicked="—"
+                  created={ago(p.createdAt)}
                 />
               ))}
             </tbody>

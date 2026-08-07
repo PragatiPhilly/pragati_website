@@ -57,7 +57,9 @@ export async function submitRegistration(input: SubmitRegistrationInput): Promis
   try {
     if (!input.buyerName.trim()) return { ok: false, error: "Please tell us your name." };
     if (!isEmail(input.buyerEmail)) return { ok: false, error: "We need a valid email (name@example.com) for your tickets." };
-    if (input.buyerPhone && !isPhone(input.buyerPhone)) return { ok: false, error: "That phone number doesn't look right — please check it." };
+    // Phone is mandatory: the desk needs a way to reach a buyer on event day.
+    if (!isPhone(input.buyerPhone, true))
+      return { ok: false, error: "Please add a mobile number — we may need to reach you about your tickets." };
     if (input.attendees.length === 0) return { ok: false, error: "Add at least one person." };
     for (const a of input.attendees) {
       if (a.days.length === 0) return { ok: false, error: `Pick at least one day for ${a.firstName}.` };

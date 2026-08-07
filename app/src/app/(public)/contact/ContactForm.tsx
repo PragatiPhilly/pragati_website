@@ -70,8 +70,8 @@ export default function ContactForm() {
       </div>
       <div className="grid sm:grid-cols-2 gap-4">
         <label className="grid gap-1.5">
-          <span className="text-sm font-semibold">Phone <span className="font-normal" style={{ color: "var(--ink-soft)" }}>(optional)</span></span>
-          <PhoneInput name="phone" className="input" />
+          <span className="text-sm font-semibold">Phone *</span>
+          <PhoneInput name="phone" className="input" required />
         </label>
         <label className="grid gap-1.5">
           <span className="text-sm font-semibold">What is this about?</span>

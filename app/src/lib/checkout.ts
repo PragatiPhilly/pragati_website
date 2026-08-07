@@ -13,6 +13,7 @@ import { siteUrl } from "@/lib/site-url";
 import { getConfig } from "@/lib/system-config";
 import { createSquarePaymentLink } from "@/lib/payments/square";
 import { getZelleInstructions, type ZelleInstructions } from "@/lib/payments/zelle";
+import { openPayments, settlePayments, voidPayments, attachSquareOrder, toLedgerMethod } from "@/lib/ledger";
 import { sendMail } from "@/lib/email";
 import * as T from "@/lib/email/templates";
 
@@ -334,6 +335,49 @@ export async function createCheckout(input: CheckoutInput): Promise<CheckoutResu
       .where(eq(schema.promoCodes.id, promo.id));
   }
 
+  // Money ledger — split the one checkout total into its revenue streams so
+  // tickets, an added donation, and membership dues each sum on their own
+  // instead of disappearing into registrations.total_cents.
+  const ledgerMethod = toLedgerMethod(input.paymentMethod);
+  await openPayments([
+    {
+      kind: "registration",
+      entityId: reg.id,
+      groupId: reg.id,
+      memberId: input.memberId ?? null,
+      payerName: input.buyerName,
+      payerEmail: input.buyerEmail,
+      amountCents: quote.totalCents,
+      feeCents: processingFeeCents, // surcharge sits on the ticket row, counted once
+      method: ledgerMethod,
+      reference: conf,
+    },
+    {
+      kind: "donation",
+      entityId: reg.id,
+      groupId: reg.id,
+      memberId: input.memberId ?? null,
+      payerName: input.buyerName,
+      payerEmail: input.buyerEmail,
+      amountCents: donationCents,
+      method: ledgerMethod,
+      reference: conf,
+      note: "Added during ticket checkout",
+    },
+    {
+      kind: "membership",
+      entityId: reg.id,
+      groupId: reg.id,
+      memberId: input.memberId ?? null,
+      payerName: input.buyerName,
+      payerEmail: input.buyerEmail,
+      amountCents: membershipDuesCents,
+      method: ledgerMethod,
+      reference: conf,
+      note: "Annual dues bought during ticket checkout",
+    },
+  ]);
+
   if (input.paymentMethod === "square") {
     const link = await createSquarePaymentLink({
       referenceId: reg.id,
@@ -345,6 +389,7 @@ export async function createCheckout(input: CheckoutInput): Promise<CheckoutResu
       .update(schema.registrations)
       .set({ squareOrderId: link.squareOrderId })
       .where(eq(schema.registrations.id, reg.id));
+    await attachSquareOrder("registration", reg.id, link.squareOrderId);
     return { kind: "square_redirect", confirmationNumber: conf, url: link.url, totalCents: grandTotalCents };
   }
 
@@ -424,6 +469,14 @@ export async function markRegistrationPaid(
       updatedAt: new Date(),
     })
     .where(eq(schema.registrations.id, registrationId));
+
+  // Settle every ledger row for this checkout (tickets + any added donation +
+  // any membership dues) in one go — they share this registration's entity id.
+  await settlePayments("registration", registrationId, {
+    method: toLedgerMethod(via.method),
+    squarePaymentId: via.squarePaymentId ?? null,
+    verifiedBy: via.adminUserId ?? null,
+  });
 
   await sendTicketsEmail(registrationId);
 
@@ -529,6 +582,7 @@ export async function cancelRegistration(registrationId: string, reason: "cancel
     .update(schema.registrations)
     .set({ status: reason, cancelledAt: new Date(), updatedAt: new Date() })
     .where(eq(schema.registrations.id, registrationId));
+  await voidPayments(registrationId, reason === "cancelled_no_payment" ? "Reservation expired without payment" : "Cancelled");
   const tix = await db.select().from(schema.tickets).where(eq(schema.tickets.registrationId, registrationId));
   for (const t of tix) {
     await db

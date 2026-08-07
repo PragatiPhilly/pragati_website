@@ -20,7 +20,7 @@ export default function ProfileForms({
         <h2 className="font-[family-name:var(--font-display)] text-lg font-bold">Contact details</h2>
         <p className="text-sm -mt-2" style={{ color: "var(--ink-soft)" }}>Signed in as {email}</p>
         <input name="familyName" defaultValue={member.familyName} placeholder="Family name" className="input" />
-        <PhoneInput name="phone" defaultValue={member.phone} />
+        <PhoneInput name="phone" defaultValue={member.phone} required />
         <input name="addressLine1" defaultValue={member.addressLine1} placeholder="Address" className="input" />
         <div className="grid grid-cols-3 gap-3">
           <input name="city" defaultValue={member.city} placeholder="City" className="input" />

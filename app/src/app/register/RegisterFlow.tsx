@@ -979,7 +979,7 @@ export default function RegisterFlow({
                   value={buyerEmail}
                   onChange={(e) => setBuyerEmail(e.target.value)}
                 />
-                <PhoneInput className={`input ${dayOfMode ? "text-lg !py-4" : "!py-3.5"}`} onChange={setBuyerPhone} />
+                <PhoneInput className={`input ${dayOfMode ? "text-lg !py-4" : "!py-3.5"}`} required onChange={setBuyerPhone} />
               </div>
 
               {hasStudent && !isMemberPurchase && !dayOfMode && (

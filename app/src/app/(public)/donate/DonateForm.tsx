@@ -115,7 +115,7 @@ export default function DonateForm({
           <input name="donorName" required placeholder="Your name" className="input" />
           <input name="donorEmail" required type="email" placeholder="Your email" className="input" />
           <div className="sm:col-span-2">
-            <PhoneInput name="donorPhone" />
+            <PhoneInput name="donorPhone" required />
           </div>
           <textarea name="message" placeholder="A message to Pragati (optional)" className="input sm:col-span-2 min-h-24" />
         </div>

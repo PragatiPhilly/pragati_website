@@ -14,6 +14,8 @@ import { asc } from "drizzle-orm";
 import { getDb, schema } from "@/db/client";
 import { sendMail } from "@/lib/email";
 import { getConfig } from "@/lib/system-config";
+import { formatCents } from "@/lib/pricing";
+import { listPayments } from "@/lib/ledger";
 
 // ── CSV building ────────────────────────────────────────────────
 
@@ -144,6 +146,32 @@ export async function buildDonationsCsv(): Promise<{ csv: string; count: number 
   return { csv: lines.join("\r\n"), count: donations.length };
 }
 
+/**
+ * The money ledger. Since payments is now the source of truth for what was
+ * collected, a backup without it would lose the financial record on a restore.
+ */
+export async function buildPaymentsCsv(): Promise<{ csv: string; count: number; collectedCents: number }> {
+  const rows = await listPayments();
+  const header = [
+    "payment_id", "kind", "entity_id", "group_id", "member_id", "payer_name", "payer_email",
+    "amount_cents", "fee_cents", "method", "status", "square_order_id", "square_payment_id",
+    "reference", "verified_by", "paid_at", "cancelled_at", "source", "note", "created_at",
+  ].join(",");
+  const lines = [header];
+  for (const p of rows) {
+    lines.push(
+      [
+        p.id, p.kind, p.entityId, p.groupId, p.memberId, p.payerName, p.payerEmail,
+        p.amountCents, p.feeCents, p.method, p.status, p.squareOrderId, p.squarePaymentId,
+        p.reference, p.verifiedBy, p.paidAt?.toISOString() ?? "", p.cancelledAt?.toISOString() ?? "",
+        p.source, p.note, p.createdAt.toISOString(),
+      ].map(esc).join(",")
+    );
+  }
+  const collectedCents = rows.filter((p) => p.status === "paid").reduce((s, p) => s + p.amountCents, 0);
+  return { csv: lines.join("\r\n"), count: rows.length, collectedCents };
+}
+
 export async function buildSettingsCsv(): Promise<{ csv: string; count: number }> {
   const db = getDb();
   const rows = await db.select().from(schema.systemConfig);
@@ -165,10 +193,11 @@ export async function sendBackupEmail(trigger: "cron" | "manual"): Promise<{
   donationCount: number;
 }> {
   const to = await getConfig<string>("backup_email");
-  const [{ csv, regCount, ticketCount }, membersCsv, donationsCsv, settingsCsv] = await Promise.all([
+  const [{ csv, regCount, ticketCount }, membersCsv, donationsCsv, paymentsCsv, settingsCsv] = await Promise.all([
     buildBackupCsv(),
     buildMembersCsv(),
     buildDonationsCsv(),
+    buildPaymentsCsv(),
     buildSettingsCsv(),
   ]);
   const date = new Date().toLocaleDateString("en-US", {
@@ -203,6 +232,10 @@ export async function sendBackupEmail(trigger: "cron" | "manual"): Promise<{
         note: "Families, contact info, membership status (no passwords — members reset by email after a rebuild).",
       },
       { name: `pragati-donations-backup-${stamp}.csv`, note: "Full donation history for the treasurer's records." },
+      {
+        name: `pragati-payments-backup-${stamp}.csv`,
+        note: `The money ledger — every ticket, donation and membership payment, settled or outstanding. ${formatCents(paymentsCsv.collectedCents)} collected to date.`,
+      },
       { name: `pragati-settings-backup-${stamp}.csv`, note: "Admin → Settings values, to re-enter after a rebuild." },
     ],
   });
@@ -215,6 +248,7 @@ export async function sendBackupEmail(trigger: "cron" | "manual"): Promise<{
       { filename: `pragati-registrations-backup-${stamp}.csv`, content: b64(csv) },
       { filename: `pragati-members-backup-${stamp}.csv`, content: b64(membersCsv.csv) },
       { filename: `pragati-donations-backup-${stamp}.csv`, content: b64(donationsCsv.csv) },
+      { filename: `pragati-payments-backup-${stamp}.csv`, content: b64(paymentsCsv.csv) },
       { filename: `pragati-settings-backup-${stamp}.csv`, content: b64(settingsCsv.csv) },
     ],
   });
@@ -264,6 +298,8 @@ export type RestoreResult = {
   ticketsSkipped: number;
   eventsCreated: string[];
   errors: string[];
+  /** What rebuilding the money ledger for the restored registrations did. */
+  ledgerRebuild?: string;
 };
 
 export async function restoreFromCsv(text: string, restoredBy: string): Promise<RestoreResult> {
@@ -420,6 +456,18 @@ export async function restoreFromCsv(text: string, restoredBy: string): Promise<
     }
   }
 
+  // Restored registrations carry money that the ledger knows nothing about (the
+  // one-time backfill has long since been marked done, so it won't re-run on its
+  // own). Rebuilding here is safe: it only inserts entries that are missing.
+  if (result.regsInserted > 0) {
+    try {
+      const { backfillPaymentsLedger } = await import("@/lib/data-migrations");
+      result.ledgerRebuild = await backfillPaymentsLedger();
+    } catch (e) {
+      result.errors.push(`ledger rebuild: ${e instanceof Error ? e.message : String(e)}`);
+    }
+  }
+
   await db.insert(schema.auditLog).values({
     userId: restoredBy,
     action: "restore_from_backup",
@@ -430,6 +478,7 @@ export async function restoreFromCsv(text: string, restoredBy: string): Promise<
       ticketsInserted: result.ticketsInserted,
       ticketsSkipped: result.ticketsSkipped,
       eventsCreated: result.eventsCreated,
+      ledgerRebuild: result.ledgerRebuild,
       errors: result.errors.length,
     },
   });

@@ -19,8 +19,10 @@ export async function donateAction(_prev: DonateState, formData: FormData): Prom
   if (!donorName) return { error: "Please add your name." };
   if (!isEmail(donorEmail)) return { error: "Please enter a valid email (name@example.com)." };
 
+  // Phone is mandatory — we need a way to reach a donor about their receipt.
   const donorPhone = String(formData.get("donorPhone") ?? "").trim();
-  if (!isPhone(donorPhone)) return { error: "That phone number doesn't look right — please check it." };
+  if (!isPhone(donorPhone, true))
+    return { error: "Please add a mobile number so we can reach you about this gift." };
 
   const honoreeNotifyEmail = String(formData.get("honoreeNotifyEmail") ?? "").trim();
   if (honoreeNotifyEmail && !isEmail(honoreeNotifyEmail)) return { error: "The honoree notification email isn't valid." };

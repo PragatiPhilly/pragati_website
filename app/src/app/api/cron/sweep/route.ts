@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { sweepExpiredReservations } from "@/lib/sweeper";
+import { sweepExpiredReservations, sweepExpiredDonations, sweepExpiredMemberships } from "@/lib/sweeper";
 
 export const dynamic = "force-dynamic";
 
@@ -13,7 +13,14 @@ export async function GET(req: Request) {
   if (secret && req.headers.get("authorization") !== `Bearer ${secret}`) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
+  // Safety net for the one-time backfills: if the deploy's cold start was cut
+  // short before they finished, this picks them up. A no-op once they're done.
+  const { runPendingDataMigrations } = await import("@/lib/data-migrations");
+  const migrations = await runPendingDataMigrations();
+
   const released = await sweepExpiredReservations();
+  const donationsReleased = await sweepExpiredDonations();
+  const membershipsLapsed = await sweepExpiredMemberships();
   // drain the email outbox: send queued/deferred mail, combine alert digests
   const { drainOutbox } = await import("@/lib/email");
   const outbox = await drainOutbox();
@@ -23,5 +30,5 @@ export async function GET(req: Request) {
     const { pruneOldLogs } = await import("@/lib/log-retention");
     pruned = await pruneOldLogs();
   }
-  return NextResponse.json({ ok: true, released, outbox, pruned });
+  return NextResponse.json({ ok: true, migrations, released, donationsReleased, membershipsLapsed, outbox, pruned });
 }

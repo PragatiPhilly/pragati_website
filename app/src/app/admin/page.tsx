@@ -15,25 +15,40 @@ export default async function AdminDashboard() {
   await sweepExpiredReservations(); // opportunistic cleanup of expired holds
   const active = await getActiveEvent();
 
-  const [members] = await db
-    .select({ n: sql<number>`count(*)` })
+  // Money comes from the ledger, so the three streams are separable and the
+  // cards reconcile with the Payments log. (registrations.total_cents can't do
+  // this — it silently bundles in-checkout donations and membership dues.)
+  const { moneyTotals } = await import("@/lib/ledger");
+  const money = await moneyTotals();
+
+  // Roster counts. All three statuses are reported so the numbers always add up
+  // to the Members page row count — previously `inactive` members were invisible.
+  const memberRows = await db
+    .select({ status: schema.members.membershipStatus, n: sql<number>`count(*)` })
     .from(schema.members)
-    .where(eq(schema.members.membershipStatus, "active"));
-  const [pendingMembers] = await db
-    .select({ n: sql<number>`count(*)` })
-    .from(schema.members)
-    .where(eq(schema.members.membershipStatus, "pending_payment"));
+    .groupBy(schema.members.membershipStatus);
+  const memberCount = (s: string) => Number(memberRows.find((r) => r.status === s)?.n ?? 0);
+  const activeMembers = memberCount("active");
+  const awaitingMembers = memberCount("pending_payment");
+  const inactiveMembers = memberCount("inactive");
+
   const [paidRegs] = await db
-    .select({ n: sql<number>`count(*)`, revenue: sql<number>`coalesce(sum(total_cents),0)` })
+    .select({ n: sql<number>`count(*)` })
     .from(schema.registrations)
     .where(eq(schema.registrations.status, "paid"));
   const [pendingZelle] = await db
     .select({ n: sql<number>`count(*)`, amount: sql<number>`coalesce(sum(total_cents),0)` })
     .from(schema.registrations)
     .where(eq(schema.registrations.status, "pending_zelle_verification"));
-  const [tickets] = await db.select({ n: sql<number>`count(*)` }).from(schema.tickets);
+  // Only tickets on registrations that were actually paid — cancelled holds keep
+  // their ticket rows, which used to inflate this number on every sweep.
+  const [tickets] = await db
+    .select({ n: sql<number>`count(*)` })
+    .from(schema.tickets)
+    .innerJoin(schema.registrations, eq(schema.tickets.registrationId, schema.registrations.id))
+    .where(eq(schema.registrations.status, "paid"));
   const [donations] = await db
-    .select({ n: sql<number>`count(*)`, amount: sql<number>`coalesce(sum(amount_cents),0)` })
+    .select({ n: sql<number>`count(*)` })
     .from(schema.donations)
     .where(eq(schema.donations.status, "paid"));
 
@@ -74,6 +89,11 @@ export default async function AdminDashboard() {
     .where(eq(schema.emailOutbox.status, "failed"));
   const { sentToday } = await import("@/lib/email");
   const emailsUsed = await sentToday();
+  // One-time backfills apply themselves on deploy; surface any that didn't take
+  // so a silent failure can't go unnoticed for weeks.
+  const { dataMigrationStatus } = await import("@/lib/data-migrations");
+  const migrations = await dataMigrationStatus();
+  const failedMigrations = migrations.filter((m) => m.status === "failed");
   const healthWarnings = [
     paused && "⏸ Registration is PAUSED (re-enable in Settings)",
     squareOff && "💳 Card payments disabled (Settings)",
@@ -85,6 +105,7 @@ export default async function AdminDashboard() {
     Number(failedMail?.n ?? 0) > 0 && `✉ ${failedMail.n} failed email send(s) — being retried automatically; see Email log`,
     Number(queuedMail?.n ?? 0) > 5 && `📬 ${queuedMail.n} emails queued (digests/deferred) — sending via the 15-min drain`,
     Number(deadMail?.n ?? 0) > 0 && `📪 ${deadMail.n} email(s) gave up after 10 retries — investigate Email log`,
+    ...failedMigrations.map((m) => `🧱 One-time data fix "${m.key}" failed — retrying automatically; detail: ${m.detail ?? "none"}`),
   ].filter(Boolean) as string[];
 
   const stat = (label: string, value: string, sub?: string, href?: string, alert?: boolean) => {
@@ -132,12 +153,53 @@ export default async function AdminDashboard() {
         )}
       </div>
 
+      {/* ── total collected: the one number that answers "how are we doing" ── */}
+      <Link href="/admin/payments" className="block mb-4 hover:-translate-y-0.5 transition-transform">
+        <div className="festive-card p-5" style={{ borderColor: "var(--leaf-deep)" }}>
+          <div className="flex flex-wrap items-end justify-between gap-4">
+            <div>
+              <p className="text-xs uppercase tracking-wider mb-1" style={{ color: "var(--ink-soft)" }}>Total collected</p>
+              <p className="font-[family-name:var(--font-display)] text-4xl font-black">{formatCents(money.totalCollected)}</p>
+              <p className="text-xs mt-1" style={{ color: "var(--ink-soft)" }}>
+                across tickets, donations and membership dues · see the Payments log →
+              </p>
+            </div>
+            <div className="flex flex-wrap gap-6">
+              {[
+                ["Tickets", money.registration.collected],
+                ["Donations", money.donation.collected],
+                ["Memberships", money.membership.collected],
+              ].map(([label, amount]) => (
+                <div key={String(label)}>
+                  <p className="text-xs uppercase tracking-wider" style={{ color: "var(--ink-soft)" }}>{label}</p>
+                  <p className="font-[family-name:var(--font-display)] text-xl font-black">{formatCents(Number(amount))}</p>
+                </div>
+              ))}
+              <div>
+                <p className="text-xs uppercase tracking-wider" style={{ color: "var(--ink-soft)" }}>Outstanding</p>
+                <p
+                  className="font-[family-name:var(--font-display)] text-xl font-black"
+                  style={money.totalOutstanding > 0 ? { color: "var(--terracotta-deep)" } : undefined}
+                >
+                  {formatCents(money.totalOutstanding)}
+                </p>
+              </div>
+            </div>
+          </div>
+        </div>
+      </Link>
+
       <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-4">
         {stat("Pending Zelle", String(pendingZelle.n), `${formatCents(Number(pendingZelle.amount))} awaiting verification`, "/admin/payments/pending-zelle", Number(pendingZelle.n) > 0)}
-        {stat("Paid registrations", String(paidRegs.n), `${formatCents(Number(paidRegs.revenue))} collected`, "/admin/registrations")}
-        {stat("Tickets issued", String(tickets.n), undefined, "/admin/registrations")}
-        {stat("Active members", String(members.n), `${pendingMembers.n} pending dues`, "/admin/members")}
-        {stat("Donations", String(donations.n), `${formatCents(Number(donations.amount))} received`, "/admin/donations")}
+        {stat("Paid registrations", String(paidRegs.n), `${formatCents(money.registration.collected)} in ticket sales`, "/admin/registrations")}
+        {stat("Tickets issued", String(tickets.n), "on paid registrations", "/admin/registrations")}
+        {stat(
+          "Active members",
+          String(activeMembers),
+          `${formatCents(money.membership.collected)} dues collected · ${awaitingMembers} awaiting${inactiveMembers > 0 ? ` · ${inactiveMembers} inactive` : ""}`,
+          "/admin/members"
+        )}
+        {stat("Donations", String(donations.n), `${formatCents(money.donation.collected)} received`, "/admin/donations")}
         {stat("Check-in", "Open", "scan & verify at the door", "/admin/checkin")}
         {stat("Day-of kiosk", "Launch", "walk-in registration station for the venue", "/register?mode=dayof")}
       </div>

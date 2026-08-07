@@ -75,7 +75,8 @@ export async function signupAction(_prev: AuthState, formData: FormData): Promis
   if (!isEmail(email)) return { error: "Please enter a valid email (name@example.com)." };
   if (password.length < 8) return { error: "Password needs at least 8 characters." };
   if (!firstName || !lastName) return { error: "Please tell us your first and last name." };
-  if (!isPhone(phone)) return { error: "That phone number doesn't look right — please check it." };
+  // Mandatory: a member record without a contact number isn't much use.
+  if (!isPhone(phone, true)) return { error: "Please add a mobile number — it's required for membership." };
 
   const db = getDb();
   const existing = await db.select().from(schema.users).where(eq(schema.users.email, email));

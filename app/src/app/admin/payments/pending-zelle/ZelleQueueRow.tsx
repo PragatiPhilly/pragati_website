@@ -1,10 +1,10 @@
 "use client";
 
 import { useState, useTransition } from "react";
-import { markZellePaidAction, cancelZelleAction } from "./actions";
+import { markZellePaidAction, cancelZelleAction, type ZelleKind } from "./actions";
 
 export default function ZelleQueueRow(props: {
-  kind: "registration" | "donation";
+  kind: ZelleKind;
   id: string;
   conf: string;
   who: string;

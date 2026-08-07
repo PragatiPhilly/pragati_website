@@ -19,7 +19,7 @@ import { getSession, type SessionUser } from "@/lib/auth/session";
 import { getConfig } from "@/lib/system-config";
 
 export type SectionKey =
-  | "dashboard" | "zelle" | "registrations" | "donations" | "members" | "events"
+  | "dashboard" | "payments" | "zelle" | "registrations" | "donations" | "members" | "events"
   | "checkin" | "scans" | "kitchen" | "media" | "magazines" | "messages" | "emails"
   | "email_preview" | "roles" | "audit" | "settings";
 
@@ -28,6 +28,7 @@ export type Section = { key: SectionKey; label: string; href: string; icon: stri
 /** Every admin section, in nav order. */
 export const SECTIONS: Section[] = [
   { key: "dashboard", label: "Dashboard", href: "/admin", icon: "◫" },
+  { key: "payments", label: "Payments", href: "/admin/payments", icon: "💰" },
   { key: "zelle", label: "Zelle queue", href: "/admin/payments/pending-zelle", icon: "⏳" },
   { key: "registrations", label: "Registrations", href: "/admin/registrations", icon: "🎟" },
   { key: "donations", label: "Donations", href: "/admin/donations", icon: "🎁" },

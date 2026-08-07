@@ -6,6 +6,7 @@ import { getConfig } from "@/lib/system-config";
 import { createSquarePaymentLink } from "@/lib/payments/square";
 import { cardProcessingFeeCents } from "@/lib/pricing";
 import { getZelleInstructions, type ZelleInstructions } from "@/lib/payments/zelle";
+import { openPayments, settlePayments, attachSquareOrder, toLedgerMethod } from "@/lib/ledger";
 import { sendMail } from "@/lib/email";
 import * as T from "@/lib/email/templates";
 
@@ -48,8 +49,28 @@ export async function createDonation(input: DonationInput): Promise<DonationResu
       isAnonymous: input.isAnonymous,
       paymentMethod: input.paymentMethod,
       status: input.paymentMethod === "zelle" ? "pending_zelle_verification" : "pending_payment",
+      // Card donations hold for the same window as ticket reservations so the
+      // sweeper can retire abandoned ones instead of leaving them "pending" forever.
+      reservationExpiresAt:
+        input.paymentMethod === "square"
+          ? new Date(Date.now() + Number(await getConfig<number>("square_reservation_minutes")) * 60_000)
+          : undefined,
     })
     .returning();
+
+  await openPayments([
+    {
+      kind: "donation",
+      entityId: don.id,
+      memberId: input.memberId ?? null,
+      payerName: input.donorName,
+      payerEmail: input.donorEmail,
+      amountCents: input.amountCents,
+      feeCents: input.paymentMethod === "square" ? cardProcessingFeeCents(input.amountCents) : 0,
+      method: toLedgerMethod(input.paymentMethod),
+      reference: conf,
+    },
+  ]);
 
   if (input.paymentMethod === "square") {
     const { getDonationMode } = await import("@/lib/donation-mode");
@@ -61,6 +82,7 @@ export async function createDonation(input: DonationInput): Promise<DonationResu
       description: `${label} — ${conf}`,
     });
     await db.update(schema.donations).set({ squareOrderId: link.squareOrderId }).where(eq(schema.donations.id, don.id));
+    await attachSquareOrder("donation", don.id, link.squareOrderId);
     return { kind: "square_redirect", confirmationNumber: conf, url: link.url };
   }
   const zelle = await getZelleInstructions(conf, input.amountCents);
@@ -82,6 +104,12 @@ export async function markDonationPaid(donationId: string, via: { method: "squar
       updatedAt: new Date(),
     })
     .where(eq(schema.donations.id, donationId));
+
+  await settlePayments("donation", donationId, {
+    method: toLedgerMethod(via.method),
+    squarePaymentId: via.squarePaymentId ?? null,
+    verifiedBy: via.adminUserId ?? null,
+  });
 
   const [orgName, orgAddress] = await Promise.all([getConfig<string>("org_name"), getConfig<string>("org_address")]);
   const { getDonationMode, DONATION_COPY, pujoDesignationLabel } = await import("@/lib/donation-mode");
