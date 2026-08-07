@@ -37,12 +37,14 @@ export default function PhoneInput({
   defaultValue = "",
   required = false,
   className = "input",
+  placeholder = "Phone number",
   onChange,
 }: {
   name?: string;
   defaultValue?: string;
   required?: boolean;
   className?: string;
+  placeholder?: string;
   onChange?: (value: string) => void;
 }) {
   const initial = parse(defaultValue);
@@ -74,7 +76,7 @@ export default function PhoneInput({
         inputMode="tel"
         required={required}
         className={`${className} flex-1 min-w-0`}
-        placeholder="Phone number"
+        placeholder={placeholder}
         value={num}
         onChange={(e) => set(code, e.target.value.replace(/\D/g, "").slice(0, 15))}
       />

@@ -16,7 +16,7 @@ import { useRouter } from "next/navigation";
 import { submitRegistration, validatePromoAction } from "./actions";
 import { formatCents, cardProcessingFeeCents } from "@/lib/pricing";
 import { sameDaySet } from "@/lib/event-days";
-import { isEmail } from "@/lib/validation";
+import { isEmail, buyerStepError } from "@/lib/validation";
 import JourneyScene from "@/components/register/JourneyScene";
 import PhoneInput from "@/components/site/PhoneInput";
 
@@ -979,7 +979,13 @@ export default function RegisterFlow({
                   value={buyerEmail}
                   onChange={(e) => setBuyerEmail(e.target.value)}
                 />
-                <PhoneInput className={`input ${dayOfMode ? "text-lg !py-4" : "!py-3.5"}`} required onChange={setBuyerPhone} />
+                <PhoneInput
+                  className={`input ${dayOfMode ? "text-lg !py-4" : "!py-3.5"}`}
+                  required
+                  placeholder="Mobile number (required)"
+                  defaultValue={buyerPhone}
+                  onChange={setBuyerPhone}
+                />
               </div>
 
               {hasStudent && !isMemberPurchase && !dayOfMode && (
@@ -1030,12 +1036,18 @@ export default function RegisterFlow({
               <NextBtn
                 big={dayOfMode}
                 onClick={() => {
-                  if (!buyerName.trim()) return setError("Please enter your name to continue.");
-                  if (selfIsStudent) {
-                    if (!isEmail(selfStudent.eduEmail)) return setError("Please enter your school (.edu) email — it's required for the student rate.");
-                  } else if (!isEmail(buyerEmail)) {
-                    return setError("Please enter a valid email so we can send your tickets.");
-                  }
+                  // Every rule for this step lives in buyerStepError (and is
+                  // unit-tested) — this flow advances with a button, not a form
+                  // submit, so no native validation runs and this is the only
+                  // client-side guard there is.
+                  const problem = buyerStepError({
+                    buyerName,
+                    buyerEmail,
+                    buyerPhone,
+                    selfIsStudent,
+                    studentEduEmail: selfStudent.eduEmail,
+                  });
+                  if (problem) return setError(problem);
                   // Student with no separate contact email → tickets go to the .edu address.
                   if (selfIsStudent && !isEmail(buyerEmail)) setBuyerEmail(selfStudent.eduEmail);
                   setError("");

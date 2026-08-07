@@ -34,6 +34,36 @@ export function digitsOnly(value: string, max = 4): string {
   return value.replace(/\D/g, "").slice(0, max);
 }
 
+/**
+ * Gate for the "who are the tickets for" step of the registration flow.
+ *
+ * This lives here, apart from the component, because that flow advances with a
+ * plain button rather than submitting a <form>. Nothing native validates it —
+ * the step is the ONLY client-side guard, and when phone was missing from this
+ * list a buyer could skip it entirely and only be stopped by the server at the
+ * very last step. Returns an error message, or null when the step may proceed.
+ */
+export function buyerStepError(input: {
+  buyerName: string;
+  buyerEmail: string;
+  buyerPhone: string;
+  selfIsStudent: boolean;
+  studentEduEmail: string;
+}): string | null {
+  if (!input.buyerName.trim()) return "Please enter your name to continue.";
+  if (input.selfIsStudent) {
+    if (!isEmail(input.studentEduEmail)) {
+      return "Please enter your school (.edu) email — it's required for the student rate.";
+    }
+  } else if (!isEmail(input.buyerEmail)) {
+    return "Please enter a valid email so we can send your tickets.";
+  }
+  if (!isPhone(input.buyerPhone, true)) {
+    return "Please add a mobile number — we may need to reach you about your tickets.";
+  }
+  return null;
+}
+
 /** Keep only digits + a single decimal point (for money amounts). */
 export function amountOnly(value: string): string {
   const cleaned = value.replace(/[^0-9.]/g, "");
