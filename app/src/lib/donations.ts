@@ -31,6 +31,8 @@ export type DonationResult =
 
 export async function createDonation(input: DonationInput): Promise<DonationResult> {
   const db = getDb();
+  const { ensurePaymentIntegritySchema } = await import("@/lib/payments/ensure");
+  await ensurePaymentIntegritySchema();
   const conf = await nextConfirmationNumber("DON");
   const [don] = await db
     .insert(schema.donations)
@@ -49,12 +51,11 @@ export async function createDonation(input: DonationInput): Promise<DonationResu
       isAnonymous: input.isAnonymous,
       paymentMethod: input.paymentMethod,
       status: input.paymentMethod === "zelle" ? "pending_zelle_verification" : "pending_payment",
-      // Card donations hold for the same window as ticket reservations so the
-      // sweeper can retire abandoned ones instead of leaving them "pending" forever.
-      reservationExpiresAt:
-        input.paymentMethod === "square"
-          ? new Date(Date.now() + Number(await getConfig<number>("square_reservation_minutes")) * 60_000)
-          : undefined,
+      // No expiry. A card donation link stays payable, and whenever the money
+      // arrives we record it. Nothing retires a donation automatically — an
+      // abandoned one simply shows as "awaiting payment" until an admin says
+      // otherwise. See the note in lib/checkout.ts.
+      reservationExpiresAt: undefined,
     })
     .returning();
 
@@ -81,7 +82,10 @@ export async function createDonation(input: DonationInput): Promise<DonationResu
       amountCents: input.amountCents + cardProcessingFeeCents(input.amountCents),
       description: `${label} — ${conf}`,
     });
-    await db.update(schema.donations).set({ squareOrderId: link.squareOrderId }).where(eq(schema.donations.id, don.id));
+    await db
+      .update(schema.donations)
+      .set({ squareOrderId: link.squareOrderId, squarePaymentLinkId: link.paymentLinkId })
+      .where(eq(schema.donations.id, don.id));
     await attachSquareOrder("donation", don.id, link.squareOrderId);
     return { kind: "square_redirect", confirmationNumber: conf, url: link.url };
   }
@@ -89,7 +93,17 @@ export async function createDonation(input: DonationInput): Promise<DonationResu
   return { kind: "zelle_instructions", confirmationNumber: conf, zelle };
 }
 
-export async function markDonationPaid(donationId: string, via: { method: "square" | "zelle"; squarePaymentId?: string; adminUserId?: string }) {
+export async function markDonationPaid(
+  donationId: string,
+  via: {
+    method: "square" | "zelle";
+    squarePaymentId?: string;
+    adminUserId?: string;
+    /** Money is confirmed received (Square webhook / reconciler / verified deposit). */
+    confirmed?: boolean;
+    squareAmountCents?: number | null;
+  }
+) {
   const db = getDb();
   const [don] = await db.select().from(schema.donations).where(eq(schema.donations.id, donationId));
   if (!don || don.status === "paid") return;
@@ -98,6 +112,7 @@ export async function markDonationPaid(donationId: string, via: { method: "squar
     .set({
       status: "paid",
       paidAt: new Date(),
+      cancelledAt: null, // a swept-then-paid donation is a recovery, not a cancellation
       squarePaymentId: via.squarePaymentId ?? don.squarePaymentId,
       zelleVerifiedBy: via.method === "zelle" ? via.adminUserId : don.zelleVerifiedBy,
       zelleVerifiedAt: via.method === "zelle" ? new Date() : don.zelleVerifiedAt,
@@ -109,6 +124,10 @@ export async function markDonationPaid(donationId: string, via: { method: "squar
     method: toLedgerMethod(via.method),
     squarePaymentId: via.squarePaymentId ?? null,
     verifiedBy: via.adminUserId ?? null,
+    // A card donation can also be paid after its hold was swept — the ledger
+    // row is `cancelled` by then and must still be revived. See lib/ledger.ts.
+    confirmed: via.confirmed ?? via.method === "square",
+    squareAmountCents: via.squareAmountCents ?? null,
   });
 
   const [orgName, orgAddress] = await Promise.all([getConfig<string>("org_name"), getConfig<string>("org_address")]);

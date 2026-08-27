@@ -56,7 +56,12 @@ export async function startMembershipCardCheckout(): Promise<{ url?: string; err
 
   // remember the order id so the Square webhook can match this payment (live Square)
   await ensureMembershipColumn();
-  await db.update(schema.members).set({ squareOrderId: link.squareOrderId }).where(eq(schema.members.id, member.id));
+  const { ensurePaymentIntegritySchema } = await import("@/lib/payments/ensure");
+  await ensurePaymentIntegritySchema();
+  await db
+    .update(schema.members)
+    .set({ squareOrderId: link.squareOrderId, squarePaymentLinkId: link.paymentLinkId })
+    .where(eq(schema.members.id, member.id));
   await attachSquareOrder("membership", member.id, link.squareOrderId);
 
   return { url: link.url };

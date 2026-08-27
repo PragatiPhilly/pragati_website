@@ -11,7 +11,7 @@
  * which are guarded by a database lock so they apply exactly once per database
  * no matter how many instances boot. Both phases are best-effort: the app runs
  * correctly either way, and anything that doesn't finish is retried on the next
- * boot or by the 5-hourly cron.
+ * boot or by the 15-minute sweep cron.
  *
  * Dev/test (embedded PGlite, no DATABASE_URL) is skipped — it relies on the
  * per-request ensures already.
@@ -19,14 +19,21 @@
 export async function register() {
   if (process.env.NEXT_RUNTIME === "edge") return; // edge can't open a DB connection
   try {
-    const [{ ensureExtraColumns }, { ensureMembershipColumn }, { ensureMediaTables }, { ensureScanTables }, { ensurePaymentsTable }] =
-      await Promise.all([
-        import("@/lib/schema-ensure"),
-        import("@/lib/membership-ensure"),
-        import("@/lib/media/ensure"),
-        import("@/lib/scans/ensure"),
-        import("@/lib/ledger-ensure"),
-      ]);
+    const [
+      { ensureExtraColumns },
+      { ensureMembershipColumn },
+      { ensureMediaTables },
+      { ensureScanTables },
+      { ensurePaymentsTable },
+      { ensurePaymentIntegritySchema },
+    ] = await Promise.all([
+      import("@/lib/schema-ensure"),
+      import("@/lib/membership-ensure"),
+      import("@/lib/media/ensure"),
+      import("@/lib/scans/ensure"),
+      import("@/lib/ledger-ensure"),
+      import("@/lib/payments/ensure"),
+    ]);
     await Promise.all([
       ensureExtraColumns(),
       ensureMembershipColumn(),
@@ -34,9 +41,21 @@ export async function register() {
       ensureScanTables(),
       ensurePaymentsTable(),
     ]);
+    // After the payments table exists — it ALTERs it.
+    await ensurePaymentIntegritySchema();
     console.log("[instrumentation] schema ensures applied at startup");
   } catch (e) {
     console.error("[instrumentation] startup schema ensure failed (will retry lazily / via drizzle-kit push):", e);
+  }
+
+  // Fail fast on a production deploy that cannot legitimately take cards.
+  // Silently falling back to the simulator + a public test signing key is the
+  // one misconfiguration that could mint free tickets, so it must not boot.
+  try {
+    const { assertPaymentsConfig } = await import("@/lib/payments/square");
+    assertPaymentsConfig();
+  } catch (e) {
+    console.error("[instrumentation] PAYMENTS MISCONFIGURED:", e instanceof Error ? e.message : e);
   }
 
   // One-time data backfills. Separate try/catch: a backfill problem must never

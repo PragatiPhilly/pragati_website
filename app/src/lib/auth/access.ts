@@ -18,34 +18,8 @@ import { redirect } from "next/navigation";
 import { getSession, type SessionUser } from "@/lib/auth/session";
 import { getConfig } from "@/lib/system-config";
 
-export type SectionKey =
-  | "dashboard" | "payments" | "zelle" | "registrations" | "donations" | "members" | "events"
-  | "checkin" | "scans" | "kitchen" | "media" | "magazines" | "messages" | "emails"
-  | "email_preview" | "roles" | "audit" | "settings";
-
-export type Section = { key: SectionKey; label: string; href: string; icon: string };
-
-/** Every admin section, in nav order. */
-export const SECTIONS: Section[] = [
-  { key: "dashboard", label: "Dashboard", href: "/admin", icon: "◫" },
-  { key: "payments", label: "Payments", href: "/admin/payments", icon: "💰" },
-  { key: "zelle", label: "Zelle queue", href: "/admin/payments/pending-zelle", icon: "⏳" },
-  { key: "registrations", label: "Registrations", href: "/admin/registrations", icon: "🎟" },
-  { key: "donations", label: "Donations", href: "/admin/donations", icon: "🎁" },
-  { key: "members", label: "Members", href: "/admin/members", icon: "👪" },
-  { key: "events", label: "Events", href: "/admin/events", icon: "📅" },
-  { key: "checkin", label: "Scan desk", href: "/admin/checkin", icon: "✅" },
-  { key: "scans", label: "Scan setup", href: "/admin/scans", icon: "📲" },
-  { key: "kitchen", label: "Kitchen", href: "/admin/kitchen", icon: "🍛" },
-  { key: "media", label: "Photos", href: "/admin/media", icon: "🖼" },
-  { key: "magazines", label: "Magazines", href: "/admin/magazines", icon: "📖" },
-  { key: "messages", label: "Messages", href: "/admin/messages", icon: "✉" },
-  { key: "emails", label: "Email log", href: "/admin/emails", icon: "📧" },
-  { key: "email_preview", label: "Email previews", href: "/admin/emails/preview", icon: "🔍" },
-  { key: "roles", label: "Roles & access", href: "/admin/roles", icon: "🔑" },
-  { key: "audit", label: "Audit log", href: "/admin/audit", icon: "📜" },
-  { key: "settings", label: "Settings", href: "/admin/settings", icon: "⚙" },
-];
+export * from "@/lib/auth/sections";
+import { SECTIONS, type SectionKey } from "@/lib/auth/sections";
 
 /** Never grantable — super admins only, regardless of the matrix. */
 export const LOCKED_SECTIONS: SectionKey[] = ["roles", "audit", "settings", "email_preview"];

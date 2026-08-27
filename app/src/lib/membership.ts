@@ -20,7 +20,15 @@ const YEAR_MS = 365 * 86_400_000;
 
 export async function activateMembershipPaid(
   memberId: string,
-  opts: { squarePaymentId?: string; method?: "square" | "zelle" | "offline" | "comped"; verifiedBy?: string; reference?: string } = {}
+  opts: {
+    squarePaymentId?: string;
+    method?: "square" | "zelle" | "offline" | "comped";
+    verifiedBy?: string;
+    reference?: string;
+    /** Money is confirmed received (Square webhook / reconciler / verified deposit). */
+    confirmed?: boolean;
+    squareAmountCents?: number | null;
+  } = {}
 ): Promise<boolean> {
   const db = getDb();
   await ensureMembershipColumn();
@@ -51,6 +59,8 @@ export async function activateMembershipPaid(
     squarePaymentId: opts.squarePaymentId ?? null,
     verifiedBy: opts.verifiedBy ?? null,
     reference: opts.reference ?? null,
+    confirmed: opts.confirmed ?? (opts.method ?? "square") === "square",
+    squareAmountCents: opts.squareAmountCents ?? null,
   });
 
   await db.insert(schema.auditLog).values({

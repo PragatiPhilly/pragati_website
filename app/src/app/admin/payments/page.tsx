@@ -2,6 +2,7 @@ import Link from "next/link";
 import { requireSectionAccess } from "@/lib/auth/access";
 import { formatCents } from "@/lib/pricing";
 import { listPayments } from "@/lib/ledger";
+import { openFindings, lastReconciliation } from "@/lib/payments/reconcile";
 
 export const dynamic = "force-dynamic";
 export const metadata = { title: "Payments" };
@@ -87,6 +88,8 @@ export default async function AdminPaymentsPage({
     return q ? `/admin/payments?${q}` : "/admin/payments";
   };
 
+  const [findings, lastRun] = await Promise.all([openFindings(20), lastReconciliation()]);
+
   const href = (p: (typeof all)[number]) =>
     p.kind === "membership" ? "/admin/members" : p.kind === "donation" ? "/admin/donations" : "/admin/registrations";
 
@@ -97,6 +100,30 @@ export default async function AdminPaymentsPage({
         Every movement of money — tickets, donations and membership dues — in one place. One checkout can appear as
         several rows if it included a donation or dues, so each stream totals on its own.
       </p>
+
+      {/* One line, then get out of the way — the deciding happens on its own page. */}
+      <Link
+        href="/admin/reconciliation"
+        className="festive-card p-4 mb-6 flex flex-wrap items-center justify-between gap-3 no-underline"
+        style={{ borderColor: findings.length === 0 ? "var(--leaf-deep)" : "var(--sindoor)", color: "inherit" }}
+      >
+        <span>
+          <span className="text-xs uppercase tracking-wider block" style={{ color: "var(--ink-soft)" }}>
+            Reconciliation with Square
+          </span>
+          <span className="font-semibold">
+            {findings.length === 0
+              ? "✅ These figures agree with Square"
+              : `⚠️ ${findings.length} item${findings.length === 1 ? "" : "s"} waiting for review`}
+          </span>
+          <span className="text-xs block" style={{ color: "var(--ink-soft)" }}>
+            {lastRun?.finishedAt
+              ? `Last checked ${new Date(lastRun.finishedAt).toLocaleString("en-US", { timeZone: "America/New_York" })}`
+              : "Not checked yet"}
+          </span>
+        </span>
+        <span className="text-sm font-semibold" style={{ color: "var(--sindoor)" }}>Review →</span>
+      </Link>
 
       <div className="grid sm:grid-cols-2 lg:grid-cols-4 gap-3 mb-6">
         <div className="festive-card p-4" style={{ borderColor: "var(--leaf-deep)" }}>

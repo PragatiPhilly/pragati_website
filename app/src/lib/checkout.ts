@@ -12,6 +12,7 @@ import { ensureExtraColumns } from "@/lib/schema-ensure";
 import { siteUrl } from "@/lib/site-url";
 import { getConfig } from "@/lib/system-config";
 import { createSquarePaymentLink } from "@/lib/payments/square";
+import { ensurePaymentIntegritySchema } from "@/lib/payments/ensure";
 import { getZelleInstructions, type ZelleInstructions } from "@/lib/payments/zelle";
 import { openPayments, settlePayments, voidPayments, attachSquareOrder, toLedgerMethod } from "@/lib/ledger";
 import { sendMail } from "@/lib/email";
@@ -223,8 +224,14 @@ export async function createCheckout(input: CheckoutInput): Promise<CheckoutResu
     }
   }
 
-  // Capacity guard — never oversell a limited ticket type. soldCount already
-  // includes pending (held) reservations, so this also respects live holds.
+  // Capacity guard — never oversell a limited ticket type.
+  // soldCount counts SOLD seats only: a checkout that hasn't been paid for holds
+  // nothing. We deliberately do not reserve seats for unpaid checkouts, because
+  // a reservation has to expire, and an expiry is a timer that eventually makes
+  // a claim about money it cannot actually see. That timer is what broke
+  // PRG-2026-0025. The trade-off is accepted knowingly: two people can both
+  // reach the last seat, which an organiser can resolve — a paid customer being
+  // told they never paid cannot be.
   const demand = new Map<string, number>();
   for (const e of expanded) demand.set(e.attendee.ticketTypeId, (demand.get(e.attendee.ticketTypeId) ?? 0) + 1);
   for (const [ttId, want] of demand) {
@@ -268,11 +275,17 @@ export async function createCheckout(input: CheckoutInput): Promise<CheckoutResu
   const donationCents = Math.max(0, Math.round(input.donationCents ?? 0));
   const grandTotalCents = quote.totalCents + membershipDuesCents + donationCents;
   const conf = await nextConfirmationNumber("PRG");
-  const squareResMin = await getConfig<number>("square_reservation_minutes");
   const now = new Date();
-  const reservationExpiresAt = new Date(now.getTime() + squareResMin * 60_000);
+  // Card checkouts have NO expiry. The Square payment link stays valid, the
+  // buyer can finish whenever, and whenever the money lands we honour it.
+  // Zelle still carries a "please verify by" marker for the treasurer's SLA —
+  // but nothing cancels on it automatically; a human decides.
+  const zelleHoldHours = input.paymentMethod === "zelle" ? await getConfig<number>("zelle_reservation_hours") : 0;
+  const reservationExpiresAt =
+    input.paymentMethod === "zelle" ? new Date(now.getTime() + zelleHoldHours * 3600_000) : null;
   const processingFeeCents = input.paymentMethod === "square" ? cardProcessingFeeCents(grandTotalCents) : 0;
   await ensureExtraColumns();
+  await ensurePaymentIntegritySchema();
 
   const status =
     input.paymentMethod === "zelle"
@@ -323,16 +336,39 @@ export async function createCheckout(input: CheckoutInput): Promise<CheckoutResu
       qrCode: makeQrCode(),
       dayKey: e.day ?? "all",
     });
-    await db
-      .update(schema.ticketTypes)
-      .set({ soldCount: sql`${schema.ticketTypes.soldCount} + 1` })
-      .where(eq(schema.ticketTypes.id, e.attendee.ticketTypeId));
   }
   if (promo) {
     await db
       .update(schema.promoCodes)
       .set({ currentUses: sql`${schema.promoCodes.currentUses} + 1` })
       .where(eq(schema.promoCodes.id, promo.id));
+  }
+
+  // A gift added during ticket checkout is a real donation, so it gets a real
+  // row on the Donations page. It carries no money of its own — the `payments`
+  // row below, keyed to this registration, remains the single record of the
+  // cash — and it is never given a Square order id, so the webhook can only ever
+  // match the registration. Its status simply follows the registration's.
+  if (donationCents > 0) {
+    try {
+      const donConf = await nextConfirmationNumber("DON");
+      await db.insert(schema.donations).values({
+        confirmationNumber: donConf,
+        memberId: input.memberId,
+        donorName: input.buyerName,
+        donorEmail: input.buyerEmail,
+        donorPhone: input.buyerPhone,
+        amountCents: donationCents,
+        inHonorOrMemory: "none",
+        isAnonymous: false,
+        paymentMethod: input.paymentMethod,
+        status,
+        sourceRegistrationId: reg.id,
+        notes: `Added during ticket checkout ${conf}`,
+      });
+    } catch {
+      /* the Donations page is a view of the money, never a gate on taking it */
+    }
   }
 
   // Money ledger — split the one checkout total into its revenue streams so
@@ -387,7 +423,7 @@ export async function createCheckout(input: CheckoutInput): Promise<CheckoutResu
     });
     await db
       .update(schema.registrations)
-      .set({ squareOrderId: link.squareOrderId })
+      .set({ squareOrderId: link.squareOrderId, squarePaymentLinkId: link.paymentLinkId })
       .where(eq(schema.registrations.id, reg.id));
     await attachSquareOrder("registration", reg.id, link.squareOrderId);
     return { kind: "square_redirect", confirmationNumber: conf, url: link.url, totalCents: grandTotalCents };
@@ -449,7 +485,15 @@ export async function zelleSentClicked(confirmationNumber: string): Promise<void
 /** Source of truth for flipping a registration to paid (webhook or admin). */
 export async function markRegistrationPaid(
   registrationId: string,
-  via: { method: "square" | "zelle" | "offline"; squarePaymentId?: string; adminUserId?: string }
+  via: {
+    method: "square" | "zelle" | "offline";
+    squarePaymentId?: string;
+    adminUserId?: string;
+    /** The money is confirmed received (Square webhook / reconciler / verified deposit). */
+    confirmed?: boolean;
+    /** What Square says it actually charged, stamped on the ledger rows. */
+    squareAmountCents?: number | null;
+  }
 ): Promise<void> {
   const db = getDb();
   const [reg] = await db
@@ -458,14 +502,37 @@ export async function markRegistrationPaid(
     .where(eq(schema.registrations.id, registrationId));
   if (!reg || reg.status === "paid") return; // idempotent
 
+  // A payment can legitimately arrive AFTER we gave up on the reservation:
+  // Square payment links never expire, so a buyer can return hours later and pay
+  // a link whose 15-minute hold lapsed long ago. That is a recovery, not an
+  // error — but the seats we released have to be taken back, or the event
+  // quietly oversells. (PRG-2026-0025, 2026-08-17.)
+  // Seats are taken HERE — when the money is real — not when the checkout was
+  // opened. That is what lets a checkout stay open indefinitely without either
+  // holding inventory hostage or needing an expiry timer to release it.
+  const sold = await db.select().from(schema.tickets).where(eq(schema.tickets.registrationId, registrationId));
+  for (const t of sold) {
+    await db
+      .update(schema.ticketTypes)
+      .set({ soldCount: sql`${schema.ticketTypes.soldCount} + 1` })
+      .where(eq(schema.ticketTypes.id, t.ticketTypeId));
+  }
+  const wasCancelled = reg.status.startsWith("cancelled");
+
   await db
     .update(schema.registrations)
     .set({
       status: "paid",
       paidAt: new Date(),
+      cancelledAt: null,
       squarePaymentId: via.squarePaymentId ?? reg.squarePaymentId,
       zelleVerifiedBy: via.method === "zelle" ? via.adminUserId : reg.zelleVerifiedBy,
       zelleVerifiedAt: via.method === "zelle" ? new Date() : reg.zelleVerifiedAt,
+      notes: wasCancelled
+        ? [reg.notes, `Recovered ${new Date().toISOString()}: paid after the reservation had been swept.`]
+            .filter(Boolean)
+            .join(" ")
+        : reg.notes,
       updatedAt: new Date(),
     })
     .where(eq(schema.registrations.id, registrationId));
@@ -476,7 +543,33 @@ export async function markRegistrationPaid(
     method: toLedgerMethod(via.method),
     squarePaymentId: via.squarePaymentId ?? null,
     verifiedBy: via.adminUserId ?? null,
+    confirmed: via.confirmed ?? via.method === "square",
+    squareAmountCents: via.squareAmountCents ?? null,
   });
+
+  // Keep the linked in-checkout donation row in step. Deliberately a direct
+  // update, not markDonationPaid(): that would try to settle a ledger row this
+  // gift does not own, and would send a second receipt for money the tickets
+  // email has already itemised.
+  try {
+    await db
+      .update(schema.donations)
+      .set({
+        status: "paid",
+        paidAt: new Date(),
+        cancelledAt: null,
+        squarePaymentId: via.squarePaymentId ?? null,
+        updatedAt: new Date(),
+      })
+      .where(eq(schema.donations.sourceRegistrationId, registrationId));
+  } catch {
+    /* never let a bookkeeping view block a real payment being recorded */
+  }
+
+  if (wasCancelled) {
+    const { alertLatePaymentRecovered } = await import("@/lib/payments/alerts");
+    await alertLatePaymentRecovered(reg.confirmationNumber, reg.buyerName, reg.totalCents + (reg.processingFeeCents ?? 0));
+  }
 
   await sendTicketsEmail(registrationId);
 
@@ -571,23 +664,43 @@ export async function sendTicketsEmail(registrationId: string, opts: { resend?: 
 }
 
 /** Cancel + release held seats. */
+/**
+ * Cancel a checkout. Only ever called by an admin who has decided this order is
+ * dead — there is no longer any automatic process that cancels anything.
+ *
+ * Seats only come back if they were actually taken, i.e. the order had been
+ * paid. An unpaid checkout never held a seat, so cancelling it must not hand a
+ * seat back that it never took (that used to leak capacity on every abandoned
+ * cart).
+ */
 export async function cancelRegistration(registrationId: string, reason: "cancelled" | "cancelled_no_payment") {
   const db = getDb();
   const [reg] = await db
     .select()
     .from(schema.registrations)
     .where(eq(schema.registrations.id, registrationId));
-  if (!reg || reg.status === "paid" || reg.status.startsWith("cancelled")) return;
+  if (!reg || reg.status.startsWith("cancelled")) return;
+  const wasPaid = reg.status === "paid";
   await db
     .update(schema.registrations)
     .set({ status: reason, cancelledAt: new Date(), updatedAt: new Date() })
     .where(eq(schema.registrations.id, registrationId));
-  await voidPayments(registrationId, reason === "cancelled_no_payment" ? "Reservation expired without payment" : "Cancelled");
-  const tix = await db.select().from(schema.tickets).where(eq(schema.tickets.registrationId, registrationId));
-  for (const t of tix) {
+  await voidPayments(registrationId, reason === "cancelled_no_payment" ? "Cancelled — never paid" : "Cancelled");
+  try {
     await db
-      .update(schema.ticketTypes)
-      .set({ soldCount: sql`${schema.ticketTypes.soldCount} - 1` })
-      .where(eq(schema.ticketTypes.id, t.ticketTypeId));
+      .update(schema.donations)
+      .set({ status: reason, cancelledAt: new Date(), updatedAt: new Date() })
+      .where(eq(schema.donations.sourceRegistrationId, registrationId));
+  } catch {
+    /* view-only row; absence must never block the cancel */
+  }
+  if (wasPaid) {
+    const tix = await db.select().from(schema.tickets).where(eq(schema.tickets.registrationId, registrationId));
+    for (const t of tix) {
+      await db
+        .update(schema.ticketTypes)
+        .set({ soldCount: sql`${schema.ticketTypes.soldCount} - 1` })
+        .where(eq(schema.ticketTypes.id, t.ticketTypeId));
+    }
   }
 }

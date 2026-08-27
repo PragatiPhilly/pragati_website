@@ -27,6 +27,7 @@ import { ensureExtraColumns } from "@/lib/schema-ensure";
 import { ensureMembershipColumn } from "@/lib/membership-ensure";
 import { ensurePaymentsTable } from "@/lib/ledger-ensure";
 import { getConfig } from "@/lib/system-config";
+import { nextConfirmationNumber } from "@/lib/confirmation";
 
 const STALE_MINUTES = 15;
 
@@ -249,6 +250,173 @@ export async function backfillPaymentsLedger(): Promise<string> {
   return `wrote ${rows.length} ledger entries (${estimated} membership amount(s) estimated from the configured dues price)`;
 }
 
+
+/**
+ * PRG-2026-0025 repair.
+ *
+ * Before 2026-08-27 a cron job cancelled card checkouts whose 15-minute
+ * "reservation" had lapsed. Square payment links never expire, so a buyer could
+ * pay one hours later. When that happened the registration correctly went to
+ * `paid`, but settlePayments() only ever touched rows that were still
+ * outstanding — and the sweeper had already voided them — so the money stayed
+ * in the ledger as "cancelled: reservation expired without payment", invisible
+ * to the Payments page and every dashboard total. The released seats were never
+ * retaken either.
+ *
+ * The current code cannot produce this state (there is no expiry sweep at all
+ * any more, and confirmed payments revive cancelled rows). This repairs the
+ * rows that already exist.
+ *
+ * Deliberately conservative: it only touches ledger rows whose OWNING record
+ * already says `paid`. It never invents a payment — only Square's confirmation
+ * can set `paid` — so this cannot manufacture a false positive.
+ */
+async function repairSweptThenPaidLedger(): Promise<string> {
+  await ensurePaymentsTable();
+  const { ensurePaymentIntegritySchema } = await import("@/lib/payments/ensure");
+  await ensurePaymentIntegritySchema();
+  const db = getDb();
+
+  let ledgerRows = 0;
+  let seats = 0;
+  let cents = 0;
+  const fixed: string[] = [];
+
+  const paidRegs = await db.select().from(schema.registrations).where(eq(schema.registrations.status, "paid"));
+  for (const reg of paidRegs) {
+    const rows = await db.select().from(schema.payments).where(eq(schema.payments.entityId, reg.id));
+    const stuck = rows.filter((r) => r.status === "cancelled");
+    if (stuck.length === 0) continue;
+
+    const now = new Date();
+    await db
+      .update(schema.payments)
+      .set({
+        status: "paid",
+        paidAt: reg.paidAt ?? now,
+        cancelledAt: null,
+        squarePaymentId: reg.squarePaymentId ?? sql`${schema.payments.squarePaymentId}`,
+        note: "Repaired: paid after the reservation sweep had voided it (PRG-2026-0025 class defect).",
+        updatedAt: now,
+      })
+      .where(
+        and(
+          eq(schema.payments.entityId, reg.id),
+          eq(schema.payments.status, "cancelled")
+        )
+      );
+    ledgerRows += stuck.length;
+    cents += stuck.reduce((t, r) => t + r.amountCents + r.feeCents, 0);
+    fixed.push(reg.confirmationNumber);
+
+    // The sweep also released this order's seats and nothing ever took them
+    // back, so the ticket type has been under-counting ever since.
+    if (reg.cancelledAt != null) {
+      const tix = await db.select().from(schema.tickets).where(eq(schema.tickets.registrationId, reg.id));
+      for (const t of tix) {
+        await db
+          .update(schema.ticketTypes)
+          .set({ soldCount: sql`${schema.ticketTypes.soldCount} + 1` })
+          .where(eq(schema.ticketTypes.id, t.ticketTypeId));
+        seats++;
+      }
+    }
+    // Clear the cancellation stamp so the record reads honestly from now on.
+    await db
+      .update(schema.registrations)
+      .set({ cancelledAt: null, updatedAt: now })
+      .where(eq(schema.registrations.id, reg.id));
+  }
+
+  const paidDons = await db.select().from(schema.donations).where(eq(schema.donations.status, "paid"));
+  for (const don of paidDons) {
+    const rows = await db.select().from(schema.payments).where(eq(schema.payments.entityId, don.id));
+    const stuck = rows.filter((r) => r.status === "cancelled");
+    if (stuck.length === 0) continue;
+    await db
+      .update(schema.payments)
+      .set({
+        status: "paid",
+        paidAt: don.paidAt ?? new Date(),
+        cancelledAt: null,
+        note: "Repaired: paid after the reservation sweep had voided it (PRG-2026-0025 class defect).",
+        updatedAt: new Date(),
+      })
+      .where(and(eq(schema.payments.entityId, don.id), eq(schema.payments.status, "cancelled")));
+    ledgerRows += stuck.length;
+    cents += stuck.reduce((t, r) => t + r.amountCents + r.feeCents, 0);
+    fixed.push(don.confirmationNumber);
+  }
+
+  if (ledgerRows === 0) return "nothing to repair";
+  return `restored ${ledgerRows} ledger row(s) worth $${(cents / 100).toFixed(2)} and ${seats} seat(s) — ${fixed.join(", ")}`;
+}
+
+
+/**
+ * In-checkout donations that were never visible on the Donations page.
+ *
+ * A gift added during ticket checkout only ever produced a `payments` row keyed
+ * to the registration. The Donations page reads the `donations` table, so those
+ * gifts — including Parijat Paul's $150 on PRG-2026-0025 — had no row there and
+ * were invisible as donations, even though the money was correctly banked.
+ *
+ * This creates the missing rows. It writes NO new payments row: the money is
+ * already recorded exactly once, and these rows are a view of it, not a second
+ * copy of it. Status is copied from the registration, so a gift on an unpaid
+ * checkout does not appear as received.
+ */
+async function backfillInCheckoutDonations(): Promise<string> {
+  await ensurePaymentsTable();
+  const { ensurePaymentIntegritySchema } = await import("@/lib/payments/ensure");
+  await ensurePaymentIntegritySchema();
+  const db = getDb();
+
+  const regs = await db.select().from(schema.registrations);
+  const byId = new Map(regs.map((r) => [r.id, r]));
+
+  const donationRows = await db.select().from(schema.payments).where(eq(schema.payments.kind, "donation"));
+  const existing = await db.select().from(schema.donations);
+  const alreadyLinked = new Set(existing.map((d) => d.sourceRegistrationId).filter(Boolean));
+
+  let made = 0;
+  let cents = 0;
+  for (const row of donationRows) {
+    const reg = byId.get(row.entityId);
+    if (!reg) continue; // a standalone donation — it already has its own row
+    if (alreadyLinked.has(reg.id)) continue;
+    if (row.amountCents <= 0) continue;
+
+    try {
+      const conf = await nextConfirmationNumber("DON");
+      await db.insert(schema.donations).values({
+        confirmationNumber: conf,
+        memberId: reg.memberId,
+        donorName: reg.buyerName,
+        donorEmail: reg.buyerEmail,
+        donorPhone: reg.buyerPhone ?? PHONE_PLACEHOLDER,
+        amountCents: row.amountCents,
+        inHonorOrMemory: "none",
+        isAnonymous: false,
+        paymentMethod: reg.paymentMethod,
+        status: reg.status,
+        paidAt: reg.status === "paid" ? reg.paidAt : null,
+        squarePaymentId: reg.squarePaymentId,
+        sourceRegistrationId: reg.id,
+        notes: `Added during ticket checkout ${reg.confirmationNumber} (backfilled)`,
+      });
+      alreadyLinked.add(reg.id);
+      made++;
+      cents += row.amountCents;
+    } catch {
+      /* a duplicate confirmation number or a partial DB — skipped, retried later */
+    }
+  }
+
+  if (made === 0) return "no in-checkout donations needed a row";
+  return `created ${made} donation row(s) worth $${(cents / 100).toFixed(2)} for gifts added during ticket checkout`;
+}
+
 const JOBS: Job[] = [
   {
     key: "2026-08-backfill-phone-placeholders",
@@ -259,6 +427,16 @@ const JOBS: Job[] = [
     key: "2026-08-backfill-payments-ledger",
     describe: "Reconstruct the payments ledger from existing registrations, donations and members",
     run: backfillPaymentsLedger,
+  },
+  {
+    key: "2026-08-repair-swept-then-paid",
+    describe: "Restore money + seats for orders paid after the old reservation sweep had written them off",
+    run: repairSweptThenPaidLedger,
+  },
+  {
+    key: "2026-08-backfill-in-checkout-donations",
+    describe: "Give gifts added during ticket checkout a row on the Donations page",
+    run: backfillInCheckoutDonations,
   },
 ];
 

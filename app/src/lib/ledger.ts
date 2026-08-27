@@ -127,40 +127,91 @@ export async function attachSquareOrder(kind: PaymentKind, entityId: string, squ
 }
 
 /**
- * Money received. Settles every outstanding row for the entity — including the
- * sibling donation / membership components of the same checkout, which share the
- * entity id of the registration they were bought with.
+ * Money received. Settles every row for the entity — including the sibling
+ * donation / membership components of the same checkout, which share the entity
+ * id of the registration they were bought with.
  * Idempotent: rows already `paid` are left alone.
+ *
+ * WHY `cancelled` ROWS ARE SETTLED TOO (the PRG-2026-0025 defect):
+ * this used to touch only `pending`/`pending_verification` rows. But the order
+ * of events in a late payment is: hold lapses → sweeper voids the rows →
+ * *then* the money arrives. By the time the payment is confirmed there is
+ * nothing "outstanding" left to settle, so the registration flipped to paid
+ * while the ledger — the thing the Payments page and the dashboard read — kept
+ * saying "cancelled: reservation expired without payment". Money in the bank,
+ * zero in the books.
+ *
+ * A cancelled row is only revived when the caller has actual confirmation of
+ * payment (`confirmed`, which the Square webhook and the reconciler set). A
+ * plain settle still leaves cancelled rows alone, so an admin mis-click cannot
+ * resurrect a genuinely abandoned checkout.
  */
 export async function settlePayments(
   kind: PaymentKind,
   entityId: string,
-  via: { method?: PaymentMethod; squarePaymentId?: string | null; verifiedBy?: string | null; reference?: string | null } = {}
+  via: {
+    method?: PaymentMethod;
+    squarePaymentId?: string | null;
+    verifiedBy?: string | null;
+    reference?: string | null;
+    /** Money is confirmed received (Square webhook / reconciler / admin verified a deposit). */
+    confirmed?: boolean;
+    /** Amount Square says it actually took, stamped for later audit. */
+    squareAmountCents?: number | null;
+    /** Replaces the void note so "Reservation expired without payment" doesn't linger on a paid row. */
+    note?: string | null;
+  } = {}
 ): Promise<void> {
   try {
     await ensurePaymentsTable();
+    const { ensurePaymentIntegritySchema } = await import("@/lib/payments/ensure");
+    await ensurePaymentIntegritySchema();
     const db = getDb();
     const now = new Date();
+    const settleable: PaymentStatus[] = via.confirmed ? [...OUTSTANDING, "cancelled"] : [...OUTSTANDING];
     const open = await db
       .select()
       .from(schema.payments)
-      .where(and(eq(schema.payments.entityId, entityId), inArray(schema.payments.status, OUTSTANDING)));
+      .where(and(eq(schema.payments.entityId, entityId), inArray(schema.payments.status, settleable)));
     if (open.length === 0) return;
+    const revived = open.filter((r) => r.status === "cancelled").length;
     await db
       .update(schema.payments)
       .set({
         status: "paid",
         paidAt: now,
+        cancelledAt: null,
         method: via.method ?? sql`${schema.payments.method}`,
         squarePaymentId: via.squarePaymentId ?? sql`${schema.payments.squarePaymentId}`,
+        squareVerifiedAt: via.confirmed ? now : sql`${schema.payments.squareVerifiedAt}`,
+        squareAmountCents: via.squareAmountCents ?? sql`${schema.payments.squareAmountCents}`,
         verifiedBy: via.verifiedBy ?? sql`${schema.payments.verifiedBy}`,
         verifiedAt: via.verifiedBy ? now : sql`${schema.payments.verifiedAt}`,
         reference: via.reference ?? sql`${schema.payments.reference}`,
+        note: via.note ?? (revived > 0 ? "Paid after the reservation had been swept — recovered from Square" : sql`${schema.payments.note}`),
         updatedAt: now,
       })
-      .where(and(eq(schema.payments.entityId, entityId), inArray(schema.payments.status, OUTSTANDING)));
+      .where(and(eq(schema.payments.entityId, entityId), inArray(schema.payments.status, settleable)));
   } catch {
     /* best-effort */
+  }
+}
+
+/**
+ * Sum of what a checkout is supposed to collect, in cents, including the card
+ * surcharge — i.e. exactly what Square should have charged. The webhook compares
+ * Square's figure against this before booking anything as paid.
+ */
+export async function expectedTotalCents(entityId: string): Promise<number> {
+  try {
+    await ensurePaymentsTable();
+    const db = getDb();
+    const rows = await db.select().from(schema.payments).where(eq(schema.payments.entityId, entityId));
+    return rows
+      .filter((r) => r.status !== "refunded")
+      .reduce((sum, r) => sum + (r.amountCents ?? 0) + (r.feeCents ?? 0), 0);
+  } catch {
+    return 0;
   }
 }
 

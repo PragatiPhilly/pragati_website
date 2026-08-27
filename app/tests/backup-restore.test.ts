@@ -39,6 +39,10 @@ beforeAll(async () => {
   CREATE TABLE IF NOT EXISTS donations (id text PRIMARY KEY, confirmation_number text NOT NULL, member_id text, donor_name text NOT NULL, donor_email text NOT NULL, donor_phone text, amount_cents integer NOT NULL, in_honor_or_memory text NOT NULL DEFAULT 'none', designation text, honoree_name text, honoree_notify_email text, message text, is_anonymous boolean NOT NULL DEFAULT false, payment_method text NOT NULL, status text NOT NULL DEFAULT 'pending_payment', square_order_id text, square_payment_id text, zelle_verified_by text, zelle_verified_at timestamptz, paid_at timestamptz, cancelled_at timestamptz, reservation_expires_at timestamptz, notes text, created_at timestamptz NOT NULL DEFAULT now(), updated_at timestamptz NOT NULL DEFAULT now());
   CREATE TABLE IF NOT EXISTS system_config (key text PRIMARY KEY, value jsonb, updated_at timestamptz NOT NULL DEFAULT now(), updated_by text);
   `);
+  // Columns the app adds lazily at boot (see lib/payments/ensure.ts) — applied
+  // here too so the test database matches a real one.
+  const { ensurePaymentIntegritySchema } = await import("../src/lib/payments/ensure");
+  await ensurePaymentIntegritySchema();
 
   // seed: one event, one ticket type, one paid registration with 2 tickets
   const [event] = await db

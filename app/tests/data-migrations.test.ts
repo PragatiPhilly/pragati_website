@@ -22,6 +22,8 @@ import { runPendingDataMigrations, dataMigrationStatus } from "../src/lib/data-m
 
 const PHONE_JOB = "2026-08-backfill-phone-placeholders";
 const LEDGER_JOB = "2026-08-backfill-payments-ledger";
+const REPAIR_JOB = "2026-08-repair-swept-then-paid";
+const DON_JOB = "2026-08-backfill-in-checkout-donations";
 
 beforeAll(async () => {
   const db = getDb();
@@ -34,6 +36,10 @@ beforeAll(async () => {
   CREATE TABLE IF NOT EXISTS contact_messages (id text PRIMARY KEY, name text NOT NULL, email text NOT NULL, phone text, topic text NOT NULL DEFAULT 'general', message text NOT NULL, handled_at timestamptz, handled_by text, created_at timestamptz NOT NULL DEFAULT now());
   CREATE TABLE IF NOT EXISTS system_config (key text PRIMARY KEY, value jsonb, updated_at timestamptz NOT NULL DEFAULT now(), updated_by text);
   `);
+  // Columns the app adds lazily at boot (see lib/payments/ensure.ts) — applied
+  // here too so the test database matches a real one.
+  const { ensurePaymentIntegritySchema } = await import("../src/lib/payments/ensure");
+  await ensurePaymentIntegritySchema();
 
   // A world that predates both changes: a paid member with no phone and no
   // financial record, and a paid registration that bundled a donation.
@@ -66,9 +72,9 @@ beforeAll(async () => {
 });
 
 describe("self-applying data migrations", () => {
-  it("applies both backfills on the first run", async () => {
+  it("applies every pending job on the first run", async () => {
     const ran = await runPendingDataMigrations();
-    expect(ran.map((r) => r.key).sort()).toEqual([LEDGER_JOB, PHONE_JOB].sort());
+    expect(ran.map((r) => r.key).sort()).toEqual([LEDGER_JOB, PHONE_JOB, REPAIR_JOB, DON_JOB].sort());
     // the recorded detail is what shows up in the admin health panel, so it has
     // to reflect what actually happened
     expect(ran.find((r) => r.key === PHONE_JOB)!.result).toContain("filled 2 blank phone field(s)");
@@ -104,7 +110,7 @@ describe("self-applying data migrations", () => {
   it("records each job as done so the state is inspectable", async () => {
     const status = await dataMigrationStatus();
     expect(status.every((s) => s.status === "done")).toBe(true);
-    expect(status.map((s) => s.key).sort()).toEqual([LEDGER_JOB, PHONE_JOB].sort());
+    expect(status.map((s) => s.key).sort()).toEqual([LEDGER_JOB, PHONE_JOB, REPAIR_JOB, DON_JOB].sort());
   });
 
   it("is safe when several instances boot at once — only one wins the claim", async () => {

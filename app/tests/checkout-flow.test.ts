@@ -33,12 +33,15 @@ beforeAll(async () => {
   CREATE TABLE IF NOT EXISTS promo_codes (id text PRIMARY KEY, event_id text, code text NOT NULL, discount_type text NOT NULL, discount_value integer NOT NULL, max_uses_total integer, max_uses_per_member integer DEFAULT 1, current_uses integer NOT NULL DEFAULT 0, valid_from timestamptz, valid_until timestamptz, created_by text, archived_at timestamptz, created_at timestamptz NOT NULL DEFAULT now());
   CREATE TABLE IF NOT EXISTS registrations (id text PRIMARY KEY, confirmation_number text NOT NULL, event_id text NOT NULL, member_id text, buyer_email text NOT NULL, buyer_name text NOT NULL, buyer_phone text, is_member_purchase boolean NOT NULL DEFAULT false, source text NOT NULL DEFAULT 'web', subtotal_cents integer NOT NULL, discount_cents integer NOT NULL DEFAULT 0, total_cents integer NOT NULL, processing_fee_cents integer NOT NULL DEFAULT 0, donation_cents integer NOT NULL DEFAULT 0, membership_signup boolean NOT NULL DEFAULT false, self_declared_member boolean NOT NULL DEFAULT false, promo_code_id text, payment_method text NOT NULL, status text NOT NULL DEFAULT 'pending_payment', square_order_id text, square_payment_id text, zelle_verified_by text, zelle_verified_at timestamptz, zelle_sent_clicked_at timestamptz, paid_at timestamptz, cancelled_at timestamptz, reservation_expires_at timestamptz, notes text, created_at timestamptz NOT NULL DEFAULT now(), updated_at timestamptz NOT NULL DEFAULT now());
   CREATE TABLE IF NOT EXISTS tickets (id text PRIMARY KEY, registration_id text NOT NULL, ticket_type_id text NOT NULL, attendee_first_name text NOT NULL, attendee_last_name text, attendee_age integer, attendee_is_member boolean NOT NULL DEFAULT false, food_pref text, dietary_notes text, student_info jsonb, day_key text DEFAULT 'all', price_cents integer NOT NULL DEFAULT 0, qr_code text NOT NULL, checked_in_at timestamptz, checked_in_by text, created_at timestamptz NOT NULL DEFAULT now());
+  CREATE TABLE IF NOT EXISTS donations (id text PRIMARY KEY DEFAULT gen_random_uuid()::text, confirmation_number text NOT NULL, member_id text, donor_name text NOT NULL, donor_email text NOT NULL, donor_phone text, amount_cents integer NOT NULL, in_honor_or_memory text NOT NULL DEFAULT 'none', designation text, honoree_name text, honoree_notify_email text, message text, is_anonymous boolean NOT NULL DEFAULT false, payment_method text NOT NULL, status text NOT NULL DEFAULT 'pending_payment', square_order_id text, square_payment_id text, zelle_verified_by text, zelle_verified_at timestamptz, paid_at timestamptz, cancelled_at timestamptz, reservation_expires_at timestamptz, notes text, created_at timestamptz NOT NULL DEFAULT now(), updated_at timestamptz NOT NULL DEFAULT now());
   CREATE TABLE IF NOT EXISTS system_config (key text PRIMARY KEY, value jsonb, updated_at timestamptz NOT NULL DEFAULT now(), updated_by text);
   CREATE TABLE IF NOT EXISTS counters (key text PRIMARY KEY, value integer NOT NULL DEFAULT 0);
   CREATE TABLE IF NOT EXISTS email_log (id text PRIMARY KEY DEFAULT gen_random_uuid()::text, to_email text NOT NULL, original_to_email text, template text NOT NULL, subject text NOT NULL, body_text text, status text NOT NULL DEFAULT 'queued', provider_message_id text, error text, related_user_id text, related_registration_id text, sent_at timestamptz, created_at timestamptz NOT NULL DEFAULT now());
   CREATE TABLE IF NOT EXISTS processed_webhook_events (event_id text PRIMARY KEY, provider text NOT NULL DEFAULT 'square', processed_at timestamptz NOT NULL DEFAULT now());
   `;
   await client.exec(ddl);
+  const { ensurePaymentIntegritySchema } = await import("../src/lib/payments/ensure");
+  await ensurePaymentIntegritySchema();
 
   const [event] = await db
     .insert(schema.events)
@@ -160,7 +163,9 @@ describe("Square rail (test mode)", () => {
 });
 
 describe("cancellation", () => {
-  it("releases held capacity", async () => {
+  // Capacity is taken when the money lands, not when the cart is opened, so an
+  // unpaid checkout never held a seat and cancelling it must not hand one back.
+  it("does not hand back a seat an unpaid checkout never took", async () => {
     const db = getDb();
     const res = await createCheckout({
       eventId,
@@ -175,7 +180,7 @@ describe("cancellation", () => {
     const [ttBefore] = await db.select().from(schema.ticketTypes).where(eq(schema.ticketTypes.name, "Adult 3day food"));
     await cancelRegistration(reg.id, "cancelled_no_payment");
     const [ttAfter] = await db.select().from(schema.ticketTypes).where(eq(schema.ticketTypes.name, "Adult 3day food"));
-    expect(ttAfter.soldCount).toBe(ttBefore.soldCount - 1);
+    expect(ttAfter.soldCount).toBe(ttBefore.soldCount);
     const [regAfter] = await db.select().from(schema.registrations).where(eq(schema.registrations.id, reg.id));
     expect(regAfter.status).toBe("cancelled_no_payment");
   });

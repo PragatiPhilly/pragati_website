@@ -1,4 +1,5 @@
 import Link from "next/link";
+import PendingPayment from "./PendingPayment";
 import { eq } from "drizzle-orm";
 import { getDb, schema } from "@/db/client";
 import { formatCents } from "@/lib/pricing";
@@ -59,7 +60,6 @@ export default async function CheckoutSuccessPage({
 
   return (
     <div className="mx-auto max-w-xl px-5 py-20 text-center">
-      {!paid && <meta httpEquiv="refresh" content="2" />}
       <p className="text-6xl mb-5">{paid ? "🎉" : "⏳"}</p>
       <h1 className="font-[family-name:var(--font-display)] text-4xl font-black mb-3">
         {paid ? "Payment confirmed!" : "Confirming your payment…"}
@@ -71,11 +71,15 @@ export default async function CheckoutSuccessPage({
           {total > 0 && <p className="mt-2 font-semibold">{formatCents(total)}</p>}
         </div>
       )}
-      <p style={{ color: "var(--ink-soft)" }}>
-        {paid
-          ? `${don ? "Your receipt" : "Your tickets"} ${email ? `are on their way to ${email}` : "are on their way"}. `
-          : "This page refreshes automatically — usually takes a few seconds."}
-      </p>
+      {paid ? (
+        <p style={{ color: "var(--ink-soft)" }}>
+          {`${don ? "Your receipt" : "Your tickets"} ${email ? `are on their way to ${email}` : "are on their way"}. `}
+        </p>
+      ) : (
+        // Not a passive refresh: this asks Square itself whether the money
+        // arrived, so a lost webhook can't strand the buyer. See PendingPayment.
+        <PendingPayment conf={conf ?? ""} />
+      )}
       {paid && reg && (
         <Link
           href={`/lookup?email=${encodeURIComponent(reg.buyerEmail)}&conf=${reg.confirmationNumber}`}

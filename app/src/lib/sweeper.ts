@@ -1,60 +1,30 @@
 /**
- * Releases expired reservations and lapsed memberships:
- *  - Square checkouts abandoned past their 15-minute hold
- *  - Zelle orders unverified past the 48-hour hold
- *  - abandoned card donations (these used to sit "pending" forever, quietly
- *    inflating the outstanding figure)
- *  - memberships past their expiry date (nothing used to demote these, so
- *    "active member" was effectively permanent)
- * Runs opportunistically on admin page loads and via /api/cron/sweep.
+ * Housekeeping. Note what is NOT here any more.
+ *
+ * ── WHY THERE IS NO RESERVATION SWEEP ────────────────────────────────────
+ * This file used to cancel card checkouts whose 15-minute hold had lapsed.
+ * That is a timer making a claim about money — "nobody paid this" — on the
+ * strength of nothing but the clock. It cannot see Square, and Square payment
+ * links never expire, so a buyer could (and on 2026-08-17, did) pay a link
+ * eight hours after we had already written the order off. The result was a real
+ * $494.40 payment sitting in our books as "reservation expired without
+ * payment".
+ *
+ * The fix is not a better timer. It is not having one:
+ *   • a checkout has no expiry — the buyer finishes whenever they like
+ *   • seats are taken when the money lands, not when the cart is opened, so
+ *     nothing needs releasing and there is nothing to leak
+ *   • an unpaid checkout simply reads "awaiting payment" until a human decides
+ *     otherwise (admin → Payments → cancel)
+ *
+ * Nothing in this application now moves a payment towards "not paid" on its
+ * own. Only a person, or Square itself, can do that.
+ *
+ * What remains here is genuine calendar expiry: a membership term that has run
+ * out. That is a real date arriving, not a guess about money.
  */
-import { and, eq, inArray, lt, isNotNull } from "drizzle-orm";
+import { and, eq, lt, isNotNull } from "drizzle-orm";
 import { getDb, schema } from "@/db/client";
-import { cancelRegistration } from "@/lib/checkout";
-import { voidPayments } from "@/lib/ledger";
-
-export async function sweepExpiredReservations(): Promise<number> {
-  const db = getDb();
-  const now = new Date();
-  const stale = await db
-    .select()
-    .from(schema.registrations)
-    .where(
-      and(
-        inArray(schema.registrations.status, ["pending_payment", "pending_zelle_verification"]),
-        isNotNull(schema.registrations.reservationExpiresAt),
-        lt(schema.registrations.reservationExpiresAt, now)
-      )
-    );
-  for (const reg of stale) {
-    await cancelRegistration(reg.id, "cancelled_no_payment");
-  }
-  return stale.length;
-}
-
-/** Retire abandoned card donations whose hold has lapsed. Zelle donations are left for a human. */
-export async function sweepExpiredDonations(): Promise<number> {
-  const db = getDb();
-  const now = new Date();
-  const stale = await db
-    .select()
-    .from(schema.donations)
-    .where(
-      and(
-        eq(schema.donations.status, "pending_payment"),
-        isNotNull(schema.donations.reservationExpiresAt),
-        lt(schema.donations.reservationExpiresAt, now)
-      )
-    );
-  for (const don of stale) {
-    await db
-      .update(schema.donations)
-      .set({ status: "cancelled_no_payment", cancelledAt: now, updatedAt: now })
-      .where(eq(schema.donations.id, don.id));
-    await voidPayments(don.id, "Checkout abandoned");
-  }
-  return stale.length;
-}
 
 /**
  * Demote memberships whose term has run out. Only touches rows that actually

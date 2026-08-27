@@ -64,6 +64,7 @@ export const members = pgTable(
     membershipStatus: text("membership_status").notNull().default("pending_payment"), // pending_payment | active | inactive
     membershipStartedAt: date("membership_started_at"),
     squareOrderId: text("square_order_id"), // set when paying dues by card; matched by the Square webhook
+    squarePaymentLinkId: text("square_payment_link_id"), // so an abandoned dues checkout's link can be retired
     membershipExpiresAt: timestamp("membership_expires_at", { withTimezone: true }), // active membership valid until
     memberNumber: text("member_number"), // friendly member ID shown to the member
     // account = created via signup/join flow · self_declared = honor-system claim
@@ -207,6 +208,10 @@ export const registrations = pgTable(
     // pending_payment | pending_zelle_verification | paid | cancelled | cancelled_no_payment
     squareOrderId: text("square_order_id"),
     squarePaymentId: text("square_payment_id"),
+    // Square payment links never expire on their own. Keeping the link id lets the
+    // sweeper DELETE the link when it gives up on a reservation, so an abandoned
+    // checkout cannot be paid hours later against a cancelled order.
+    squarePaymentLinkId: text("square_payment_link_id"),
     zelleVerifiedBy: text("zelle_verified_by"),
     zelleVerifiedAt: timestamp("zelle_verified_at", { withTimezone: true }),
     zelleSentClickedAt: timestamp("zelle_sent_clicked_at", { withTimezone: true }),
@@ -338,6 +343,20 @@ export const donations = pgTable(
     status: text("status").notNull().default("pending_payment"),
     squareOrderId: text("square_order_id"),
     squarePaymentId: text("square_payment_id"),
+    // Square payment links never expire on their own. Keeping the link id lets the
+    // sweeper DELETE the link when it gives up on a reservation, so an abandoned
+    // checkout cannot be paid hours later against a cancelled order.
+    squarePaymentLinkId: text("square_payment_link_id"),
+    /**
+     * Set when this gift was added during a ticket checkout rather than given on
+     * its own. The registration owns the payment; this row exists so the gift is
+     * visible on the Donations page and countable as a donation, which it always
+     * was in substance and never was in the data.
+     *
+     * The money still lives in ONE place — the `payments` row keyed to the
+     * registration — so linked rows must never be summed as extra income.
+     */
+    sourceRegistrationId: text("source_registration_id"),
     zelleVerifiedBy: text("zelle_verified_by"),
     zelleVerifiedAt: timestamp("zelle_verified_at", { withTimezone: true }),
     paidAt: timestamp("paid_at", { withTimezone: true }),
@@ -350,6 +369,7 @@ export const donations = pgTable(
   (t) => [
     uniqueIndex("donations_conf_idx").on(t.confirmationNumber),
     index("donations_status_idx").on(t.status),
+    index("donations_source_reg_idx").on(t.sourceRegistrationId),
   ]
 );
 
@@ -388,6 +408,11 @@ export const payments = pgTable(
     // pending | pending_verification | paid | cancelled | refunded
     squareOrderId: text("square_order_id"),
     squarePaymentId: text("square_payment_id"),
+    // Stamped whenever Square itself confirmed this row (webhook read-back or the
+    // reconciler), together with the amount Square says it took. A paid row with
+    // no square_verified_at is money we have only our own word for.
+    squareVerifiedAt: timestamp("square_verified_at", { withTimezone: true }),
+    squareAmountCents: integer("square_amount_cents"),
     reference: text("reference"), // Zelle memo, cheque no., confirmation number
     verifiedBy: text("verified_by").references(() => users.id), // admin who confirmed a manual payment
     verifiedAt: timestamp("verified_at", { withTimezone: true }),
@@ -516,11 +541,79 @@ export const systemConfig = pgTable("system_config", {
   updatedBy: text("updated_by"),
 });
 
+/**
+ * Webhook de-duplication — and, just as importantly, webhook RETRYABILITY.
+ *
+ * A row is claimed BEFORE the work runs and only flipped to `done` once the work
+ * has actually succeeded. Previously the row was written first and never
+ * revisited, so a delivery that crashed half-way was remembered as "already
+ * handled" and Square's retry was answered with a cheerful 200 — the payment was
+ * then lost with no trace anywhere. `status` + `attempts` + `last_error` make a
+ * stuck event visible instead.
+ */
 export const processedWebhookEvents = pgTable("processed_webhook_events", {
   eventId: text("event_id").primaryKey(),
   provider: text("provider").notNull().default("square"),
+  status: text("status").notNull().default("done"), // processing | done | failed
+  attempts: integer("attempts").notNull().default(1),
+  eventType: text("event_type"),
+  squarePaymentId: text("square_payment_id"),
+  lastError: text("last_error"),
+  payload: jsonb("payload"), // kept so a failed delivery can be replayed by hand
+  claimedAt: timestamp("claimed_at", { withTimezone: true }).notNull().defaultNow(),
   processedAt: timestamp("processed_at", { withTimezone: true }).notNull().defaultNow(),
+  updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
 });
+
+// ── reconciliation (Square audits our books) ───────────────────
+export const reconciliationRuns = pgTable("reconciliation_runs", {
+  id: id(),
+  startedAt: timestamp("started_at", { withTimezone: true }).notNull().defaultNow(),
+  finishedAt: timestamp("finished_at", { withTimezone: true }),
+  windowDays: integer("window_days").notNull().default(7),
+  autoSettle: boolean("auto_settle").notNull().default(false),
+  squarePayments: integer("square_payments").notNull().default(0),
+  falseNegatives: integer("false_negatives").notNull().default(0),
+  falsePositives: integer("false_positives").notNull().default(0),
+  amountMismatches: integer("amount_mismatches").notNull().default(0),
+  orphans: integer("orphans").notNull().default(0),
+  repaired: integer("repaired").notNull().default(0),
+  status: text("status").notNull().default("ok"), // ok | error
+  error: text("error"),
+});
+
+export const reconciliationFindings = pgTable(
+  "reconciliation_findings",
+  {
+    id: id(),
+    runId: text("run_id"),
+    kind: text("kind").notNull(), // false_negative | false_positive | amount_mismatch | orphan
+    severity: text("severity").notNull().default("warning"), // warning | critical
+    reference: text("reference"), // our confirmation number
+    entityKind: text("entity_kind"),
+    entityId: text("entity_id"),
+    squarePaymentId: text("square_payment_id"),
+    squareOrderId: text("square_order_id"),
+    squareAmountCents: integer("square_amount_cents"),
+    ledgerAmountCents: integer("ledger_amount_cents"),
+    detail: text("detail"),
+    /**
+     * open | approved | dismissed.
+     * Nothing in this table is ever acted on automatically. A finding is a
+     * QUESTION put to a person — "Square and our books disagree here" — and it
+     * stays open until an admin approves the correction or dismisses it, with
+     * their name and reason recorded either way.
+     */
+    status: text("status").notNull().default("open"),
+    resolutionNote: text("resolution_note"),
+    /** Stops the nightly scan re-raising the same open question every night. */
+    dedupeKey: text("dedupe_key"),
+    resolvedAt: timestamp("resolved_at", { withTimezone: true }),
+    resolvedBy: text("resolved_by"),
+    createdAt: createdAt(),
+  },
+  (t) => [index("recon_findings_open_idx").on(t.status, t.createdAt)]
+);
 
 // ── media library (admin-uploaded photos) ──────────────────────
 export const mediaImages = pgTable(

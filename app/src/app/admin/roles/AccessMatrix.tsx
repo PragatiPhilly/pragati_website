@@ -5,9 +5,10 @@
  * `admin` and `volunteer` roles can open. Locked sections (Roles, Audit,
  * Settings) are shown but not editable: super-admin-only, always.
  */
-import { useState, useTransition } from "react";
+import { Fragment, useState, useTransition } from "react";
 import { saveRoleAccessAction } from "./actions";
-import type { RoleAccess, Section, SectionKey } from "@/lib/auth/access";
+import { groupSections, type Section, type SectionKey } from "@/lib/auth/sections";
+import type { RoleAccess } from "@/lib/auth/access";
 
 export default function AccessMatrix({
   sections,
@@ -45,6 +46,22 @@ export default function AccessMatrix({
     </td>
   );
 
+  const row = (list: Section[]) =>
+    list.map((s) => {
+      const isLocked = locked.includes(s.key);
+      return (
+        <tr key={s.key} className="border-t" style={{ borderColor: "var(--line)" }}>
+          <td className="px-3 py-2 font-medium">
+            <span className="mr-2">{s.icon}</span>
+            {s.label}
+            {isLocked && <span className="ml-2 text-[10px] uppercase tracking-wider opacity-50">super only</span>}
+          </td>
+          {cell("admin", s.key, isLocked)}
+          {cell("volunteer", s.key, isLocked)}
+        </tr>
+      );
+    });
+
   return (
     <div className="festive-card p-5 mt-8">
       <p className="font-bold mb-1">🗂 Section access by role</p>
@@ -64,20 +81,24 @@ export default function AccessMatrix({
             </tr>
           </thead>
           <tbody>
-            {sections.map((s) => {
-              const isLocked = locked.includes(s.key);
-              return (
-                <tr key={s.key} className="border-t" style={{ borderColor: "var(--line)" }}>
-                  <td className="px-3 py-2 font-medium">
-                    <span className="mr-2">{s.icon}</span>
-                    {s.label}
-                    {isLocked && <span className="ml-2 text-[10px] uppercase tracking-wider opacity-50">super only</span>}
+            {/* Same grouping as the sidebar, so this table and the nav are read
+                the same way — nineteen ungrouped checkbox rows are hard to audit,
+                which is the one thing an access matrix has to be good for. */}
+            {row(sections.filter((s) => !s.group))}
+            {groupSections(sections).map(({ group, items }) => (
+              <Fragment key={group.key}>
+                <tr>
+                  <td
+                    colSpan={3}
+                    className="px-3 pt-5 pb-1 text-[11px] font-bold uppercase tracking-[0.11em]"
+                    style={{ color: "var(--ink-soft)" }}
+                  >
+                    {group.label}
                   </td>
-                  {cell("admin", s.key, isLocked)}
-                  {cell("volunteer", s.key, isLocked)}
                 </tr>
-              );
-            })}
+                {row(items)}
+              </Fragment>
+            ))}
           </tbody>
         </table>
       </div>

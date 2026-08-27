@@ -11,8 +11,8 @@ export const dynamic = "force-dynamic";
 export default async function AdminDashboard() {
   await requireSectionAccess("dashboard");
   const db = getDb();
-  const { sweepExpiredReservations } = await import("@/lib/sweeper");
-  await sweepExpiredReservations(); // opportunistic cleanup of expired holds
+  // (Loading this page used to cancel "expired" checkouts as a side effect.
+  // Nothing cancels payments automatically any more — see lib/sweeper.ts.)
   const active = await getActiveEvent();
 
   // Money comes from the ledger, so the three streams are separable and the

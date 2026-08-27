@@ -28,6 +28,10 @@ export function ensurePaymentsTable(): Promise<void> {
         status text NOT NULL DEFAULT 'pending',
         square_order_id text,
         square_payment_id text,
+        -- stamped whenever Square itself confirmed this row (webhook read-back
+        -- or the nightly reconciler), with the amount Square says it took
+        square_verified_at timestamptz,
+        square_amount_cents integer,
         reference text,
         verified_by text,
         verified_at timestamptz,

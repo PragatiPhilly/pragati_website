@@ -31,7 +31,9 @@ export const systemConfigDefaults: Record<string, unknown> = {
   zelle_recipient_display_name: "Pragati",
   zelle_verification_sla_hours: 24,
   zelle_reservation_hours: 48,
-  square_reservation_minutes: 15,
+  // Retired 2026-08-27. Card checkouts no longer expire and nothing cancels
+  // them automatically — kept only so older saved configs still parse.
+  square_reservation_minutes: 0,
 
   system_email_from: "sayantankundu93@gmail.com", // TEST override; org email later
   system_email_reply_to: "sayantankundu93@gmail.com",

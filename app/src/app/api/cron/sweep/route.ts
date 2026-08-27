@@ -1,9 +1,13 @@
 import { NextResponse } from "next/server";
-import { sweepExpiredReservations, sweepExpiredDonations, sweepExpiredMemberships } from "@/lib/sweeper";
+import { sweepExpiredMemberships } from "@/lib/sweeper";
 
 export const dynamic = "force-dynamic";
 
 /**
+ * Housekeeping only: pending schema/data migrations, membership expiry, the
+ * email outbox drain, and log pruning. It CANNOT cancel a payment or a
+ * registration — nothing scheduled can. See lib/sweeper.ts.
+ *
  * Hit this from a scheduler (Vercel Cron in production — see vercel.json).
  * If CRON_SECRET is set, only requests carrying it are accepted (Vercel
  * sends it automatically as `Authorization: Bearer <CRON_SECRET>`).
@@ -18,8 +22,8 @@ export async function GET(req: Request) {
   const { runPendingDataMigrations } = await import("@/lib/data-migrations");
   const migrations = await runPendingDataMigrations();
 
-  const released = await sweepExpiredReservations();
-  const donationsReleased = await sweepExpiredDonations();
+  // NOTE: this job no longer cancels anything to do with money. Unpaid
+  // checkouts are left alone forever — see the header of lib/sweeper.ts.
   const membershipsLapsed = await sweepExpiredMemberships();
   // drain the email outbox: send queued/deferred mail, combine alert digests
   const { drainOutbox } = await import("@/lib/email");
@@ -30,5 +34,5 @@ export async function GET(req: Request) {
     const { pruneOldLogs } = await import("@/lib/log-retention");
     pruned = await pruneOldLogs();
   }
-  return NextResponse.json({ ok: true, migrations, released, donationsReleased, membershipsLapsed, outbox, pruned });
+  return NextResponse.json({ ok: true, migrations, membershipsLapsed, outbox, pruned });
 }
