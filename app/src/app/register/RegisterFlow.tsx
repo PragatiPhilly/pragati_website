@@ -15,7 +15,7 @@ import { AnimatePresence, motion } from "framer-motion";
 import { useRouter } from "next/navigation";
 import { submitRegistration, validatePromoAction } from "./actions";
 import { formatCents, cardProcessingFeeCents } from "@/lib/pricing";
-import { sameDaySet } from "@/lib/event-days";
+import { matchConcertSelection, sameDaySet } from "@/lib/event-days";
 import { isEmail, buyerStepError } from "@/lib/validation";
 import JourneyScene from "@/components/register/JourneyScene";
 import PhoneInput from "@/components/site/PhoneInput";
@@ -609,15 +609,27 @@ export default function RegisterFlow({
     const lines: { person: Person | null; label: string; typeName: string; price: number; memberPricing: boolean }[] = [];
     const issues: { person: Person; band: string; reason: string; combos: { key: string; days: string[]; label: string }[]; food: { withFood: boolean; noFood: boolean } }[] = [];
     for (const p of people) {
-      // Concert-only person: one concert-pass line per chosen concert day, no food.
+      // Concert-only person. A combined pass matching the chosen nights exactly
+      // (e.g. "Sat & Sun") is ONE line at the combo price — mirrors the server,
+      // which splits that total across the nights' QRs.
       if (p.concertOnly) {
-        for (const dayKey of p.days) {
-          const pass = concertPasses.find((t) => t.dayKeys == null || (t.dayKeys ?? []).includes(dayKey));
-          if (!pass) continue;
-          const memberPricing = householdMemberPricing || (isMemberPurchase && (p.isMemberFlagged || discountMode === "whole_family"));
-          const unit = memberPricing ? pass.priceMemberCents : pass.priceNonmemberCents;
-          const dLabel = event.days.find((d) => d.key === dayKey)?.label ?? dayKey.toUpperCase();
-          lines.push({ person: p, label: `🎶 ${dLabel}`, typeName: pass.name, price: unit < 0 ? 0 : unit, memberPricing });
+        const memberPricing = householdMemberPricing || (isMemberPurchase && (p.isMemberFlagged || discountMode === "whole_family"));
+        const sel = matchConcertSelection(concertPasses, p.days);
+        if (sel.mode === "combo") {
+          const unit = memberPricing ? sel.pass.priceMemberCents : sel.pass.priceNonmemberCents;
+          lines.push({
+            person: p,
+            label: `🎶 ${sel.days.map((k) => event.days.find((d) => d.key === k)?.label.split(",")[0] ?? k.toUpperCase()).join(" + ")}`,
+            typeName: sel.pass.name,
+            price: unit < 0 ? 0 : unit,
+            memberPricing,
+          });
+        } else {
+          for (const { day, pass } of sel.items) {
+            const unit = memberPricing ? pass.priceMemberCents : pass.priceNonmemberCents;
+            const dLabel = event.days.find((d) => d.key === day)?.label ?? day.toUpperCase();
+            lines.push({ person: p, label: `🎶 ${dLabel}`, typeName: pass.name, price: unit < 0 ? 0 : unit, memberPricing });
+          }
         }
         continue;
       }

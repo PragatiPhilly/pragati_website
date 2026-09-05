@@ -47,3 +47,39 @@ export function splitEven(totalCents: number, n: number): number[] {
   const r = totalCents - q * n;
   return Array.from({ length: n }, (_, i) => q + (i < r ? 1 : 0));
 }
+
+/** Minimal shape of a ticket type for day matching (server + client mirror). */
+export type DayKeyedPass = { dayKeys?: unknown };
+
+const keysOf = (t: DayKeyedPass): string[] | null =>
+  Array.isArray(t.dayKeys) ? (t.dayKeys as string[]) : null;
+
+/**
+ * Pick the concert pass(es) that cover a concert-only selection.
+ *
+ * A pass whose day set EXACTLY matches the selection wins — that is the
+ * combined "Sat & Sun" pass, and its price is the price of the whole
+ * selection. Only when no such pass exists do we fall back to charging
+ * day by day, and even then a single-day pass beats a multi-day pass that
+ * merely happens to include that day (which would overcharge).
+ */
+export function matchConcertSelection<T extends DayKeyedPass>(
+  passes: T[],
+  days: string[]
+):
+  | { mode: "combo"; pass: T; days: string[] }
+  | { mode: "perday"; items: { day: string; pass: T }[] } {
+  if (days.length > 0) {
+    const exact = passes.find((t) => sameDaySet(keysOf(t), days));
+    if (exact) return { mode: "combo", pass: exact, days };
+  }
+  const items: { day: string; pass: T }[] = [];
+  for (const day of days) {
+    const pass =
+      passes.find((t) => sameDaySet(keysOf(t), [day])) ??
+      passes.find((t) => keysOf(t)?.includes(day)) ??
+      passes.find((t) => t.dayKeys == null);
+    if (pass) items.push({ day, pass });
+  }
+  return { mode: "perday", items };
+}

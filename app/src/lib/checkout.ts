@@ -7,7 +7,7 @@ import { and, eq, isNull, sql } from "drizzle-orm";
 import { getDb, schema } from "@/db/client";
 import { nextConfirmationNumber, makeQrCode } from "@/lib/confirmation";
 import { priceQuote, attendeeGetsMemberPricing, cardProcessingFeeCents, type AttendeeInput, type TicketTypeInfo, formatCents } from "@/lib/pricing";
-import { sameDaySet, splitEven } from "@/lib/event-days";
+import { matchConcertSelection, sameDaySet, splitEven } from "@/lib/event-days";
 import { ensureExtraColumns } from "@/lib/schema-ensure";
 import { siteUrl } from "@/lib/site-url";
 import { getConfig } from "@/lib/system-config";
@@ -143,25 +143,44 @@ export async function createCheckout(input: CheckoutInput): Promise<CheckoutResu
   const expanded: { attendee: AttendeeInput; day?: string; studentInfo?: StudentInfo | null }[] = [];
   const concertPasses = types.filter((t) => t.ageBand === "concert");
   for (const a of input.attendees) {
-    // Concert-only attendee: one concert pass per chosen concert day, never food.
+    // Concert-only attendee: one QR per chosen concert night, never food.
+    // A combined pass (e.g. "Concert: Saturday & Sunday") whose day set matches
+    // the selection is priced ONCE as the combo — its total is split across the
+    // nights so each still gets its own QR. Charging each night separately
+    // would ignore the combo price the admin set.
     if (a.concertOnly) {
-      for (const day of a.days) {
-        const t =
-          concertPasses.find((tt) => Array.isArray(tt.dayKeys) && (tt.dayKeys as string[]).includes(day)) ??
-          concertPasses.find((tt) => tt.dayKeys == null);
-        if (!t) continue;
-        expanded.push({
-          attendee: {
-            firstName: a.firstName,
-            lastName: a.lastName,
-            isKid: a.isKid,
-            age: a.age,
-            isMemberFlagged: a.isMemberFlagged ?? false,
-            foodPref: "none",
-            ticketTypeId: t.id,
-          },
-          day,
-        });
+      const concertBase: Omit<AttendeeInput, "ticketTypeId"> = {
+        firstName: a.firstName,
+        lastName: a.lastName,
+        isKid: a.isKid,
+        age: a.age,
+        isMemberFlagged: a.isMemberFlagged ?? false,
+        foodPref: "none",
+      };
+      const sel = matchConcertSelection(concertPasses, a.days);
+      if (sel.mode === "combo") {
+        const t = sel.pass;
+        const member = attendeeGetsMemberPricing(
+          { ...concertBase, ticketTypeId: t.id },
+          effMemberPurchase,
+          effDiscountMode
+        );
+        const comboTotal = member ? t.priceMemberCents : t.priceNonmemberCents;
+        const shares = comboTotal >= 0 ? splitEven(comboTotal, sel.days.length) : [];
+        sel.days.forEach((day, idx) =>
+          expanded.push({
+            attendee: {
+              ...concertBase,
+              ticketTypeId: t.id,
+              priceOverrideCents: comboTotal >= 0 ? shares[idx] : undefined,
+            },
+            day,
+          })
+        );
+      } else {
+        for (const { day, pass } of sel.items) {
+          expanded.push({ attendee: { ...concertBase, ticketTypeId: pass.id }, day });
+        }
       }
       continue;
     }
