@@ -501,6 +501,19 @@ export async function zelleSentClicked(confirmationNumber: string): Promise<void
   await sendMail({ to: treasurerEmail, ...alert, template: "admin_alert", relatedRegistrationId: reg.id, priority: 3, digestKey: "zelle-alerts" });
 }
 
+/**
+ * Is this row a walk-in desk order?
+ *
+ * Duplicated deliberately from lib/desk/guards.ts (which is the same two-line
+ * check): importing lib/desk from lib/checkout would tie the online checkout to
+ * the desk module, and the point of the desk is that it does not touch this
+ * file's behaviour. `source` is set at creation; `deskState` is the belt to its
+ * braces for any row written before the column existed.
+ */
+function isDeskRegistration(reg: { source?: string | null; deskState?: string | null }): boolean {
+  return reg.source === "desk" || !!reg.deskState;
+}
+
 /** Source of truth for flipping a registration to paid (webhook or admin). */
 export async function markRegistrationPaid(
   registrationId: string,
@@ -520,6 +533,19 @@ export async function markRegistrationPaid(
     .from(schema.registrations)
     .where(eq(schema.registrations.id, registrationId));
   if (!reg || reg.status === "paid") return; // idempotent
+
+  // ── walk-in desk orders never come through here (touchpoint T2) ─────────
+  // A desk order can be paid in several tenders — $100 cash now, the rest by
+  // card. This function settles the WHOLE entity in one go (see
+  // settlePayments), which is right for a web checkout with one payment method
+  // and wrong for a split one: confirming the card would silently mark the cash
+  // paid too, and take the seats a second time. The desk settles one tender at
+  // a time in lib/desk/tenders.ts. Defence in depth behind the webhook guard.
+  if (isDeskRegistration(reg)) {
+    throw new Error(
+      `${reg.confirmationNumber} is a walk-in desk order — settle it in the Walk-in desk, not here.`
+    );
+  }
 
   // A payment can legitimately arrive AFTER we gave up on the reservation:
   // Square payment links never expire, so a buyer can return hours later and pay
@@ -699,6 +725,14 @@ export async function cancelRegistration(registrationId: string, reason: "cancel
     .from(schema.registrations)
     .where(eq(schema.registrations.id, registrationId));
   if (!reg || reg.status.startsWith("cancelled")) return;
+  // ── walk-in desk orders never come through here (touchpoint T3) ─────────
+  // Voiding a desk order has to unwind its tenders, its adjustments and its
+  // seat count together, and record who decided. lib/desk/orders.ts does that.
+  if (isDeskRegistration(reg)) {
+    throw new Error(
+      `${reg.confirmationNumber} is a walk-in desk order — void it in the Walk-in desk, not here.`
+    );
+  }
   const wasPaid = reg.status === "paid";
   await db
     .update(schema.registrations)

@@ -42,6 +42,10 @@ beforeAll(async () => {
   await client.exec(ddl);
   const { ensurePaymentIntegritySchema } = await import("../src/lib/payments/ensure");
   await ensurePaymentIntegritySchema();
+  // The walk-in desk's tables and its additive columns, applied the same lazy
+  // way the app applies them at boot (see lib/desk/ensure.ts).
+  const { ensureDeskSchema } = await import("../src/lib/desk/ensure");
+  await ensureDeskSchema();
 
   const [event] = await db
     .insert(schema.events)

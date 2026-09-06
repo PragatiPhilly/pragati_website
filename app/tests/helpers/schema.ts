@@ -31,4 +31,9 @@ export async function createTestSchema(): Promise<void> {
   // Everything the app adds lazily at boot, applied the same way here.
   const { ensurePaymentIntegritySchema } = await import("../../src/lib/payments/ensure");
   await ensurePaymentIntegritySchema();
+  // The walk-in desk's tables and its additive columns on registrations /
+  // tickets / payments — applied here exactly the way the app applies them at
+  // boot, so the tests run against the same shape production has.
+  const { ensureDeskSchema } = await import("../../src/lib/desk/ensure");
+  await ensureDeskSchema();
 }

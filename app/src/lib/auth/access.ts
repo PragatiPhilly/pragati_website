@@ -31,7 +31,10 @@ export type RoleAccess = { admin: SectionKey[]; volunteer: SectionKey[] };
 
 export const DEFAULT_ROLE_ACCESS: RoleAccess = {
   admin: CONFIGURABLE_SECTIONS.map((s) => s.key), // admins: everything grantable
-  volunteer: ["checkin"], // volunteers: scan desk only
+  // Volunteers run the door: they scan, and they take walk-ins. Every money
+  // action inside the desk carries its own role check on top (comps, voids and
+  // custody clearing are not theirs) — see lib/desk/guards.ts.
+  volunteer: ["checkin", "desk"],
 };
 
 /** Current matrix (config merged over defaults, locked sections stripped). */

@@ -24,12 +24,31 @@ export async function resendTicketsAction(registrationId: string): Promise<{ ok:
   return { ok: true, message: "Tickets email resent ✓" };
 }
 
+/**
+ * A walk-in desk order is not settled from this page (touchpoint T4).
+ *
+ * It can hold several tenders, adjustments and a balance, and every one of
+ * those is attributed to a person. Marking it "paid" here would settle all of
+ * its ledger rows at once and record nobody as having taken the money — which
+ * is the whole failure this page's one-click convenience was built for, and
+ * exactly what the desk exists to stop.
+ */
+function deskRedirect(reg: { source: string | null; deskState?: string | null; confirmationNumber: string; id: string }) {
+  if (reg.source !== "desk" && !reg.deskState) return null;
+  return {
+    ok: false,
+    message: `${reg.confirmationNumber} was taken at the walk-in desk — open it there (Walk-in desk → search ${reg.confirmationNumber}).`,
+  };
+}
+
 /** Walk-in paid cash/card at the counter → mark paid, tickets email goes out. */
 export async function markPaidCashAction(registrationId: string): Promise<{ ok: boolean; message: string }> {
   const admin = await requireAdmin();
   const db = getDb();
   const [reg] = await db.select().from(schema.registrations).where(eq(schema.registrations.id, registrationId));
   if (!reg) return { ok: false, message: "Not found." };
+  const desk = deskRedirect(reg);
+  if (desk) return desk;
   if (reg.status === "paid") return { ok: false, message: "Already paid." };
 
   const { markRegistrationPaid } = await import("@/lib/checkout");
@@ -74,6 +93,8 @@ export async function deleteRegistrationAction(registrationId: string): Promise<
 
   const [reg] = await db.select().from(schema.registrations).where(eq(schema.registrations.id, registrationId));
   if (!reg) return { ok: false, message: "Registration not found." };
+  const desk = deskRedirect(reg);
+  if (desk) return { ok: false, message: `${reg.confirmationNumber} was taken at the walk-in desk — void it there. Desk orders are never deleted; they keep their passes and their timeline.` };
   const tix = await db.select().from(schema.tickets).where(eq(schema.tickets.registrationId, registrationId));
   const [event] = await db.select().from(schema.events).where(eq(schema.events.id, reg.eventId));
 

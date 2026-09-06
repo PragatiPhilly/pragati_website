@@ -21,6 +21,8 @@ export type CheckinTicket = {
   day: string;
   food: string | null;
   checkedInAt: string | null;
+  /** Walk-in desk: this family was let in owing money. The gate should say so. */
+  owesCents?: number;
 };
 
 /** Accepts a confirmation number, a raw QR code, a scanned /t/<code> URL —
@@ -116,12 +118,23 @@ export async function lookupTicketsAction(rawQuery: string): Promise<CheckinTick
     tickets = [...byAttendee, ...byBuyer].filter((t) => (seen.has(t.id) ? false : (seen.add(t.id), true)));
   }
 
+  // A desk order that a named person deliberately admitted while it still owed
+  // money is a valid pass — the same rule the QR scan applies. A VOIDED desk
+  // order never is, whatever its status column says.
+  const admits = (r: (typeof regs)[number] | undefined): boolean => {
+    if (!r) return false;
+    const isDesk = r.source === "desk" || !!r.deskState;
+    if (isDesk && r.deskState === "voided") return false;
+    return r.status === "paid" || (isDesk && !!r.admittedUnsettledAt);
+  };
+
   return tickets
-    .filter((t) => regById.get(t.registrationId)?.status === "paid")
+    .filter((t) => admits(regById.get(t.registrationId)))
     .slice(0, 30)
     .map((t) => {
       const reg = regById.get(t.registrationId)!;
       return {
+        owesCents: reg.status !== "paid" && reg.admittedUnsettledAt ? reg.totalCents : undefined,
         id: t.id,
         attendee: `${t.attendeeFirstName} ${t.attendeeLastName ?? ""}`.trim(),
         isKid: (t.attendeeAge ?? 99) < 13,
@@ -154,6 +167,9 @@ export type EntryScanResult =
       /** concert / timed-entry pass */
       isConcert: boolean;
       day: string;
+      /** Walk-in desk extras: a balance still owed, and the adult a minor is
+       *  attached to. Both are things the gate acts on, not decoration. */
+      notes?: string[];
     }
   | { kind: "duplicate"; attendee: string; conf: string; checkedInAt: string }
   | { kind: "list" } // several matches (or none) — client falls back to the list UI
@@ -175,8 +191,20 @@ export async function entryScanAction(rawQuery: string): Promise<EntryScanResult
     .select()
     .from(schema.registrations)
     .where(eq(schema.registrations.id, ticket.registrationId));
-  if (!reg || reg.status !== "paid")
-    return { kind: "invalid", reason: "NOT VALID — payment pending on this ticket." };
+  // ── walk-in desk orders (touchpoint T6) ─────────────────────────────────
+  // A desk order can legitimately be at the gate before it is settled: a named
+  // person decided to let the family in owing money, and that decision is
+  // recorded on the order. It still scans. What must NEVER scan is a voided
+  // order — the passes stay for the record, but they stop admitting.
+  const isDesk = reg?.source === "desk" || !!reg?.deskState;
+  const deskAdmits = isDesk && reg?.deskState !== "voided" && (reg?.status === "paid" || !!reg?.admittedUnsettledAt);
+  if (isDesk && reg?.deskState === "voided")
+    return { kind: "invalid", reason: "VOIDED at the desk — send them back to the desk." };
+  if (!reg || (reg.status !== "paid" && !deskAdmits))
+    return {
+      kind: "invalid",
+      reason: isDesk ? "NOT PAID — send them to the walk-in desk." : "NOT VALID — payment pending on this ticket.",
+    };
 
   const blocked = await checkInBlockedReason(db, ticket);
   if (blocked) return { kind: "invalid", reason: blocked };
@@ -232,7 +260,43 @@ export async function entryScanAction(rawQuery: string): Promise<EntryScanResult
     isStudent: ticket.studentInfo != null,
     isConcert: tt?.ageBand === "concert",
     day: dayLabel,
+    notes: await gateNotes(db, reg, ticket),
   };
+}
+
+/**
+ * What the gate has to know about a walk-in desk pass beyond "valid".
+ *
+ * Two things, both actionable: money still owed (send them to the desk after
+ * they are in, don't hold the queue), and — for a minor — which adult they came
+ * with and whether that adult is actually inside yet.
+ */
+async function gateNotes(
+  db: ReturnType<typeof getDb>,
+  reg: typeof schema.registrations.$inferSelect,
+  ticket: typeof schema.tickets.$inferSelect
+): Promise<string[]> {
+  const notes: string[] = [];
+  try {
+    if ((reg.source === "desk" || reg.deskState) && reg.admittedUnsettledAt && reg.status !== "paid") {
+      const { deskOrderSummary } = await import("@/lib/desk/summary");
+      const s = await deskOrderSummary(reg.id);
+      if (s && s.balanceCents > 0) notes.push(`BALANCE OWED $${(s.balanceCents / 100).toFixed(2)} — send to the desk`);
+    }
+    if (ticket.guardianTicketId) {
+      const [g] = await db.select().from(schema.tickets).where(eq(schema.tickets.id, ticket.guardianTicketId));
+      if (g)
+        notes.push(
+          `With ${g.attendeeFirstName} ${g.attendeeLastName ?? ""}`.trim() +
+            (g.checkedInAt ? " (already inside)" : " — NOT checked in yet")
+        );
+    } else if (ticket.attendeeAge !== null && ticket.attendeeAge !== undefined && ticket.attendeeAge < 18 && (reg.source === "desk" || reg.deskState)) {
+      notes.push("Minor with no guardian recorded — check an adult is with them");
+    }
+  } catch {
+    /* a gate note is never worth blocking entry */
+  }
+  return notes;
 }
 
 export async function checkInTicketAction(ticketId: string) {

@@ -12,7 +12,7 @@
  */
 export type SectionKey =
   | "dashboard" | "payments" | "reconciliation" | "zelle" | "registrations" | "donations" | "members" | "events"
-  | "checkin" | "scans" | "kitchen" | "media" | "magazines" | "messages" | "emails"
+  | "checkin" | "scans" | "kitchen" | "desk" | "desk_money" | "media" | "magazines" | "messages" | "emails"
   | "email_preview" | "roles" | "audit" | "settings";
 
 /**
@@ -52,12 +52,16 @@ export const SECTIONS: Section[] = [
   { key: "reconciliation", label: "Reconciliation", href: "/admin/reconciliation", icon: "⚖️", group: "money" },
   { key: "zelle", label: "Zelle queue", href: "/admin/payments/pending-zelle", icon: "⏳", group: "money" },
   { key: "donations", label: "Donations", href: "/admin/donations", icon: "🎁", group: "money" },
+  // Money the desk took that is NOT in the org account yet — cash in a drawer,
+  // an undeposited cheque, a Zelle sitting in someone's personal account.
+  { key: "desk_money", label: "Treasury", href: "/admin/desk/treasury", icon: "🏦", group: "money" },
 
   { key: "registrations", label: "Registrations", href: "/admin/registrations", icon: "🎟", group: "people" },
   { key: "members", label: "Members", href: "/admin/members", icon: "👪", group: "people" },
 
   { key: "events", label: "Events", href: "/admin/events", icon: "📅", group: "eventday" },
   { key: "checkin", label: "Scan desk", href: "/admin/checkin", icon: "✅", group: "eventday" },
+  { key: "desk", label: "Walk-in desk", href: "/admin/desk", icon: "🧾", group: "eventday" },
   { key: "scans", label: "Scan setup", href: "/admin/scans", icon: "📲", group: "eventday" },
   { key: "kitchen", label: "Kitchen", href: "/admin/kitchen", icon: "🍛", group: "eventday" },
 

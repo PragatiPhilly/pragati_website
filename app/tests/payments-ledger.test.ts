@@ -48,6 +48,10 @@ beforeAll(async () => {
   CREATE TABLE IF NOT EXISTS password_reset_tokens (id text PRIMARY KEY DEFAULT gen_random_uuid()::text, user_id text NOT NULL, token_hash text NOT NULL, purpose text NOT NULL DEFAULT 'reset', expires_at timestamptz NOT NULL, used_at timestamptz, created_at timestamptz NOT NULL DEFAULT now());
   `);
   await ensurePaymentsTable();
+  // The walk-in desk's tables and its additive columns, applied the same lazy
+  // way the app applies them at boot (see lib/desk/ensure.ts).
+  const { ensureDeskSchema } = await import("../src/lib/desk/ensure");
+  await ensureDeskSchema();
 
   const [event] = await db
     .insert(schema.events)

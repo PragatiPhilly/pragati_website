@@ -71,9 +71,21 @@ export const systemConfigDefaults: Record<string, unknown> = {
   magazine_purchase_note:
     "Magazines are sold at the Pujo event counter — not available online.",
 
-  // Day-of kiosk
+  // Day-of kiosk (the old public ?mode=dayof screen — retired in favour of the
+  // staffed walk-in desk at /admin/desk; kept so older saved configs parse)
   dayof_enabled: true,
   dayof_idle_reset_seconds: 90,
+
+  // ── walk-in desk (Admin → Walk-in desk). Staff only, never public.
+  desk_station_default: "desk-1",
+  // How much a VOLUNTEER may let someone in owing before an admin has to
+  // approve it. Above this the tender screen asks for an admin.
+  desk_volunteer_balance_cap_cents: 5000,
+  // Money the desk took that has not reached the org account within this many
+  // days raises a custody_overdue reconciliation finding, naming the holder.
+  desk_custody_overdue_days: 7,
+  // Card at the desk: add the 3% surcharge by default (still a per-tender choice).
+  desk_card_fee_default: "yes",
 
   // ── home hero announcement banner (animated; Admin → Settings)
   home_banner_enabled: "yes", // yes = show the animated banner in the home hero

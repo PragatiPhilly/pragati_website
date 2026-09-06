@@ -201,7 +201,7 @@ export default async function AdminDashboard() {
         )}
         {stat("Donations", String(donations.n), `${formatCents(money.donation.collected)} received`, "/admin/donations")}
         {stat("Check-in", "Open", "scan & verify at the door", "/admin/checkin")}
-        {stat("Day-of kiosk", "Launch", "walk-in registration station for the venue", "/register?mode=dayof")}
+        {stat("Walk-in desk", "Launch", "staffed registration desk — cash, cheque, Zelle, card", "/admin/desk")}
       </div>
 
       <h2 className="font-[family-name:var(--font-display)] text-xl font-bold mt-10 mb-4">Recent registrations</h2>

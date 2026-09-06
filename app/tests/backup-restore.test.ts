@@ -43,6 +43,10 @@ beforeAll(async () => {
   // here too so the test database matches a real one.
   const { ensurePaymentIntegritySchema } = await import("../src/lib/payments/ensure");
   await ensurePaymentIntegritySchema();
+  // The walk-in desk's tables and its additive columns, applied the same lazy
+  // way the app applies them at boot (see lib/desk/ensure.ts).
+  const { ensureDeskSchema } = await import("../src/lib/desk/ensure");
+  await ensureDeskSchema();
 
   // seed: one event, one ticket type, one paid registration with 2 tickets
   const [event] = await db

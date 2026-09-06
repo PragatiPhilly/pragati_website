@@ -196,6 +196,30 @@ export async function POST(req: NextRequest) {
       return await finish({ handled: false, orphan: true });
     }
 
+    // ── walk-in desk orders (touchpoint T1) ───────────────────────────────
+    // A desk order can carry several tenders. expectedTotalCents() sums ALL of
+    // an entity's ledger rows, so a $40 card tender against a $200 order paid
+    // half in cash would read as a shortfall and refuse to settle — and
+    // markRegistrationPaid would settle the cash row alongside the card one.
+    // Hand the payment to the desk, which settles exactly the tender Square is
+    // talking about and then recomputes the order.
+    if (match.kind === "registration") {
+      const [deskReg] = await db
+        .select({ source: schema.registrations.source, deskState: schema.registrations.deskState })
+        .from(schema.registrations)
+        .where(eq(schema.registrations.id, match.id));
+      if (deskReg && (deskReg.source === "desk" || deskReg.deskState)) {
+        const { settleDeskCardTender } = await import("@/lib/desk/tenders");
+        const outcome = await settleDeskCardTender({
+          registrationId: match.id,
+          squarePaymentId: payment.id ?? null,
+          squareOrderId: orderId ?? null,
+          squareAmountCents: squareCents || null,
+        });
+        return await finish({ handled: outcome.settled, desk: true, ...outcome });
+      }
+    }
+
     // ── amount verification ───────────────────────────────────────────────
     // Booking a payment as complete without checking WHAT was paid is how a
     // partial or wrong-order payment becomes a false positive. A shortfall of a

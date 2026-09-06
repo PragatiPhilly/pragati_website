@@ -15,6 +15,7 @@ const KIND_SHORT: Record<string, string> = {
   false_positive: "We recorded it, Square has no record",
   amount_mismatch: "Amounts disagreed",
   orphan: "Unidentified Square payment",
+  custody_overdue: "Desk money not yet banked",
 };
 
 /**

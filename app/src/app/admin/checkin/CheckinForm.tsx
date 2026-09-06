@@ -94,6 +94,7 @@ export default function CheckinForm({
           line1: r.partyTotal > 1 ? `${r.partyIn} of ${r.partyTotal} in this party` : "Welcome in!",
           line2: `${r.passName} · ${r.day} · ${r.conf}`,
           needsId: r.isStudent,
+          notes: r.notes,
           timed: r.isConcert,
         });
         setTickets(null);
@@ -334,6 +335,11 @@ export default function CheckinForm({
                 <p className="text-xs" style={{ color: "var(--ink-soft)" }}>
                   {t.conf} · booked by {t.buyer} · {t.day === "all" ? "all days" : t.day} · food: {t.food ?? "—"}
                 </p>
+                {t.owesCents ? (
+                  <p className="text-xs font-bold mt-1" style={{ color: "var(--sindoor)" }}>
+                    Owes ${(t.owesCents / 100).toFixed(2)} — send them to the walk-in desk
+                  </p>
+                ) : null}
               </div>
               {t.checkedInAt ? (
                 <div className="flex items-center gap-3">

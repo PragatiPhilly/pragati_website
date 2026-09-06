@@ -42,6 +42,14 @@ const KIND: Record<string, { title: string; means: string; action: string | null
     action: null,
     actionHint: "Compare against the Square receipt, correct by hand if needed, then dismiss with a note.",
   },
+  custody_overdue: {
+    title: "Money the desk took has not reached the organisation",
+    means:
+      "These guests are settled — they paid, and they came in. The money itself is still in a drawer, an undeposited cheque, or somebody's personal Zelle account. Nothing is wrong with the order; something is outstanding with a person.",
+    action: null,
+    actionHint:
+      "Chase the holder, bank it, then clear it on the Treasury page with the deposit reference. Dismiss here once it is done.",
+  },
   orphan: {
     title: "Square took money against an order we cannot identify",
     means: "A completed payment in Square that matches no registration, donation or membership on our side.",

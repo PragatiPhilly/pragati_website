@@ -1,4 +1,4 @@
-import { notFound } from "next/navigation";
+import { notFound, redirect } from "next/navigation";
 import { eq } from "drizzle-orm";
 import { getDb, schema } from "@/db/client";
 import { getActiveEvent, getEventBySlug } from "@/lib/queries/events";
@@ -16,6 +16,18 @@ export default async function RegisterPage({
   searchParams: Promise<{ event?: string; mode?: string; concert?: string }>;
 }) {
   const { event: slugParam, mode, concert } = await searchParams;
+
+  // ── the day-of kiosk is no longer a public URL ──────────────────────────
+  // It used to be this page with four steps hidden, reachable by anyone with
+  // the link, taking counter-payable orders that nothing could attribute to a
+  // volunteer. Walk-ins are now taken at the staffed desk behind a login.
+  // Staff who follow an old link are sent there; everybody else just gets the
+  // ordinary registration page, so no bookmarked link 404s on event day.
+  if (mode === "dayof") {
+    const staff = await getSession();
+    if (staff && ["admin", "super_admin", "volunteer"].includes(staff.role)) redirect("/admin/desk");
+  }
+
   const base = slugParam ? { slug: slugParam } : await getActiveEvent();
   if (!base) notFound();
   const full = await getEventBySlug(base.slug);
@@ -99,7 +111,10 @@ export default async function RegisterPage({
       <RegisterFlow
         event={flowEvent}
         member={memberCtx}
-        dayOfMode={mode === "dayof"}
+        // Always false now — the staffed desk replaced the public kiosk. The
+        // prop stays because RegisterFlow's kiosk affordances are still the
+        // right shape if a self-serve tablet is ever wanted again.
+        dayOfMode={false}
         discountMode={discountMode}
         idleResetSeconds={idleResetSeconds}
         squareEnabled={squareEnabled}

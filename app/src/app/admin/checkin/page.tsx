@@ -28,9 +28,9 @@ export default async function CheckinPage() {
       <h1 className="font-[family-name:var(--font-display)] text-3xl font-black mb-1">Scan desk</h1>
       <p className="text-sm mb-6" style={{ color: "var(--ink-soft)" }}>
         Scan a ticket QR or look up by name / confirmation number. Pick what you&apos;re scanning for at the
-        top — entry, or an open food window. Walk-ins without tickets? Send them to the{" "}
-        <a href="/register?mode=dayof" className="underline underline-offset-4 font-semibold">
-          day-of kiosk
+        top — entry, or an open food window. Walk-ins without tickets? Take them at the{" "}
+        <a href="/admin/desk" className="underline underline-offset-4 font-semibold">
+          walk-in desk
         </a>
         .
       </p>

@@ -31,6 +31,10 @@ export type ScanVerdict =
       line2?: string;
       needsId?: boolean;
       timed?: boolean;
+      /** Walk-in desk facts the gate has to ACT on — a balance still owed, or
+       *  the adult a child is attached to. Shown as their own bar, and they
+       *  hold the screen longer than a plain success. */
+      notes?: string[];
     }
   | { tone: "dup"; name: string; line1: string; line2?: string }
   | { tone: "bad"; name: string; line1: string; line2?: string };
@@ -77,7 +81,8 @@ export default function ScanResult({ verdict, onDismiss }: { verdict: ScanVerdic
     }
     // successes clear themselves; problems wait for a human
     if (verdict.tone === "ok") {
-      const t = setTimeout(onDismiss, verdict.needsId ? 6000 : 3200);
+      const holdLonger = verdict.needsId || (verdict.notes?.length ?? 0) > 0;
+      const t = setTimeout(onDismiss, holdLonger ? 6000 : 3200);
       return () => clearTimeout(t);
     }
   }, [key, verdict, onDismiss]);
@@ -148,6 +153,20 @@ export default function ScanResult({ verdict, onDismiss }: { verdict: ScanVerdic
             🎓 CHECK STUDENT ID
           </motion.div>
         )}
+        {verdict.tone === "ok" &&
+          (verdict.notes ?? []).map((n) => (
+            <div
+              key={n}
+              className="mt-4 rounded-2xl px-5 py-3 font-black"
+              style={{
+                background: n.startsWith("BALANCE") ? "#FFD54A" : "rgba(255,255,255,.22)",
+                color: n.startsWith("BALANCE") ? "#4A2E00" : "#fff",
+                fontSize: "clamp(14px,3.6vw,20px)",
+              }}
+            >
+              {n}
+            </div>
+          ))}
         {verdict.tone === "ok" && verdict.timed && !verdict.needsId && (
           <div className="mt-5 rounded-full px-5 py-2 font-bold" style={{ background: "rgba(255,255,255,.22)" }}>
             🎶 Concert pass

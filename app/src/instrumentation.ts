@@ -26,6 +26,7 @@ export async function register() {
       { ensureScanTables },
       { ensurePaymentsTable },
       { ensurePaymentIntegritySchema },
+      { ensureDeskSchema },
     ] = await Promise.all([
       import("@/lib/schema-ensure"),
       import("@/lib/membership-ensure"),
@@ -33,6 +34,7 @@ export async function register() {
       import("@/lib/scans/ensure"),
       import("@/lib/ledger-ensure"),
       import("@/lib/payments/ensure"),
+      import("@/lib/desk/ensure"),
     ]);
     await Promise.all([
       ensureExtraColumns(),
@@ -41,8 +43,9 @@ export async function register() {
       ensureScanTables(),
       ensurePaymentsTable(),
     ]);
-    // After the payments table exists — it ALTERs it.
+    // After the payments table exists — both of these ALTER it.
     await ensurePaymentIntegritySchema();
+    await ensureDeskSchema();
     console.log("[instrumentation] schema ensures applied at startup");
   } catch (e) {
     console.error("[instrumentation] startup schema ensure failed (will retry lazily / via drizzle-kit push):", e);

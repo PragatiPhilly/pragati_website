@@ -18,6 +18,12 @@ const METHOD_LABEL: Record<string, string> = {
   zelle: "Zelle",
   offline: "Cash / cheque",
   comped: "Comped",
+  // The walk-in desk records the actual shape rather than lumping everything
+  // into "offline" — a cheque and a handful of notes are not the same object
+  // to a treasurer. (Unknown methods still fall through to the raw value.)
+  cash: "Cash",
+  check: "Cheque",
+  split: "Split",
 };
 
 const STATUS_STYLE: Record<string, { bg: string; fg: string; label: string }> = {

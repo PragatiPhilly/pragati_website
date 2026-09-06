@@ -40,6 +40,10 @@ beforeAll(async () => {
   // here too so the test database matches a real one.
   const { ensurePaymentIntegritySchema } = await import("../src/lib/payments/ensure");
   await ensurePaymentIntegritySchema();
+  // The walk-in desk's tables and its additive columns, applied the same lazy
+  // way the app applies them at boot (see lib/desk/ensure.ts).
+  const { ensureDeskSchema } = await import("../src/lib/desk/ensure");
+  await ensureDeskSchema();
 
   // A world that predates both changes: a paid member with no phone and no
   // financial record, and a paid registration that bundled a donation.

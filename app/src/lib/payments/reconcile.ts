@@ -51,7 +51,7 @@ import { SETTLED, OUTSTANDING } from "@/lib/ledger";
 const AMOUNT_TOLERANCE = 2;
 
 export type Finding = {
-  kind: "false_negative" | "false_positive" | "amount_mismatch" | "orphan";
+  kind: "false_negative" | "false_positive" | "amount_mismatch" | "orphan" | "custody_overdue";
   severity: "warning" | "critical";
   reference: string | null;
   entityKind: string | null;
@@ -69,6 +69,9 @@ export type ReconcileReport = {
   squarePayments: number;
   falseNegatives: Finding[];
   falsePositives: Finding[];
+  /** Desk money that never reached the org account. Not a Square question at
+   *  all — a "where is it, and who has it" question. */
+  custodyOverdue: Finding[];
   amountMismatches: Finding[];
   orphans: Finding[];
   /** Findings written to the review queue that weren't already open there. */
@@ -129,6 +132,7 @@ export async function reconcileWithSquare(opts: { days?: number; now?: Date } = 
     squarePayments: 0,
     falseNegatives: [],
     falsePositives: [],
+    custodyOverdue: [],
     amountMismatches: [],
     orphans: [],
     newFindings: 0,
@@ -163,6 +167,72 @@ export async function reconcileWithSquare(opts: { days?: number; now?: Date } = 
       seenEntityIds.add(owner.id);
 
       const rows = await db.select().from(schema.payments).where(eq(schema.payments.entityId, owner.id));
+
+      // ── walk-in desk orders reconcile PER TENDER (touchpoint T7) ───────
+      // A desk order can hold several payments — $100 cash and $160 by card.
+      // Square only ever knows about the card one, so comparing its figure to
+      // the order's whole ledger total would report an amount mismatch every
+      // single night, and an order legitimately still owing money would be
+      // reported as a false negative. Both would be noise, and a review queue
+      // that cries wolf is a review queue nobody opens. Compare the tender
+      // Square is actually talking about.
+      if (owner.kind === "registration" && (await isDeskRegistration(owner.id))) {
+        const tender =
+          rows.find((r) => r.squarePaymentId === p.paymentId) ??
+          rows.find((r) => r.squareOrderId === p.orderId) ??
+          rows.find((r) => r.method === "square" && !(SETTLED as string[]).includes(r.status));
+        if (!tender) {
+          report.orphans.push({
+            kind: "orphan",
+            severity: "critical",
+            reference: owner.reference,
+            entityKind: owner.kind,
+            entityId: owner.id,
+            squarePaymentId: p.paymentId,
+            squareOrderId: p.orderId,
+            squareAmountCents: p.amountCents,
+            ledgerAmountCents: null,
+            detail: `Square completed $${(p.amountCents / 100).toFixed(2)} against desk order ${owner.reference}, which has no card payment recorded.`,
+          });
+          continue;
+        }
+        const tenderTotal = tender.amountCents + (tender.feeCents ?? 0);
+        if (!(SETTLED as string[]).includes(tender.status)) {
+          report.falseNegatives.push({
+            kind: "false_negative",
+            severity: "critical",
+            reference: owner.reference,
+            entityKind: owner.kind,
+            entityId: owner.id,
+            squarePaymentId: p.paymentId,
+            squareOrderId: p.orderId,
+            squareAmountCents: p.amountCents,
+            ledgerAmountCents: tenderTotal,
+            detail: `Square completed $${(p.amountCents / 100).toFixed(2)} on the walk-in desk order ${owner.reference}, but that card payment is still "${tender.status}".`,
+          });
+        } else if (Math.abs(tenderTotal - p.amountCents) > AMOUNT_TOLERANCE) {
+          report.amountMismatches.push({
+            kind: "amount_mismatch",
+            severity: "critical",
+            reference: owner.reference,
+            entityKind: owner.kind,
+            entityId: owner.id,
+            squarePaymentId: p.paymentId,
+            squareOrderId: p.orderId,
+            squareAmountCents: p.amountCents,
+            ledgerAmountCents: tenderTotal,
+            detail: `The desk recorded a $${(tenderTotal / 100).toFixed(2)} card payment; Square says $${(p.amountCents / 100).toFixed(2)}.`,
+          });
+        } else {
+          await db
+            .update(schema.payments)
+            .set({ squareVerifiedAt: now, squareAmountCents: p.amountCents, updatedAt: now })
+            .where(eq(schema.payments.id, tender.id))
+            .catch(() => {});
+        }
+        continue;
+      }
+
       const ledgerTotal = rows
         .filter((r) => (SETTLED as string[]).includes(r.status))
         .reduce((s, r) => s + r.amountCents + r.feeCents, 0);
@@ -226,6 +296,10 @@ export async function reconcileWithSquare(opts: { days?: number; now?: Date } = 
     for (const row of ourPaidCards) {
       if (seenEntityIds.has(row.entityId)) continue;
       if (row.source === "backfill") continue; // historical rows predate Square's window
+      // Desk cash, cheques and Zelle never appear in Square by design — they
+      // are handled by the custody sweep below, not by this comparison. (The
+      // method filter above already excludes them; this is the second lock.)
+      if (row.source === "desk" && row.method !== "square") continue;
       if (flaggedGroups.has(row.entityId)) continue;
       flaggedGroups.add(row.entityId);
       report.falsePositives.push({
@@ -244,11 +318,15 @@ export async function reconcileWithSquare(opts: { days?: number; now?: Date } = 
       });
     }
 
+    // ── direction 3: money the desk took that never reached us ───────────
+    report.custodyOverdue = await overdueCustodyFindings(now);
+
     report.newFindings = await persistFindings(runId, [
       ...report.falseNegatives,
       ...report.falsePositives,
       ...report.amountMismatches,
       ...report.orphans,
+      ...report.custodyOverdue,
     ]);
 
     if (runId) {
@@ -300,6 +378,71 @@ export async function reconcileWithSquare(opts: { days?: number; now?: Date } = 
  * action, never from the scan. Applies to a false negative only, and the caller
  * re-checks Square immediately beforehand so a stale finding can't be actioned.
  */
+/** Is this registration a walk-in desk order? One query, cached per run. */
+const deskCache = new Map<string, boolean>();
+async function isDeskRegistration(registrationId: string): Promise<boolean> {
+  const hit = deskCache.get(registrationId);
+  if (hit !== undefined) return hit;
+  try {
+    const db = getDb();
+    const [reg] = await db
+      .select({ source: schema.registrations.source, deskState: schema.registrations.deskState })
+      .from(schema.registrations)
+      .where(eq(schema.registrations.id, registrationId));
+    const out = !!reg && (reg.source === "desk" || !!reg.deskState);
+    deskCache.set(registrationId, out);
+    return out;
+  } catch {
+    return false;
+  }
+}
+
+/**
+ * Money the walk-in desk took that has not reached the organisation.
+ *
+ * This is the only new question the desk added to reconciliation, and it is not
+ * a Square question — Square has never heard of the cash in a drawer or the
+ * Zelle sitting in a committee member's personal account. ONE finding per
+ * holder, not one per payment: "Rina is holding $420 across 3 payments, oldest
+ * 11 days" is a conversation somebody can have; forty rows are not.
+ */
+async function overdueCustodyFindings(now: Date): Promise<Finding[]> {
+  const out: Finding[] = [];
+  try {
+    const { ensureDeskSchema } = await import("@/lib/desk/ensure");
+    await ensureDeskSchema();
+    const { custodyGroups } = await import("@/lib/desk/tenders");
+    const { getConfig } = await import("@/lib/system-config");
+    const overdueDays = Number(await getConfig<number>("desk_custody_overdue_days")) || 7;
+    const cutoff = now.getTime() - overdueDays * 86_400_000;
+
+    for (const g of await custodyGroups()) {
+      if (!g.oldestAt || new Date(g.oldestAt).getTime() > cutoff) continue;
+      const ageDays = Math.floor((now.getTime() - new Date(g.oldestAt).getTime()) / 86_400_000);
+      out.push({
+        kind: "custody_overdue",
+        severity: "warning",
+        reference: g.label,
+        entityKind: null,
+        // The dedupe key is built from entityId, so keying on the holder is
+        // what stops this being re-raised nightly for the same person.
+        entityId: `custody:${g.key}`,
+        squarePaymentId: null,
+        squareOrderId: null,
+        squareAmountCents: null,
+        ledgerAmountCents: g.amountCents,
+        detail:
+          `$${(g.amountCents / 100).toFixed(2)} taken at the walk-in desk is still with ${g.label}` +
+          ` (${g.tenders.length} payment${g.tenders.length === 1 ? "" : "s"}, oldest ${ageDays} days).` +
+          ` The guests are settled — this is about getting the money banked.`,
+      });
+    }
+  } catch {
+    /* the desk may not exist yet on an older database */
+  }
+  return out;
+}
+
 export async function applySquareTruth(
   owner: { kind: "registration" | "donation" | "membership"; id: string },
   p: SquarePaymentView

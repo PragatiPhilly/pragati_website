@@ -219,6 +219,17 @@ export const registrations = pgTable(
     cancelledAt: timestamp("cancelled_at", { withTimezone: true }),
     reservationExpiresAt: timestamp("reservation_expires_at", { withTimezone: true }),
     notes: text("notes"),
+    // ── walk-in desk (source = 'desk'); every one of these is null on a web
+    //    order, and nothing outside lib/desk reads them. See lib/desk/ensure.ts.
+    deskState: text("desk_state"), // draft | open | settled | closed | voided
+    deskShiftId: text("desk_shift_id"), // which till session created it
+    createdByUserId: text("created_by_user_id"), // the volunteer at the desk
+    idempotencyKey: text("idempotency_key"), // a double-tapped Create returns this order
+    parentRegistrationId: text("parent_registration_id"), // amendment → the order it hangs off
+    admittedUnsettledBy: text("admitted_unsettled_by"), // who let them in owing money
+    admittedUnsettledAt: timestamp("admitted_unsettled_at", { withTimezone: true }),
+    deskVersion: integer("desk_version").notNull().default(0), // optimistic lock
+    voidReason: text("void_reason"),
     createdAt: createdAt(),
     updatedAt: updatedAt(),
   },
@@ -253,6 +264,10 @@ export const tickets = pgTable(
     qrCode: text("qr_code").notNull(),
     checkedInAt: timestamp("checked_in_at", { withTimezone: true }),
     checkedInBy: text("checked_in_by"),
+    // A minor's pass hangs off an adult's — which may live on ANOTHER
+    // registration (the grandparent who brought them). Set by the desk only.
+    guardianTicketId: text("guardian_ticket_id"),
+    issuedByUserId: text("issued_by_user_id"),
     createdAt: createdAt(),
   },
   (t) => [
@@ -422,6 +437,21 @@ export const payments = pgTable(
     // scripts/backfill-payments.ts (amount may be inferred, not observed)
     source: text("source").notNull().default("app"),
     note: text("note"),
+    // ── walk-in desk tenders (source = 'desk'). A tender IS a payments row:
+    //    the ledger stays the single source of truth for money. These say who
+    //    physically took it, which drawer it belongs to, and — the whole point
+    //    — WHERE THE MONEY IS NOW, which is a different question from whether
+    //    the guest has settled. See lib/desk/constants.ts.
+    tenderSeq: integer("tender_seq"), // 1, 2, 3… within one order (split tender)
+    shiftId: text("shift_id"),
+    collectedBy: text("collected_by"), // distinct from verified_by
+    custody: text("custody"), // org_account | in_drawer | undeposited_check | held_by_person | n_a
+    custodyClearedAt: timestamp("custody_cleared_at", { withTimezone: true }),
+    custodyClearedBy: text("custody_cleared_by"),
+    depositRef: text("deposit_ref"),
+    instrument: jsonb("instrument"), // cheque number, Zelle recipient, Square link…
+    reversedAt: timestamp("reversed_at", { withTimezone: true }),
+    reversalReason: text("reversal_reason"),
     createdAt: createdAt(),
     updatedAt: updatedAt(),
   },
@@ -672,3 +702,99 @@ export const counters = pgTable("counters", {
   key: text("key").primaryKey(), // e.g. 'PRG-2026', 'DON-2026'
   value: integer("value").notNull().default(0),
 });
+
+// ── walk-in desk ───────────────────────────────────────────────
+/**
+ * The desk is its own module (routes under /admin/desk, logic in lib/desk),
+ * but its orders ARE registrations and its passes ARE tickets — that is what
+ * lets the scan desk, the kitchen counts, the gate sheet and the Payments log
+ * keep working on day one with no new plumbing. These four tables hold the
+ * things a till needs that a web checkout never did.
+ */
+export const deskShifts = pgTable(
+  "desk_shifts",
+  {
+    id: id(),
+    eventId: text("event_id").notNull(),
+    dayKey: text("day_key").notNull().default("all"),
+    station: text("station").notNull().default("desk-1"),
+    status: text("status").notNull().default("open"), // open | closed
+    openedBy: text("opened_by").notNull(),
+    openedByEmail: text("opened_by_email"),
+    openedAt: timestamp("opened_at", { withTimezone: true }).notNull().defaultNow(),
+    openingFloatCents: integer("opening_float_cents").notNull().default(0),
+    dropsCents: integer("drops_cents").notNull().default(0), // cash handed to the treasurer mid-shift
+    closedBy: text("closed_by"),
+    closedAt: timestamp("closed_at", { withTimezone: true }),
+    countedCashCents: integer("counted_cash_cents"),
+    expectedCashCents: integer("expected_cash_cents"),
+    varianceCents: integer("variance_cents"),
+    varianceNote: text("variance_note"),
+    note: text("note"),
+  },
+  (t) => [index("desk_shifts_event_idx").on(t.eventId, t.status)]
+);
+
+/** Every cent NOT collected, and why. `amountCents` is always the amount taken
+ *  OFF what the guest owes, so a surcharge is stored negative. */
+export const deskAdjustments = pgTable(
+  "desk_adjustments",
+  {
+    id: id(),
+    registrationId: text("registration_id").notNull(),
+    kind: text("kind").notNull(), // comp | discount | writeoff | surcharge
+    amountCents: integer("amount_cents").notNull(),
+    reasonCode: text("reason_code").notNull(),
+    note: text("note"),
+    requestedBy: text("requested_by"),
+    approvedBy: text("approved_by").notNull(),
+    voidedAt: timestamp("voided_at", { withTimezone: true }),
+    voidedBy: text("voided_by"),
+    createdAt: createdAt(),
+  },
+  (t) => [index("desk_adjustments_reg_idx").on(t.registrationId)]
+);
+
+/** Typed gaps and chases. Incomplete information is a STATE here, never an
+ *  error and never a placeholder written into a real field. */
+export const deskFollowups = pgTable(
+  "desk_followups",
+  {
+    id: id(),
+    registrationId: text("registration_id"),
+    paymentId: text("payment_id"),
+    kind: text("kind").notNull(),
+    detail: text("detail"),
+    status: text("status").notNull().default("open"), // open | resolved | waived
+    dedupeKey: text("dedupe_key"),
+    assignedTo: text("assigned_to"),
+    createdBy: text("created_by"),
+    resolvedBy: text("resolved_by"),
+    resolvedAt: timestamp("resolved_at", { withTimezone: true }),
+    resolutionNote: text("resolution_note"),
+    dueAt: timestamp("due_at", { withTimezone: true }),
+    createdAt: createdAt(),
+  },
+  (t) => [
+    index("desk_followups_status_idx").on(t.status, t.kind),
+    index("desk_followups_reg_idx").on(t.registrationId),
+  ]
+);
+
+/** Append-only per-order timeline: what the volunteer sees, and what an audit
+ *  reads. Money-affecting actions ALSO write to audit_log. */
+export const deskOrderEvents = pgTable(
+  "desk_order_events",
+  {
+    id: id(),
+    registrationId: text("registration_id").notNull(),
+    type: text("type").notNull(),
+    summary: text("summary").notNull(),
+    actorUserId: text("actor_user_id"),
+    actorEmail: text("actor_email"),
+    shiftId: text("shift_id"),
+    payload: jsonb("payload"),
+    createdAt: createdAt(),
+  },
+  (t) => [index("desk_order_events_reg_idx").on(t.registrationId, t.createdAt)]
+);

@@ -36,6 +36,15 @@ async function navBadges(): Promise<Record<string, number>> {
   } catch {
     /* the table may not exist yet on an older database */
   }
+  try {
+    // Gaps the desk opened and nobody has closed: a missing email is a family
+    // with no tickets, which is worth interrupting somebody for.
+    const { countOpenFollowups } = await import("@/lib/desk/followups");
+    const n = await countOpenFollowups();
+    if (n > 0) out.desk = n;
+  } catch {
+    /* the desk tables may not exist yet on an older database */
+  }
   return out;
 }
 
