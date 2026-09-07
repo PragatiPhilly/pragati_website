@@ -22,7 +22,7 @@ export * from "@/lib/auth/sections";
 import { SECTIONS, type SectionKey } from "@/lib/auth/sections";
 
 /** Never grantable — super admins only, regardless of the matrix. */
-export const LOCKED_SECTIONS: SectionKey[] = ["roles", "audit", "settings", "email_preview"];
+export const LOCKED_SECTIONS: SectionKey[] = ["roles", "audit", "settings", "email_preview", "projections"];
 
 /** What the matrix can hand out. */
 export const CONFIGURABLE_SECTIONS = SECTIONS.filter((s) => !LOCKED_SECTIONS.includes(s.key));

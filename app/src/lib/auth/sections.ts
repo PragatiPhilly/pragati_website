@@ -13,7 +13,7 @@
 export type SectionKey =
   | "dashboard" | "payments" | "reconciliation" | "zelle" | "registrations" | "donations" | "members" | "events"
   | "checkin" | "scans" | "kitchen" | "desk" | "desk_money" | "media" | "magazines" | "messages" | "emails"
-  | "email_preview" | "roles" | "audit" | "settings";
+  | "email_preview" | "roles" | "audit" | "settings" | "projections";
 
 /**
  * Nav groups.
@@ -55,6 +55,9 @@ export const SECTIONS: Section[] = [
   // Money the desk took that is NOT in the org account yet — cash in a drawer,
   // an undeposited cheque, a Zelle sitting in someone's personal account.
   { key: "desk_money", label: "Money to bank", href: "/admin/desk/treasury", icon: "🏦", group: "money" },
+  // The yearly budget model. Super-admin only and NOT grantable — it is in
+  // LOCKED_SECTIONS (access.ts), so it never appears in the Roles matrix.
+  { key: "projections", label: "Projections", href: "/admin/projections", icon: "📈", group: "money" },
 
   { key: "registrations", label: "Registrations", href: "/admin/registrations", icon: "🎟", group: "people" },
   { key: "members", label: "Members", href: "/admin/members", icon: "👪", group: "people" },

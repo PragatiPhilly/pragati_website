@@ -1,0 +1,443 @@
+/*
+ * Projections — layout and chart tokens.
+ *
+ * TWO THINGS THIS FILE HAS TO KNOW (both learned the hard way elsewhere in this
+ * codebase, see pragati-admin-nav):
+ *  1. There is NO global border-box reset. One is scoped to .proj below, or
+ *     min-height resolves against the content box and every row grows.
+ *  2. Emoji carry a taller line box than the surrounding text, so anything that
+ *     mixes them pins line-height explicitly.
+ *
+ * CHART COLOUR. Every pair below was validated with the dataviz palette checker
+ * against this app's own card surfaces (#fffdf6 light, #141c40 dark) — lightness
+ * band, chroma floor, CVD separation under protanopia and deuteranopia, the
+ * normal-vision floor, and contrast. Only pairs that actually appear together in
+ * one chart were validated together:
+ *   gain × loss     — the polarity pair (waterfall, margins, tiles)
+ *   loss × forecast — the pace chart's two lines
+ * The gain/loss pair sits in the 6–8 CVD floor band, which is legal ONLY with
+ * secondary encoding. That is why every polarity mark in this section also
+ * carries a sign, a position relative to the baseline, and a direct label.
+ * Do not remove those.
+ */
+
+.proj,
+.proj *,
+.proj *::before,
+.proj *::after {
+  box-sizing: border-box;
+}
+
+.proj {
+  /* polarity */
+  --c-gain: #1a7f5a;
+  --c-gain-soft: rgba(26, 127, 90, 0.14);
+  --c-loss: #c8102e;
+  --c-loss-soft: rgba(200, 16, 46, 0.12);
+  /* model output / forecast */
+  --c-model: #2f6f9f;
+  --c-model-soft: rgba(47, 111, 159, 0.14);
+  /* ordinal marigold: 2 steps, for nested quantities (Sobol first vs total) */
+  --c-ord-1: #dba43a;
+  --c-ord-2: #9a6d10;
+  /* status — always shipped with an icon and a label, never colour alone */
+  --c-ok: #1a7f5a;
+  --c-warn: #a86a0c;
+  --c-crit: #c8102e;
+
+  --c-grid: rgba(42, 36, 56, 0.1);
+  --c-axis: rgba(42, 36, 56, 0.35);
+  --surface: var(--card);
+
+  color: var(--ink);
+}
+
+/* Dark theme steps are SELECTED, not a flipped light palette — each was
+   re-validated against the dark card surface. */
+/* This app's dark theme is `kali` (see styles/globals.css — the three festival
+   themes are durga / kali / saraswati on <html data-theme>). */
+[data-theme="kali"] .proj {
+  --c-gain: #1f9d8c;
+  --c-gain-soft: rgba(31, 157, 140, 0.18);
+  --c-loss: #e0435c;
+  --c-loss-soft: rgba(224, 67, 92, 0.16);
+  --c-model: #4a93c4;
+  --c-model-soft: rgba(74, 147, 196, 0.18);
+  --c-ord-1: #f0c169;
+  --c-ord-2: #c08c22;
+  --c-ok: #4bbd91;
+  --c-warn: #e8a93c;
+  --c-crit: #f4667c;
+  --c-grid: rgba(251, 246, 236, 0.12);
+  --c-axis: rgba(251, 246, 236, 0.4);
+}
+
+/* ── shell ─────────────────────────────────────────────────── */
+
+.proj-head {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.75rem;
+  align-items: flex-end;
+  justify-content: space-between;
+  margin-bottom: 1.25rem;
+}
+
+.proj-title {
+  font-family: var(--font-display), serif;
+  font-size: 1.85rem;
+  font-weight: 900;
+  line-height: 1.15;
+  margin: 0;
+}
+
+.proj-sub {
+  font-size: 0.8rem;
+  color: var(--ink-soft);
+  margin: 0.25rem 0 0;
+  max-width: 60ch;
+}
+
+.proj-chips {
+  display: flex;
+  gap: 0.4rem;
+  flex-wrap: wrap;
+  align-items: center;
+}
+
+.proj-chip {
+  border: 1px solid var(--line);
+  background: var(--card);
+  color: var(--ink);
+  border-radius: 999px;
+  padding: 0.3rem 0.75rem;
+  font-size: 0.76rem;
+  font-weight: 600;
+  line-height: 1.4;
+  cursor: pointer;
+  transition: background 0.15s, border-color 0.15s, transform 0.15s;
+  white-space: nowrap;
+}
+.proj-chip:hover { border-color: var(--accent); transform: translateY(-1px); }
+.proj-chip[aria-pressed="true"] {
+  background: var(--accent);
+  border-color: var(--accent);
+  color: #fff;
+}
+.proj-chip[data-baseline="true"]::before { content: "🔒 "; }
+.proj-chip:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+
+.proj-btn {
+  border: 1px solid var(--line);
+  background: var(--card);
+  color: var(--ink);
+  border-radius: 8px;
+  padding: 0.42rem 0.8rem;
+  font-size: 0.78rem;
+  font-weight: 600;
+  line-height: 1.3;
+  cursor: pointer;
+  transition: border-color 0.15s, background 0.15s;
+}
+.proj-btn:hover:not(:disabled) { border-color: var(--accent); }
+.proj-btn:disabled { opacity: 0.45; cursor: not-allowed; }
+.proj-btn--primary { background: var(--accent); border-color: var(--accent); color: #fff; }
+.proj-btn--danger { color: var(--c-crit); }
+.proj-btn:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+
+/* ── cards ─────────────────────────────────────────────────── */
+
+.proj-card {
+  background: var(--card);
+  border: 1px solid var(--line);
+  border-radius: 14px;
+  padding: 1rem 1.1rem;
+  min-width: 0;
+}
+
+/* h2/h3, not <p> — a screen-reader user navigates this page by its sections, and
+   an unstyled heading element is the only thing that gives them to them. The
+   visual weight is unchanged. */
+.proj-card-title {
+  font-size: 0.72rem;
+  font-weight: 800;
+  letter-spacing: 0.09em;
+  text-transform: uppercase;
+  color: var(--ink-soft);
+  margin: 0 0 0.15rem;
+}
+
+.proj-card-note {
+  font-size: 0.74rem;
+  color: var(--ink-soft);
+  margin: 0 0 0.9rem;
+  line-height: 1.5;
+}
+
+/* ── hero + tiles ──────────────────────────────────────────── */
+
+.proj-hero {
+  display: grid;
+  grid-template-columns: minmax(240px, 1.3fr) repeat(3, minmax(140px, 1fr));
+  gap: 0.85rem;
+  margin-bottom: 1.1rem;
+}
+@media (max-width: 1100px) { .proj-hero { grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); } }
+@media (max-width: 620px) { .proj-hero { grid-template-columns: minmax(0, 1fr); } }
+
+.proj-tile { position: relative; overflow: hidden; }
+
+.proj-tile-label {
+  font-size: 0.7rem;
+  font-weight: 700;
+  letter-spacing: 0.07em;
+  text-transform: uppercase;
+  color: var(--ink-soft);
+  margin: 0 0 0.35rem;
+}
+
+/* Proportional figures: tabular-nums makes a big number look loose. */
+.proj-tile-value {
+  font-size: 1.75rem;
+  font-weight: 800;
+  line-height: 1.05;
+  letter-spacing: -0.02em;
+  margin: 0;
+}
+.proj-hero-value { font-size: 3rem; }
+@media (max-width: 620px) { .proj-hero-value { font-size: 2.2rem; } }
+
+.proj-tile-foot { font-size: 0.72rem; color: var(--ink-soft); margin: 0.4rem 0 0; line-height: 1.45; }
+
+.proj-pos { color: var(--c-gain); }
+.proj-neg { color: var(--c-loss); }
+
+/* ── layout ────────────────────────────────────────────────── */
+
+.proj-body {
+  display: grid;
+  grid-template-columns: minmax(300px, 380px) minmax(0, 1fr);
+  gap: 1rem;
+  align-items: start;
+}
+@media (max-width: 1180px) { .proj-body { grid-template-columns: minmax(0, 1fr); } }
+
+/* Every grid track here is minmax(0, …) on purpose. A bare `1fr` — and an
+   IMPLICIT auto column, which is what `display:grid` with no template gives you
+   — is sized to its content's max-content width, so one wide chart pushes the
+   whole page into a horizontal scroll. Verified: without these the page scrolled
+   to 1650px inside a 1440px viewport. */
+.proj-rail { display: grid; grid-template-columns: minmax(0, 1fr); gap: 0.85rem; }
+@media (min-width: 1181px) {
+  .proj-rail { position: sticky; top: 0.75rem; max-height: calc(100vh - 1.5rem); overflow-y: auto; padding-right: 0.3rem; }
+}
+
+.proj-main { display: grid; grid-template-columns: minmax(0, 1fr); gap: 1rem; min-width: 0; }
+.proj-row2 { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 1rem; }
+@media (max-width: 900px) { .proj-row2 { grid-template-columns: minmax(0, 1fr); } }
+
+/* ── sliders ───────────────────────────────────────────────── */
+
+.proj-slider { display: grid; grid-template-columns: minmax(0, 1fr); gap: 0.3rem; margin-bottom: 0.7rem; }
+
+.proj-slider-top {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 0.5rem;
+  /* Wraps on a phone rather than pushing the number field off the screen — an
+     <input> carries an intrinsic ~180px width that flexbox will not shrink. */
+  flex-wrap: wrap;
+  font-size: 0.78rem;
+  line-height: 1.35;
+}
+.proj-slider-name { font-weight: 600; min-width: 0; }
+.proj-slider-hint { font-size: 0.68rem; color: var(--ink-soft); font-weight: 400; }
+
+.proj-slider-val {
+  font-variant-numeric: tabular-nums;
+  font-weight: 700;
+  font-size: 0.82rem;
+  /* An explicit width, not a min-width: the element's intrinsic size is what
+     overflowed a 390px viewport. */
+  width: 5.5rem;
+  max-width: 100%;
+  text-align: right;
+  background: transparent;
+  border: 1px solid transparent;
+  border-radius: 6px;
+  padding: 0.1rem 0.3rem;
+  color: var(--ink);
+  font-family: inherit;
+}
+.proj-slider-val:hover { border-color: var(--line); }
+.proj-slider-val:focus { border-color: var(--accent); outline: none; background: var(--bg-soft); }
+
+.proj-range { -webkit-appearance: none; appearance: none; width: 100%; height: 20px; background: transparent; cursor: pointer; margin: 0; }
+.proj-range::-webkit-slider-runnable-track { height: 5px; border-radius: 999px; background: var(--track, var(--line)); }
+.proj-range::-moz-range-track { height: 5px; border-radius: 999px; background: var(--track, var(--line)); }
+.proj-range::-webkit-slider-thumb {
+  -webkit-appearance: none; appearance: none;
+  width: 15px; height: 15px; margin-top: -5px;
+  border-radius: 50%;
+  background: var(--accent);
+  border: 2px solid var(--card);
+  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.28);
+  transition: transform 0.12s;
+}
+.proj-range::-moz-range-thumb {
+  width: 15px; height: 15px; border-radius: 50%;
+  background: var(--accent); border: 2px solid var(--card);
+  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.28);
+}
+.proj-range:active::-webkit-slider-thumb { transform: scale(1.25); }
+.proj-range:focus-visible { outline: 2px solid var(--accent); outline-offset: 3px; border-radius: 999px; }
+.proj-range:disabled { opacity: 0.4; cursor: not-allowed; }
+
+.proj-lock {
+  border: none; background: transparent; cursor: pointer;
+  font-size: 0.78rem; line-height: 1;
+  /* 24×24 minimum hit area (WCAG 2.2 AA, 2.5.8) — the glyph stays small. */
+  min-width: 24px; min-height: 24px; padding: 0;
+  display: inline-flex; align-items: center; justify-content: center;
+  opacity: 0.35; transition: opacity 0.15s;
+}
+.proj-lock:hover, .proj-lock[aria-pressed="true"] { opacity: 1; }
+.proj-lock:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; border-radius: 4px; }
+
+/* ── day cards ─────────────────────────────────────────────── */
+
+.proj-day { border: 1px solid var(--line); border-radius: 12px; padding: 0.75rem 0.85rem; background: var(--bg-soft); }
+.proj-day[data-off="true"] { opacity: 0.5; }
+.proj-day + .proj-day { margin-top: 0.6rem; }
+
+.proj-day-head { display: flex; align-items: center; justify-content: space-between; gap: 0.5rem; margin-bottom: 0.55rem; }
+.proj-day-name { font-weight: 800; font-size: 0.9rem; line-height: 1.3; margin: 0; }
+
+/* The switch is drawn 34×19 but must be TAPPABLE at 24px tall, so the control is
+   34×24 with the track centred inside it via ::before. Same look, legal target. */
+.proj-toggle {
+  position: relative; width: 34px; height: 24px; border-radius: 999px;
+  border: none; background: transparent; cursor: pointer; padding: 0; flex: none;
+}
+.proj-toggle::before {
+  content: ""; position: absolute; left: 0; top: 50%; transform: translateY(-50%);
+  width: 34px; height: 19px; border-radius: 999px;
+  border: 1px solid var(--line); background: var(--line);
+  transition: background 0.18s, border-color 0.18s;
+}
+.proj-toggle[aria-pressed="true"]::before { background: var(--c-gain); border-color: var(--c-gain); }
+.proj-toggle::after {
+  content: ""; position: absolute; top: 50%; left: 3px; width: 13px; height: 13px;
+  margin-top: -6.5px;
+  border-radius: 50%; background: #fff; transition: transform 0.18s;
+}
+.proj-toggle[aria-pressed="true"]::after { transform: translateX(15px); }
+.proj-toggle:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+
+/* margin strip: the most important thing on the screen */
+.proj-margin { display: grid; grid-template-columns: minmax(0, 1fr); gap: 0.28rem; margin-top: 0.5rem; }
+.proj-margin-row { display: grid; grid-template-columns: 5.4rem 1fr 4.4rem; align-items: center; gap: 0.45rem; font-size: 0.7rem; line-height: 1.3; }
+.proj-margin-track { position: relative; height: 12px; background: var(--line); border-radius: 3px; overflow: hidden; }
+.proj-margin-zero { position: absolute; top: 0; bottom: 0; width: 1px; background: var(--c-axis); }
+.proj-margin-num { text-align: right; font-variant-numeric: tabular-nums; font-weight: 700; }
+
+/* ── tables ────────────────────────────────────────────────── */
+
+.proj-table { width: 100%; border-collapse: collapse; font-size: 0.78rem; }
+.proj-table th {
+  text-align: left; font-size: 0.66rem; text-transform: uppercase; letter-spacing: 0.07em;
+  color: var(--ink-soft); font-weight: 700; padding: 0.3rem 0.5rem; border-bottom: 1px solid var(--line);
+}
+.proj-table td { padding: 0.32rem 0.5rem; border-bottom: 1px solid var(--line); vertical-align: middle; }
+.proj-table .num { text-align: right; font-variant-numeric: tabular-nums; }
+.proj-table tr[data-head-row="true"] td { background: var(--bg-soft); font-weight: 800; }
+.proj-table input[type="text"], .proj-table input[type="number"] {
+  width: 100%; background: transparent; border: 1px solid transparent; border-radius: 5px;
+  padding: 0.15rem 0.3rem; font: inherit; color: var(--ink);
+}
+.proj-table input:hover { border-color: var(--line); }
+.proj-table input:focus { border-color: var(--accent); outline: none; background: var(--bg-soft); }
+.proj-table select { font: inherit; font-size: 0.7rem; background: transparent; border: 1px solid var(--line); border-radius: 5px; padding: 0.1rem 0.25rem; color: var(--ink); }
+
+.proj-conf { font-size: 0.62rem; font-weight: 800; text-transform: uppercase; letter-spacing: 0.05em; padding: 0.08rem 0.35rem; border-radius: 999px; white-space: nowrap; }
+.proj-conf[data-c="confirmed"] { background: var(--c-gain-soft); color: var(--c-gain); }
+.proj-conf[data-c="expected"] { background: rgba(168, 106, 12, 0.14); color: var(--c-warn); }
+.proj-conf[data-c="stretch"] { background: var(--c-loss-soft); color: var(--c-loss); }
+
+/* ── flags & gap cards ─────────────────────────────────────── */
+
+.proj-flags { display: grid; grid-template-columns: minmax(0, 1fr); gap: 0.5rem; }
+.proj-flag { display: grid; grid-template-columns: 1.3rem 1fr; gap: 0.5rem; padding: 0.55rem 0.7rem; border-radius: 10px; border: 1px solid var(--line); background: var(--bg-soft); }
+.proj-flag-icon { font-size: 0.9rem; line-height: 1.4; }
+.proj-flag-title { font-weight: 700; font-size: 0.8rem; margin: 0; line-height: 1.35; }
+.proj-flag-detail { font-size: 0.74rem; color: var(--ink-soft); margin: 0.15rem 0 0; line-height: 1.5; }
+.proj-flag[data-level="critical"] { border-color: var(--c-crit); background: var(--c-loss-soft); }
+.proj-flag[data-level="warn"] { border-color: rgba(168, 106, 12, 0.45); }
+
+.proj-gap { display: grid; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); gap: 0.6rem; }
+.proj-gap-card { border: 1px solid var(--line); border-radius: 10px; padding: 0.65rem 0.75rem; background: var(--bg-soft); }
+.proj-gap-card[data-feasible="false"] { opacity: 0.55; }
+.proj-gap-label { font-weight: 800; font-size: 0.8rem; margin: 0 0 0.2rem; line-height: 1.3; }
+.proj-gap-detail { font-size: 0.74rem; color: var(--ink-soft); margin: 0; line-height: 1.5; }
+
+/* ── chart bits ────────────────────────────────────────────── */
+
+.proj-svg { width: 100%; height: auto; display: block; overflow: visible; }
+.proj-legend { display: flex; flex-wrap: wrap; gap: 0.85rem; font-size: 0.72rem; color: var(--ink-soft); margin-top: 0.6rem; line-height: 1.4; }
+.proj-legend-item { display: inline-flex; align-items: center; gap: 0.35rem; }
+.proj-swatch { width: 11px; height: 11px; border-radius: 3px; flex: none; }
+.proj-swatch--line { width: 14px; height: 3px; border-radius: 2px; }
+
+.proj-tip {
+  position: absolute; pointer-events: none; z-index: 20;
+  background: var(--ink); color: var(--cream);
+  border-radius: 8px; padding: 0.4rem 0.55rem;
+  font-size: 0.72rem; line-height: 1.45; white-space: nowrap;
+  box-shadow: 0 6px 20px rgba(0, 0, 0, 0.28);
+  transform: translate(-50%, -115%);
+}
+.proj-tip b { font-variant-numeric: tabular-nums; }
+.proj-chartwrap { position: relative; min-width: 0; }
+
+.proj-empty { text-align: center; padding: 2.5rem 1rem; color: var(--ink-soft); font-size: 0.85rem; line-height: 1.6; }
+
+.proj-scroll { overflow-x: auto; }
+
+/* Respect the setting. Everything below still renders — it just arrives. */
+@media (prefers-reduced-motion: reduce) {
+  .proj *, .proj *::before, .proj *::after {
+    animation-duration: 0.001ms !important;
+    transition-duration: 0.001ms !important;
+  }
+}
+
+/* ── print ─────────────────────────────────────────────────────
+   A committee meeting still runs on paper. Drop the chrome, unstick the rail,
+   force the two-column bands to one, and let the charts print at their real
+   size — they are inline SVG, so they print sharp rather than as screenshots. */
+@media print {
+  .adminnav,
+  .proj-no-print,
+  .proj-chip,
+  .proj-lock,
+  .proj-toggle {
+    display: none !important;
+  }
+  .admin-main { max-width: none; padding: 0; }
+  .proj-body,
+  .proj-row2,
+  .proj-hero {
+    grid-template-columns: minmax(0, 1fr) !important;
+  }
+  .proj-rail { position: static !important; max-height: none !important; overflow: visible !important; }
+  .proj-card {
+    break-inside: avoid;
+    border-color: #ccc;
+    box-shadow: none;
+  }
+  .proj-range { display: none; }
+  .proj-slider-val { border-color: transparent !important; }
+  .proj { --c-grid: #ddd; --c-axis: #666; }
+  a[href]::after { content: ""; }
+}

@@ -798,3 +798,60 @@ export const deskOrderEvents = pgTable(
   },
   (t) => [index("desk_order_events_reg_idx").on(t.registrationId, t.createdAt)]
 );
+
+// ── projections (super-admin budget model) ─────────────────────
+/**
+ * The yearly P&L model. Spec: spec/14-projections.md.
+ *
+ * `model` is ONE jsonb document rather than a normalised line table on purpose:
+ * a projection is always read and written whole, its shape changes year to
+ * year, and nothing else in the app joins against it. Keeping it opaque is what
+ * lets the model evolve without a migration every October.
+ *
+ * These tables are additive and isolated — nothing outside lib/projections and
+ * app/admin/projections reads them, and the module never writes to `payments`,
+ * `registrations` or `donations`. They live here (as well as in
+ * lib/projections/ensure.ts) so `drizzle-kit push` knows about them and never
+ * offers to drop them.
+ */
+export const projectionScenarios = pgTable(
+  "projection_scenarios",
+  {
+    id: id(),
+    year: integer("year").notNull(),
+    name: text("name").notNull(),
+    description: text("description"),
+    kind: text("kind").notNull().default("scenario"), // scenario | baseline
+    isBaseline: boolean("is_baseline").notNull().default(false),
+    seededFrom: text("seeded_from"), // scenario id this was duplicated from
+    model: jsonb("model").notNull(),
+    lockedAt: timestamp("locked_at", { withTimezone: true }), // baselines are read-only
+    archivedAt: timestamp("archived_at", { withTimezone: true }),
+    createdBy: text("created_by"),
+    createdByEmail: text("created_by_email"),
+    updatedBy: text("updated_by"),
+    createdAt: createdAt(),
+    updatedAt: updatedAt(),
+  },
+  (t) => [index("projection_scenarios_year_idx").on(t.year, t.createdAt)]
+);
+
+/**
+ * Dated snapshots of where a year actually stood. This is the automated version
+ * of the 2024 sheet's hand-typed "Foot fall as of 19 Oct" columns, and it is
+ * what the booking-curve forecast fits.
+ */
+export const projectionSnapshots = pgTable(
+  "projection_snapshots",
+  {
+    id: id(),
+    scenarioId: text("scenario_id").notNull(),
+    label: text("label"),
+    takenAt: timestamp("taken_at", { withTimezone: true }).notNull().defaultNow(),
+    daysOut: integer("days_out"),
+    totals: jsonb("totals"), // computed P/L at that moment
+    actuals: jsonb("actuals"), // ledger figures at that moment
+    createdBy: text("created_by"),
+  },
+  (t) => [index("projection_snapshots_scenario_idx").on(t.scenarioId, t.takenAt)]
+);
