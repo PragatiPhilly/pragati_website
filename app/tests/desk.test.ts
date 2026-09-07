@@ -61,7 +61,15 @@ import { createTestSchema } from "./helpers/schema";
 import { createCheckout, markRegistrationPaid, cancelRegistration } from "../src/lib/checkout";
 import { signSquareWebhook } from "../src/lib/payments/square";
 import { requireDesk, DeskError, type DeskActor } from "../src/lib/desk/guards";
-import { createDeskOrder, admitWithBalance, closeOrder, voidOrder, fillOrderDetails, searchOrders } from "../src/lib/desk/orders";
+import {
+  createDeskOrder,
+  admitWithBalance,
+  closeOrder,
+  voidOrder,
+  fillOrderDetails,
+  searchOrders,
+  guardianCandidates,
+} from "../src/lib/desk/orders";
 import { addTender, settleDeskCardTender, voidTender, reverseTender, clearCustody, custodyGroups } from "../src/lib/desk/tenders";
 import { addAdjustment } from "../src/lib/desk/adjustments";
 import { openShift, closeShift, recordDrop, currentShift } from "../src/lib/desk/shifts";
@@ -484,6 +492,65 @@ describe("TX · isolation — the online pipeline is untouched", () => {
       .filter((f) => /\bsettlePayments\b/.test(readFileSync(f, "utf8").replace(/\/\*[\s\S]*?\*\/|\/\/.*/g, "")));
     expect(offenders).toEqual([]);
   });
+
+  it("TX-8 · the reconciliation 'approve' button settles ONE desk tender, and never the cash beside it", async () => {
+    // The nightly scan can raise a false_negative against a desk order. An
+    // admin clicking "approve" lands in applySquareTruth, which used to reach
+    // for markRegistrationPaid — the one function a desk order must never see.
+    const actor = await as("volunteer");
+    const { registrationId } = await openOrder([person({ firstName: "Recon" }), person({ firstName: "Ciled" })], actor);
+    const cash = await addTender({ registrationId, method: "cash", amountCents: 8000, shiftId }, actor);
+    const card = await addTender({ registrationId, method: "square", amountCents: 12000, shiftId }, actor);
+
+    const db = getDb();
+    const [reg] = await db.select().from(schema.registrations).where(eq(schema.registrations.id, registrationId));
+    const seatsBefore = (await db.select().from(schema.tickets).where(eq(schema.tickets.registrationId, registrationId))).length;
+
+    const { applySquareTruth } = await import("../src/lib/payments/reconcile");
+    await applySquareTruth(
+      { kind: "registration", id: registrationId },
+      {
+        paymentId: "SQ-RECON-1",
+        orderId: reg.squareOrderId,
+        amountCents: 12000,
+        status: "COMPLETED",
+        createdAt: new Date().toISOString(),
+        note: null,
+      } as never
+    );
+
+    const [cardRow] = await db.select().from(schema.payments).where(eq(schema.payments.id, card.tenderId));
+    const [cashRow] = await db.select().from(schema.payments).where(eq(schema.payments.id, cash.tenderId));
+    expect(cardRow.status).toBe("paid");
+    // The cash was already settled when it was taken, and nothing about the
+    // card should have reached across and touched it.
+    expect(cashRow.squarePaymentId ?? null).toBeNull();
+
+    // Seats are taken at open. A second grant here would double-book the hall.
+    const seatsAfter = (await db.select().from(schema.tickets).where(eq(schema.tickets.registrationId, registrationId))).length;
+    expect(seatsAfter).toBe(seatsBefore);
+  });
+
+  it("TX-9 · approving a desk finding with nothing to match says so in words, rather than crashing", async () => {
+    const actor = await as("volunteer");
+    const { registrationId } = await openOrder([person({ firstName: "Nocard" })], actor);
+    await addTender({ registrationId, method: "cash", amountCents: 8000, shiftId }, actor);
+
+    const { applySquareTruth } = await import("../src/lib/payments/reconcile");
+    await expect(
+      applySquareTruth(
+        { kind: "registration", id: registrationId },
+        {
+          paymentId: "SQ-RECON-2",
+          orderId: "sq-order-that-isnt-ours",
+          amountCents: 12000,
+          status: "COMPLETED",
+          createdAt: new Date().toISOString(),
+          note: null,
+        } as never
+      )
+    ).rejects.toThrow(/walk-in desk/i);
+  });
 });
 
 // ══════════════════════════════════════════════════════════════════════════
@@ -591,7 +658,9 @@ describe("TC · custody — the second axis", () => {
     await recordDrop(s.id, 5000, "Treasurer", admin);
 
     // expected = 20000 float + 10000 cash − 5000 drop = 25000
-    await expect(closeShift({ shiftId: s.id, countedCashCents: 24500 }, admin)).rejects.toThrow(/short by \$5\.00/i);
+    await expect(closeShift({ shiftId: s.id, countedCashCents: 24500 }, admin)).rejects.toThrow(
+      /\$5\.00 less in the box than expected/i
+    );
 
     const out = await closeShift(
       { shiftId: s.id, countedCashCents: 24500, varianceNote: "Gave change from the wrong pile" },
@@ -723,6 +792,33 @@ describe("TG · children, guardians and amendments", () => {
       .where(eq(schema.registrations.confirmationNumber, web.confirmationNumber));
     const wt = await db.select().from(schema.tickets).where(eq(schema.tickets.registrationId, wreg.id));
     expect(wt.length).toBe(1);
+  });
+
+  it("TG-7 · a child is NEVER offered as another child's guardian, age recorded or not", async () => {
+    // The guardian search used to accept anyone whose age column was null,
+    // which was safe only while every child got a made-up age. Now that the
+    // desk correctly leaves an unknown age blank, "null means adult" would hand
+    // a 9-year-old the job of chaperoning a 7-year-old — defeating the one rule
+    // this whole flow exists to enforce. Adulthood is the PASS, not the column.
+    const actor = await as("volunteer");
+    await openOrder(
+      [
+        person({ firstName: "Guardianzo", lastName: "Testcase" }),
+        person({ firstName: "Kidzo", lastName: "Testcase", kind: "youth" }), // no age given
+      ],
+      actor
+    );
+
+    const hits = await guardianCandidates(eventId, "Testcase");
+    const names = hits.map((h) => h.name);
+    expect(names.some((n) => n.includes("Guardianzo"))).toBe(true);
+    expect(names.some((n) => n.includes("Kidzo"))).toBe(false);
+
+    // And the child really does have no age on file — the two facts are linked.
+    const db = getDb();
+    const kid = await db.select().from(schema.tickets).where(eq(schema.tickets.attendeeFirstName, "Kidzo"));
+    expect(kid.length).toBeGreaterThan(0);
+    expect(kid.every((k) => k.attendeeAge === null)).toBe(true);
   });
 });
 
@@ -872,7 +968,9 @@ describe("TR · robustness", () => {
     await closeOrder(registrationId, admin);
 
     const vol = await as("volunteer");
-    await expect(addTender({ registrationId, method: "cash", amountCents: 100, shiftId }, vol)).rejects.toThrow(/closed/i);
+    await expect(addTender({ registrationId, method: "cash", amountCents: 100, shiftId }, vol)).rejects.toThrow(
+      /finished/i
+    );
 
     await voidOrder(registrationId, "created_in_error", "wrong family", admin);
     const s = (await deskOrderSummary(registrationId))!;
@@ -927,8 +1025,67 @@ describe("TR · robustness", () => {
     const { registrationId } = await openOrder([person({ firstName: "Gopa" })], admin);
     await voidOrder(registrationId, "guest_left", "", admin);
     await expect(addTender({ registrationId, method: "cash", amountCents: 1000, shiftId }, admin)).rejects.toThrow(
-      /voided/i
+      /cancelled/i
     );
+  });
+
+  it("TR-11 · a card the guest has NOT paid yet is never counted as collected", async () => {
+    // balanceCents = due - collected - pending, so an unconfirmed card drives
+    // the balance to zero. The order screen read that as "PAID IN FULL ✓" over
+    // a payment that had not gone through — a volunteer waves the family in and
+    // the money is simply gone if the card then declines. The three figures
+    // must stay separable, whatever any screen chooses to print.
+    const actor = await as("volunteer");
+    const { registrationId } = await openOrder([person({ firstName: "Nadia" })], actor);
+    const before = (await deskOrderSummary(registrationId))!;
+
+    await addTender({ registrationId, method: "square", amountCents: before.dueCents, shiftId }, actor);
+    const s = (await deskOrderSummary(registrationId))!;
+
+    expect(s.balanceCents).toBe(0); // nothing more to ask them for
+    expect(s.pendingCents).toBe(before.dueCents); // ...but it is still in flight
+    expect(s.collectedCents).toBe(0); // and NOT in our hands
+    expect(checkInvariant(s)).toEqual({ ok: true });
+
+    // Once Square confirms, and only then, it becomes collected.
+    await settleDeskCardTender({
+      registrationId,
+      squarePaymentId: "SQ-PENDING-1",
+      squareOrderId: s.reg.squareOrderId,
+      squareAmountCents: before.dueCents,
+    });
+    const after = (await deskOrderSummary(registrationId))!;
+    expect(after.collectedCents).toBe(before.dueCents);
+    expect(after.pendingCents).toBe(0);
+    expect(after.balanceCents).toBe(0);
+  });
+
+  it("TR-10 · a child with no age given gets NO age on their pass — a pricing placeholder is not a fact", async () => {
+    // Pricing needs an age to pick the right band, so a youth with none is
+    // priced as a nominal 10. That number must not be written to the ticket and
+    // read back later as something the family told us — the order screen would
+    // print "age 10" directly above a follow-up saying the age is unknown.
+    const actor = await as("volunteer");
+    const { registrationId } = await openOrder(
+      [person({ firstName: "Jaya" }), person({ firstName: "Kiran", kind: "youth" })],
+      actor
+    );
+    const db = getDb();
+    const tickets = await db.select().from(schema.tickets).where(eq(schema.tickets.registrationId, registrationId));
+    const kiran = tickets.filter((t) => t.attendeeFirstName === "Kiran");
+    expect(kiran.length).toBeGreaterThan(0);
+    for (const t of kiran) expect(t.attendeeAge ?? null).toBeNull();
+    // and the gap is on the list to chase, not silently filled in
+    const gaps = await followupsForOrder(registrationId);
+    expect(gaps.some((g) => g.kind === "missing_age")).toBe(true);
+
+    // A stated age still lands on the pass, exactly as given.
+    const { registrationId: r2 } = await openOrder(
+      [person({ firstName: "Lata" }), person({ firstName: "Manu", kind: "youth", age: 9 })],
+      actor
+    );
+    const t2 = await db.select().from(schema.tickets).where(eq(schema.tickets.registrationId, r2));
+    expect(t2.filter((t) => t.attendeeFirstName === "Manu").every((t) => t.attendeeAge === 9)).toBe(true);
   });
 });
 
@@ -1035,6 +1192,7 @@ describe("TD · the gate", () => {
  *
  *   let the desk call settlePayments instead of settleTender  → TX-1, TX-7, TI-2
  *   remove the webhook desk guard (T1)                        → TX-1
+ *   let applySquareTruth reach markRegistrationPaid on a desk order → TX-8
  *   remove the markRegistrationPaid guard (T2)                → TX-3
  *   remove the cancelRegistration guard (T3)                  → TX-4
  *   remove the Registrations-page guard (T4)                  → TX-5
@@ -1045,4 +1203,6 @@ describe("TD · the gate", () => {
  *   store the balance instead of deriving it                  → TI-4, TI-6
  *   allow a placeholder email when none is given              → TR-6
  *   let a volunteer admit any balance                         → TR-8
+ *   write the pricing placeholder age onto the ticket         → TR-10
+ *   count an unconfirmed card as money collected             → TR-11
  */

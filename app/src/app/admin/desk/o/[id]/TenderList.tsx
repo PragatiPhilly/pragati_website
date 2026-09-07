@@ -64,7 +64,8 @@ export default function TenderList({
       }
     });
 
-  if (tenders.length === 0) return <p className="desk-note">No payments taken yet.</p>;
+  if (tenders.length === 0)
+    return <p className="desk-note">Nothing taken yet. Use “Take a payment” above.</p>;
 
   return (
     <div className="flex flex-col">
@@ -77,23 +78,52 @@ export default function TenderList({
             <span className="grow">
               <strong className="capitalize">{t.method}</strong> — {t.detail}
               {t.collectedByEmail && <span className="desk-note"> · taken by {t.collectedByEmail}</span>}
-              {t.depositRef && <span className="desk-note"> · deposited {t.depositRef}</span>}
+              {t.depositRef && <span className="desk-note"> · banked, ref {t.depositRef}</span>}
               {t.reversalReason && <span className="desk-note"> · {t.reversalReason}</span>}
             </span>
 
             {dead ? (
-              <span className="desk-chip chip-mute">{t.reversedAt ? "reversed" : "not taken"}</span>
+              <span className="desk-chip chip-mute">{t.reversedAt ? "undone" : "didn’t go through"}</span>
             ) : t.status === "paid" ? (
               <>
-                <span className="desk-chip chip-ok">settled</span>
+                <span className="desk-chip chip-ok">paid</span>
                 {t.custody && t.custody !== "org_account" && t.custody !== "n_a" ? (
                   <span className="desk-chip chip-warn">{CUSTODY_LABEL[t.custody]}</span>
                 ) : (
-                  <span className="desk-chip chip-hold">in the org account</span>
+                  <span className="desk-chip chip-hold">reached Pragati</span>
                 )}
               </>
             ) : (
-              <span className="desk-chip chip-warn">waiting on Square</span>
+              <span className="desk-chip chip-warn">card not confirmed yet</span>
+            )}
+
+            {/* The code the guest actually scans, on the payment row itself.
+                It used to live only inside the payment form — and a card tender
+                drives the balance to zero, which collapses that form the
+                instant it is created. The volunteer was left holding a booking
+                that said "waiting on the card" with no code anywhere on screen
+                for the guest to scan. It belongs to the payment, so it lives on
+                the payment. */}
+            {!dead && t.status !== "paid" && t.payUrl && (
+              <div className="pay-qr">
+                <p className="desk-note">Turn the screen round — they scan this and pay on their own phone:</p>
+                {/* Drawn by us rather than fetched from an image host: bad
+                    venue wi-fi must not produce a broken image mid-payment.
+                    eslint-disable-next-line @next/next/no-img-element */}
+                <img
+                  alt="Payment QR code"
+                  width={200}
+                  height={200}
+                  src={`/api/admin/desk/qr?data=${encodeURIComponent(t.payUrl)}`}
+                  style={{ background: "#fff", padding: 8, borderRadius: 8 }}
+                />
+                <a className="text-xs underline underline-offset-4 break-all" href={t.payUrl} target="_blank" rel="noreferrer">
+                  {t.payUrl}
+                </a>
+                <p className="desk-note">
+                  When they say it has gone through, tap <strong>Check if it went through</strong>.
+                </p>
+              </div>
             )}
 
             {!dead && t.status !== "paid" && (
@@ -103,46 +133,62 @@ export default function TenderList({
                   disabled={busy}
                   onClick={() => act(() => pollCardAction(t.id, registrationId))}
                 >
-                  Check with Square
+                  Check if it went through
                 </button>
                 <button
                   className="text-xs underline underline-offset-4"
                   disabled={busy}
                   onClick={() => act(() => failTenderAction(t.id, registrationId, "Card declined / abandoned"))}
                 >
-                  Didn&apos;t go through
+                  It didn’t work
                 </button>
               </>
             )}
 
             {!dead && confirming !== t.id && (
               <button className="text-xs underline underline-offset-4" onClick={() => setConfirming(t.id)}>
-                {t.status === "paid" ? "Undo / reverse" : "Undo"}
+                Undo this
               </button>
             )}
 
+            {/* The two buttons ARE the reason. They used to sit beside a
+                required "Why?" box, so tapping the one that already said
+                "I recorded it by mistake" answered with an error demanding a
+                reason. Each button now carries its own, and the box is for
+                anything the volunteer wants to add on top. */}
             {confirming === t.id && (
-              <span className="flex flex-wrap items-end gap-2 w-full mt-1">
-                <label className="desk-field grow">
-                  Why?
-                  <input value={why} onChange={(e) => setWhy(e.target.value)} placeholder="Taken by mistake / cheque bounced" />
-                </label>
+              <span className="undo-panel">
+                <span className="desk-note w-full">
+                  Undoing {money(t.amountCents)} {t.method}. Which is it?
+                </span>
                 <button
                   className="btn-secondary !py-1.5 !px-3 text-xs"
                   disabled={busy}
-                  onClick={() => act(() => voidTenderAction(t.id, registrationId, why, currentShiftId))}
+                  title="It never should have been recorded — a mis-key, or the wrong booking"
+                  onClick={() =>
+                    act(() =>
+                      voidTenderAction(t.id, registrationId, why.trim() || "Recorded by mistake", currentShiftId)
+                    )
+                  }
                 >
-                  Undo (taken by mistake)
+                  I recorded it by mistake
                 </button>
                 {canReverse && t.status === "paid" && (
                   <button
                     className="btn-secondary !py-1.5 !px-3 text-xs"
                     disabled={busy}
-                    onClick={() => act(() => reverseTenderAction(t.id, registrationId, why))}
+                    title="It was real at the time, but the money did not arrive — a bounced cheque, a reversed Zelle"
+                    onClick={() =>
+                      act(() => reverseTenderAction(t.id, registrationId, why.trim() || "The money never arrived"))
+                    }
                   >
-                    Reverse (money never arrived)
+                    The money never actually arrived
                   </button>
                 )}
+                <label className="desk-field grow">
+                  Anything to add? (optional)
+                  <input value={why} onChange={(e) => setWhy(e.target.value)} placeholder="Cheque bounced on the 12th" />
+                </label>
                 <button className="text-xs underline" onClick={() => setConfirming(null)}>
                   cancel
                 </button>

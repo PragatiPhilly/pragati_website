@@ -20,13 +20,21 @@ import {
   resendTicketsAction,
   voidOrderAction,
 } from "../../actions";
-import { ADJUSTMENT_REASONS, VOID_REASONS, parseAmountToCents, type AdjustmentKind, type VoidReason } from "@/lib/desk/constants";
+import {
+  ADJUSTMENT_REASONS,
+  VOID_REASONS,
+  VOID_REASON_LABEL,
+  parseAmountToCents,
+  type AdjustmentKind,
+  type VoidReason,
+} from "@/lib/desk/constants";
 
 const money = (c: number) => `$${(c / 100).toFixed(2)}`;
 
 export default function OrderControls({
   registrationId,
   balanceCents,
+  pendingCents,
   deskState,
   buyerEmail,
   buyerPhone,
@@ -36,6 +44,8 @@ export default function OrderControls({
 }: {
   registrationId: string;
   balanceCents: number;
+  /** Money on a card that Square has not confirmed. Zero balance, but not paid. */
+  pendingCents: number;
   deskState: string | null;
   buyerEmail: string;
   buyerPhone: string;
@@ -81,52 +91,79 @@ export default function OrderControls({
   return (
     <div className="flex flex-col gap-3">
       <div className="flex flex-wrap gap-2">
-        {!voided && (
-          <button className="btn-secondary" onClick={() => setPanel(panel === "details" ? null : "details")}>
-            Fill in details
-          </button>
-        )}
         {!voided && !closed && balanceCents > 0 && (
-          <button className="btn-secondary" disabled={busy} onClick={() => act(() => admitWithBalanceAction(registrationId))}>
-            Let them in owing {money(balanceCents)}
+          <button
+            className="btn-secondary"
+            disabled={busy}
+            onClick={() => act(() => admitWithBalanceAction(registrationId))}
+          >
+            Let them in, collect later
           </button>
         )}
-        {!voided && isAdmin && (
-          <button className="btn-secondary" onClick={() => setPanel(panel === "comp" ? null : "comp")}>
-            Comp / discount
-          </button>
-        )}
+        {/* A pending card zeroes the balance without the money arriving, so
+            "All done" would be a green tick over an unconfirmed payment. The
+            booking can still be finished — the card follow-up and the nightly
+            reconciliation both stay on it — but the button has to say what it
+            is doing. */}
         {!voided && !closed && balanceCents <= 0 && (
-          <button className="btn-primary" disabled={busy} onClick={() => act(() => closeOrderAction(registrationId))}>
-            Close order
-          </button>
-        )}
-        {hasEmail && (
-          <button className="btn-secondary" disabled={busy} onClick={() => act(() => resendTicketsAction(registrationId))}>
-            Email the tickets
+          <button
+            className={pendingCents > 0 ? "btn-secondary" : "btn-primary"}
+            disabled={busy}
+            onClick={() => act(() => closeOrderAction(registrationId))}
+          >
+            {pendingCents > 0 ? "Finish anyway — the card is still unconfirmed" : "✓ All done — finish this booking"}
           </button>
         )}
         <a className="btn-secondary" href={`/admin/desk/o/${registrationId}/stub`} target="_blank" rel="noreferrer">
-          Print stub
+          🖨 Print their slip
         </a>
-        <a className="btn-secondary" href={`/admin/desk/new?parent=${registrationId}`}>
-          Add people
-        </a>
-        {!voided && (
-          <button className="text-xs underline underline-offset-4" onClick={() => setPanel(panel === "void" ? null : "void")}>
-            Void this order
+        {hasEmail && (
+          <button className="btn-secondary" disabled={busy} onClick={() => act(() => resendTicketsAction(registrationId))}>
+            ✉ Email their passes
           </button>
         )}
+        {!voided && (
+          <button className="btn-secondary" onClick={() => setPanel(panel === "details" ? null : "details")}>
+            Add their email or phone
+          </button>
+        )}
+        <a className="btn-secondary" href={`/admin/desk/new?parent=${registrationId}`}>
+          + Add more people
+        </a>
       </div>
+
+      {/* Everything that is rarely right, and never urgent, lives behind one
+          click — so the six things a volunteer might do never sit at the same
+          weight as the one thing they came here for. */}
+      {!voided && (
+        <details className="more-actions">
+          <summary>Something unusual? Free passes, corrections, cancelling…</summary>
+          <div className="action-row">
+            {isAdmin && (
+              <button className="btn-secondary" onClick={() => setPanel(panel === "comp" ? null : "comp")}>
+                Make it free / give a discount
+              </button>
+            )}
+            {!isAdmin && (
+              <span className="desk-note self-center">
+                Making a pass free needs an admin — ask one to sign in here.
+              </span>
+            )}
+            <button className="btn-secondary" onClick={() => setPanel(panel === "void" ? null : "void")}>
+              Cancel this booking
+            </button>
+          </div>
+        </details>
+      )}
 
       {closed && isAdmin && (
         <div className="flex flex-wrap items-end gap-2">
           <label className="desk-field grow">
-            Reopen — why?
+            Why are you reopening it?
             <input value={reopenWhy} onChange={(e) => setReopenWhy(e.target.value)} />
           </label>
           <button className="btn-secondary" disabled={busy} onClick={() => act(() => reopenOrderAction(registrationId, reopenWhy))}>
-            Reopen
+            Reopen this booking
           </button>
         </div>
       )}
@@ -134,7 +171,7 @@ export default function OrderControls({
       {panel === "details" && (
         <div className="festive-card p-4 flex flex-col gap-3">
           <p className="desk-note">
-            Filling in an email here sends this family their tickets straight away and clears the follow-up.
+            Add an email and their passes are sent straight away. Never make one up — leaving it blank is fine.
           </p>
           <div className="desk-grid2">
             <label className="desk-field">
@@ -163,25 +200,25 @@ export default function OrderControls({
       {panel === "comp" && (
         <div className="festive-card p-4 flex flex-col gap-3">
           <p className="desk-note">
-            The list price stays exactly as it is — the waiver sits beside it with your name on it, and a pass is still
-            issued so the headcount and the kitchen are right.
+            The pass still gets issued, so they’re counted at the gate and by the kitchen. The price stays on the
+            record with your name next to the reason — nothing is hidden.
           </p>
           <div className="desk-grid2">
             <label className="desk-field">
-              What
+              What are you doing?
               <select value={adjKind} onChange={(e) => setAdjKind(e.target.value as AdjustmentKind)}>
-                <option value="comp">Comp (free)</option>
-                <option value="discount">Discount</option>
-                <option value="writeoff">Write off a balance</option>
-                <option value="surcharge">Surcharge (they owe more)</option>
+                <option value="comp">Make it free</option>
+                <option value="discount">Give a discount</option>
+                <option value="writeoff">Give up on money owed</option>
+                <option value="surcharge">Charge them more</option>
               </select>
             </label>
             <label className="desk-field">
               Amount
               <input value={adjAmount} inputMode="decimal" onChange={(e) => setAdjAmount(e.target.value)} />
             </label>
-            <label className="desk-field">
-              Reason
+            <label className="desk-field reason-wide">
+              Why?
               <select value={adjReason} onChange={(e) => setAdjReason(e.target.value)}>
                 {ADJUSTMENT_REASONS.filter((r) => r.kinds.includes(adjKind)).map((r) => (
                   <option key={r.code} value={r.code}>
@@ -191,7 +228,7 @@ export default function OrderControls({
               </select>
             </label>
             <label className="desk-field">
-              Note
+              Anything to add? (optional)
               <input value={adjNote} onChange={(e) => setAdjNote(e.target.value)} />
             </label>
           </div>
@@ -220,22 +257,22 @@ export default function OrderControls({
       {panel === "void" && (
         <div className="festive-card p-4 flex flex-col gap-3">
           <p className="desk-note">
-            Nothing is deleted. The passes stop admitting, the seats go back, and any money already taken becomes a
-            refund the treasurer owes.
+            Nothing gets deleted. Their passes stop working at the gate, the places go back on sale, and any money
+            already taken is flagged for the treasurer to refund.
           </p>
           <div className="desk-grid2">
             <label className="desk-field">
-              Reason
+              Why?
               <select value={voidReason} onChange={(e) => setVoidReason(e.target.value as VoidReason)}>
                 {VOID_REASONS.map((r) => (
                   <option key={r} value={r}>
-                    {r.replaceAll("_", " ")}
+                    {VOID_REASON_LABEL[r]}
                   </option>
                 ))}
               </select>
             </label>
             <label className="desk-field">
-              Note
+              Anything to add? (optional)
               <input value={voidNote} onChange={(e) => setVoidNote(e.target.value)} />
             </label>
           </div>
@@ -244,7 +281,7 @@ export default function OrderControls({
             disabled={busy}
             onClick={() => act(() => voidOrderAction(registrationId, voidReason, voidNote))}
           >
-            Void {money(balanceCents > 0 ? balanceCents : 0)}
+            Cancel this booking
           </button>
         </div>
       )}

@@ -14,16 +14,16 @@
  */
 import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
-import { addTenderAction } from "../../actions";
+import { addTenderAction, openShiftAction } from "../../actions";
 import { parseAmountToCents, type TenderMethod } from "@/lib/desk/constants";
 
 const money = (c: number) => `$${(c / 100).toFixed(2)}`;
 
 const METHODS: { key: TenderMethod; label: string; hint: string }[] = [
-  { key: "cash", label: "Cash", hint: "Counted into this till" },
-  { key: "check", label: "Cheque", hint: "Held until the treasurer banks it" },
-  { key: "zelle", label: "Zelle", hint: "To the org, or to a person" },
-  { key: "square", label: "Card", hint: "QR on this screen, they pay on their phone" },
+  { key: "cash", label: "💵 Cash", hint: "Goes into your cash box. Type what they hand you and it works out the change." },
+  { key: "check", label: "🏦 Cheque", hint: "We hold the cheque until the treasurer banks it. Write down its number." },
+  { key: "zelle", label: "📱 Zelle", hint: "Say whether it went to Pragati's account or to somebody's own phone." },
+  { key: "square", label: "💳 Card", hint: "A code appears on screen — they scan it and pay on their own phone." },
 ];
 
 export default function TenderPanel({
@@ -32,16 +32,18 @@ export default function TenderPanel({
   shiftId,
   staff,
   cardFeeDefault,
-  disabled,
-  disabledWhy,
+  noCashBox,
+  defaultStation,
 }: {
   registrationId: string;
   balanceCents: number;
   shiftId: string | null;
   staff: { userId: string; label: string }[];
   cardFeeDefault: boolean;
-  disabled?: boolean;
-  disabledWhy?: string;
+  /** No cash box started yet. We ask for one HERE, where the money is, rather
+   *  than blocking the whole desk before anybody has done anything. */
+  noCashBox?: boolean;
+  defaultStation?: string;
 }) {
   const router = useRouter();
   const [method, setMethod] = useState<TenderMethod>("cash");
@@ -57,6 +59,8 @@ export default function TenderPanel({
   const [confirmationSeen, setConfirmationSeen] = useState(true);
   const [withCardFee, setWithCardFee] = useState(cardFeeDefault);
   const [note, setNote] = useState("");
+  const [station, setStation] = useState(defaultStation ?? "desk-1");
+  const [float, setFloat] = useState("200");
 
   const [error, setError] = useState("");
   const [ok, setOk] = useState("");
@@ -68,7 +72,52 @@ export default function TenderPanel({
   const cashCents = parseAmountToCents(cashTendered) ?? 0;
   const change = method === "cash" && cashCents > amountCents ? cashCents - amountCents : 0;
 
-  if (disabled) return <p className="desk-note">{disabledWhy}</p>;
+  // ── no cash box yet: ask for it in context, in one step ────────────────
+  // The first version of this screen said "no till is open" and stopped. That
+  // leaves a volunteer stuck with a family in front of them and a word they
+  // don't know. Start it right here instead.
+  if (noCashBox) {
+    return (
+      <div className="festive-card p-4 flex flex-col gap-3">
+        <p style={{ margin: 0 }}>
+          <strong>Before you take money, start your cash box.</strong>
+        </p>
+        <p className="desk-note" style={{ margin: 0 }}>
+          It just records the money in front of you, so every payment has a name on it and the totals add up at the
+          end of the night. Takes one tap.
+        </p>
+        <div className="flex flex-wrap items-end gap-3">
+          <label className="desk-field">
+            Which desk are you on?
+            <input value={station} onChange={(e) => setStation(e.target.value)} style={{ width: 140 }} />
+          </label>
+          <label className="desk-field">
+            Change you’re starting with
+            <input value={float} inputMode="decimal" onChange={(e) => setFloat(e.target.value)} style={{ width: 140 }} />
+          </label>
+          <button
+            className="btn-primary"
+            disabled={pending}
+            onClick={() =>
+              start(async () => {
+                const cents = parseAmountToCents(float);
+                if (cents === null) return setError("Type a number, like 200");
+                const res = await openShiftAction({ station, openingFloatCents: cents });
+                if (!res.ok) setError(res.error);
+                else {
+                  setError("");
+                  router.refresh();
+                }
+              })
+            }
+          >
+            {pending ? "Starting…" : "Start the cash box"}
+          </button>
+        </div>
+        {error && <p className="desk-error">{error}</p>}
+      </div>
+    );
+  }
 
   const submit = () =>
     start(async () => {
@@ -76,7 +125,7 @@ export default function TenderPanel({
       setOk("");
       setPayUrl(null);
       const cents = parseAmountToCents(amount);
-      if (cents === null || cents <= 0) return setError("Type an amount, e.g. 40 or 40.00");
+      if (cents === null || cents <= 0) return setError("Type how much they're paying, like 40");
       if (method === "zelle" && zelleTo !== "org" && !staff.find((s) => s.userId === zelleTo))
         return setError("Pick who the Zelle went to.");
 
@@ -111,6 +160,12 @@ export default function TenderPanel({
       setCashTendered("");
       setCheckNumber("");
       setNote("");
+      // Reset the amount to what is LEFT. Leaving the old figure sitting there
+      // meant a $145 order paid $100 still offered a "Take $100.00" button
+      // beside a $45.00 balance — one more tap and the family is overcharged.
+      // A card tender is only pending until Square answers, so nothing has been
+      // collected yet and the balance has not moved.
+      if (method !== "square") setAmount((Math.max(0, balanceCents - cents) / 100).toFixed(2));
       router.refresh();
     });
 
@@ -127,13 +182,13 @@ export default function TenderPanel({
 
       <div className="desk-grid2">
         <label className="desk-field">
-          Amount to apply
+          How much are they paying now?
           <input value={amount} inputMode="decimal" onChange={(e) => setAmount(e.target.value)} />
         </label>
 
         {method === "cash" && (
           <label className="desk-field">
-            Cash handed over (optional)
+            What they handed you (so we can work out the change)
             <input value={cashTendered} inputMode="decimal" onChange={(e) => setCashTendered(e.target.value)} />
           </label>
         )}
@@ -149,11 +204,11 @@ export default function TenderPanel({
               <input value={bank} onChange={(e) => setBank(e.target.value)} />
             </label>
             <label className="desk-field">
-              Payer name (as written)
+              Name written on the cheque
               <input value={payerName} onChange={(e) => setPayerName(e.target.value)} />
             </label>
             <label className="desk-field">
-              Date on the cheque
+              Date written on the cheque
               <input type="date" value={checkDate} onChange={(e) => setCheckDate(e.target.value)} />
             </label>
           </>
@@ -162,22 +217,22 @@ export default function TenderPanel({
         {method === "zelle" && (
           <>
             <label className="desk-field">
-              Where did it go?
+              Where did the money go?
               <select value={zelleTo} onChange={(e) => setZelleTo(e.target.value)}>
-                <option value="org">The Pragati account</option>
+                <option value="org">Pragati’s own account</option>
                 {staff.map((s) => (
                   <option key={s.userId} value={s.userId}>
-                    {s.label} (personal)
+                    {s.label} — their own account
                   </option>
                 ))}
               </select>
             </label>
             <label className="desk-field">
-              Sender&apos;s Zelle handle / phone
+              Their Zelle name or phone
               <input value={senderHandle} onChange={(e) => setSenderHandle(e.target.value)} />
             </label>
             <label className="desk-field">
-              Last 4 of their number
+              Last 4 digits of their number
               <input
                 value={senderLast4}
                 inputMode="numeric"
@@ -196,55 +251,45 @@ export default function TenderPanel({
       {method === "zelle" && (
         <label className="flex items-center gap-2 text-sm">
           <input type="checkbox" checked={confirmationSeen} onChange={(e) => setConfirmationSeen(e.target.checked)} />
-          I saw the confirmation on their phone
+          I saw the “sent” screen on their phone
         </label>
       )}
 
       {method === "square" && (
         <label className="flex items-center gap-2 text-sm">
           <input type="checkbox" checked={withCardFee} onChange={(e) => setWithCardFee(e.target.checked)} />
-          Add the 3% card fee ({money(feeCents)}) — charged on top, not part of what they owe
+          Add the 3% card fee ({money(feeCents)}) — charged on top of what they owe
         </label>
       )}
 
-      {change > 0 && <p className="desk-ok">Change to give back: {money(change)}</p>}
+      {change > 0 && <p className="desk-ok">💵 Give them {money(change)} change</p>}
       {zelleTo !== "org" && method === "zelle" && (
         <p className="desk-note">
-          This is recorded as <strong>held by a person</strong>, not as money in the org account — it stays on the
-          treasury queue with their name on it until they hand it over.
+          Noted: this money is <strong>with that person</strong>, not with Pragati yet. It stays on the to-do list
+          with their name on it until they hand it over. The guest is finished either way.
         </p>
       )}
 
       <div className="flex flex-wrap items-center gap-3">
         <button className="btn-primary" disabled={pending} onClick={submit}>
-          {pending ? "Recording…" : `Take ${money(amountCents + feeCents)}`}
+          {pending ? "Saving…" : `Take ${money(amountCents + feeCents)}`}
         </button>
-        <span className="desk-note">Balance {money(balanceCents)}</span>
+        <span className="desk-note">They still owe {money(balanceCents)}</span>
       </div>
 
       {error && <p className="desk-error">{error}</p>}
       {ok && <p className="desk-ok">{ok}</p>}
+      {/* The payment code itself is drawn on the payment row down in "Money
+          taken", not here. It used to be in both places, which meant either two
+          QR codes on one screen or — far worse — none at all, because a card
+          payment zeroes the balance and collapses this whole panel the moment
+          it is created. One code, attached to the payment it belongs to, that
+          stays put until Square answers. */}
       {payUrl && (
-        <div className="flex flex-col items-start gap-2">
-          <p className="desk-note">Show this to the guest — they pay on their own phone:</p>
-          {/* Rendered by us, not a third-party image host: a venue with bad
-              wi-fi must not be shown a broken image mid-payment.
-              eslint-disable-next-line @next/next/no-img-element */}
-          <img
-            alt="Payment QR"
-            width={200}
-            height={200}
-            src={`/api/admin/desk/qr?data=${encodeURIComponent(payUrl)}`}
-            style={{ background: "#fff", padding: 8, borderRadius: 8 }}
-          />
-          <a className="text-xs underline underline-offset-4 break-all" href={payUrl} target="_blank" rel="noreferrer">
-            {payUrl}
-          </a>
-          <p className="desk-note">
-            When they&apos;ve paid, tap <strong>Check with Square</strong> on the payment below — the desk asks Square
-            directly rather than waiting on a webhook.
-          </p>
-        </div>
+        <p className="desk-ok">
+          Code ready — it’s on the payment under <strong>Money taken</strong> below. Turn the screen round so they
+          can scan it.
+        </p>
       )}
     </div>
   );

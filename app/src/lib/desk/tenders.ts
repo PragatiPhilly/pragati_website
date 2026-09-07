@@ -89,12 +89,12 @@ export async function addTender(input: AddTenderInput, actor: DeskActor): Promis
   const db = getDb();
 
   const s = await deskOrderSummary(input.registrationId);
-  if (!s) throw new DeskError("Order not found.");
-  if (s.reg.deskState === "voided") throw new DeskError("That order was voided.");
+  if (!s) throw new DeskError("That booking no longer exists.");
+  if (s.reg.deskState === "voided") throw new DeskError("This booking was cancelled — you can't take money on it.");
   if (s.reg.deskState === "closed" && !actor.isAdmin)
-    throw new DeskError("This order is closed — an admin can reopen it, or add an amendment.");
-  if (input.amountCents <= 0) throw new DeskError("Type an amount.");
-  if (input.method === "comped") throw new DeskError("A comp is an adjustment, not a payment — use Comp / discount.");
+    throw new DeskError("This booking is finished. An admin can reopen it if something changed.");
+  if (input.amountCents <= 0) throw new DeskError("Type how much they're paying.");
+  if (input.method === "comped") throw new DeskError("To make something free, use 'Make it free' instead.");
 
   // Cash: what they handed over may exceed what they owe. The difference is
   // change, not revenue — we record only the amount that settles the order.
@@ -102,7 +102,7 @@ export async function addTender(input: AddTenderInput, actor: DeskActor): Promis
   let amountCents = Math.round(input.amountCents);
   let changeDueCents = 0;
   if (input.method === "cash" && cashTendered > 0) {
-    if (cashTendered < amountCents) throw new DeskError("Cash handed over is less than the amount being applied.");
+    if (cashTendered < amountCents) throw new DeskError("They handed over less than the amount you typed.");
     changeDueCents = cashTendered - amountCents;
   }
 
@@ -114,7 +114,7 @@ export async function addTender(input: AddTenderInput, actor: DeskActor): Promis
     // over. Treat the excess as change rather than inventing revenue.
     changeDueCents = overpaidCents;
     amountCents -= overpaidCents;
-    if (amountCents <= 0) throw new DeskError("Nothing is owed on this order.");
+    if (amountCents <= 0) throw new DeskError("They don't owe anything.");
   }
 
   const seq = (s.tenders.reduce((m, t) => Math.max(m, t.tenderSeq ?? 0), 0) ?? 0) + 1;
@@ -134,7 +134,7 @@ export async function addTender(input: AddTenderInput, actor: DeskActor): Promis
 
   if (input.method === "check") {
     const c = input.check;
-    if (!c?.checkNumber?.trim()) throw new DeskError("Type the cheque number — it is what the treasurer matches on.");
+    if (!c?.checkNumber?.trim()) throw new DeskError("Type the cheque number — that's what the treasurer matches it against later.");
     instrument = {
       checkNumber: c.checkNumber.trim(),
       bank: c.bank?.trim() || null,
@@ -148,7 +148,7 @@ export async function addTender(input: AddTenderInput, actor: DeskActor): Promis
     const z = input.zelle;
     if (!z) throw new DeskError("Say where the Zelle went.");
     if (z.sentTo !== "org" && !z.sentTo?.userId)
-      throw new DeskError("Pick the person it was sent to from the staff list.");
+      throw new DeskError("Pick who it was sent to.");
     instrument = {
       sentTo: z.sentTo === "org" ? "org" : { userId: z.sentTo.userId, displayName: z.sentTo.displayName },
       senderHandle: z.senderHandle?.trim() || null,
@@ -317,8 +317,8 @@ export async function settleDeskCardTender(input: {
     (input.squareOrderId ? tenders.find((t) => t.squareOrderId === input.squareOrderId) : undefined) ??
     tenders.find((t) => t.method === "square" && t.status === "pending");
 
-  if (!candidate) return { settled: false, reason: "no matching open card tender" };
-  if (candidate.status === "paid") return { settled: true, reason: "already settled", tenderId: candidate.id };
+  if (!candidate) return { settled: false, reason: "there is no card payment waiting on this booking" };
+  if (candidate.status === "paid") return { settled: true, reason: "already confirmed", tenderId: candidate.id };
 
   // Amount check, per tender rather than per order — the reason this handler
   // exists at all. A shortfall of a couple of cents is rounding; more than that
@@ -330,9 +330,9 @@ export async function settleDeskCardTender(input: {
       kind: "balance_owed",
       registrationId: input.registrationId,
       paymentId: candidate.id,
-      detail: `Square took ${fmt(got)} but the tender was ${fmt(expected)}.`,
+      detail: `Square took ${fmt(got)}, but the payment was recorded as ${fmt(expected)}.`,
     });
-    return { settled: false, reason: "amount mismatch", tenderId: candidate.id };
+    return { settled: false, reason: "Square took a different amount from the one recorded", tenderId: candidate.id };
   }
 
   await db
@@ -369,7 +369,7 @@ export async function settleDeskCardTender(input: {
 export async function pollCardTender(tenderId: string): Promise<{ settled: boolean; message: string }> {
   const db = getDb();
   const [t] = await db.select().from(schema.payments).where(eq(schema.payments.id, tenderId));
-  if (!t) return { settled: false, message: "That payment is gone." };
+  if (!t) return { settled: false, message: "That payment is no longer there." };
   if (t.status === "paid") return { settled: true, message: "Already confirmed." };
   const { lookupSquarePaymentSafe } = await import("@/lib/payments/square");
   const res = await lookupSquarePaymentSafe(t.squareOrderId);
@@ -383,15 +383,15 @@ export async function pollCardTender(tenderId: string): Promise<{ settled: boole
   });
   return out.settled
     ? { settled: true, message: "Card payment confirmed ✓" }
-    : { settled: false, message: out.reason ?? "Not settled." };
+    : { settled: false, message: out.reason ?? "Square hasn't confirmed it yet." };
 }
 
 /** The card was declined, or the guest walked away from the link. */
 export async function failTender(tenderId: string, why: string, actor: DeskActor): Promise<void> {
   const db = getDb();
   const [t] = await db.select().from(schema.payments).where(eq(schema.payments.id, tenderId));
-  if (!t) throw new DeskError("That payment is gone.");
-  if (t.status === "paid") throw new DeskError("That payment already went through — undo it instead.");
+  if (!t) throw new DeskError("That payment is no longer there.");
+  if (t.status === "paid") throw new DeskError("That payment already went through. Undo it instead.");
   await db
     .update(schema.payments)
     .set({ status: "cancelled", cancelledAt: new Date(), note: why, updatedAt: new Date() })
@@ -416,8 +416,8 @@ export async function voidTender(
 ): Promise<void> {
   const db = getDb();
   const [t] = await db.select().from(schema.payments).where(eq(schema.payments.id, tenderId));
-  if (!t) throw new DeskError("That payment is gone.");
-  if (t.reversedAt) throw new DeskError("That payment was already reversed.");
+  if (!t) throw new DeskError("That payment is no longer there.");
+  if (t.reversedAt) throw new DeskError("That payment has already been undone.");
   if (!why.trim()) throw new DeskError("Say why you're undoing it.");
   const may = canVoidTender(actor, t, currentShiftId);
   if (!may.ok) throw new DeskError(may.why);
@@ -455,12 +455,12 @@ export async function voidTender(
  */
 export async function reverseTender(tenderId: string, why: string, actor: DeskActor): Promise<void> {
   if (!actor.isTreasurer && !actor.isAdmin)
-    throw new DeskError("Reversing a settled payment is a treasurer action.");
+    throw new DeskError("Only the treasurer can undo a payment that already went through.");
   if (!why.trim()) throw new DeskError("Say what happened.");
   const db = getDb();
   const [t] = await db.select().from(schema.payments).where(eq(schema.payments.id, tenderId));
-  if (!t) throw new DeskError("That payment is gone.");
-  if (t.status !== "paid") throw new DeskError("Only a settled payment can be reversed.");
+  if (!t) throw new DeskError("That payment is no longer there.");
+  if (t.status !== "paid") throw new DeskError("That payment never went through, so there's nothing to undo.");
 
   await db
     .update(schema.payments)
@@ -499,8 +499,8 @@ export async function clearCustody(
   depositRef: string,
   actor: DeskActor
 ): Promise<number> {
-  if (!actor.isTreasurer) throw new DeskError("Clearing money into the org account is a treasurer action.");
-  if (!depositRef.trim()) throw new DeskError("Add the deposit reference — a slip number, a batch id, anything traceable.");
+  if (!actor.isTreasurer) throw new DeskError("Only the treasurer can mark money as reaching Pragati's account.");
+  if (!depositRef.trim()) throw new DeskError("Add the bank slip or reference number, so this can be traced later.");
   if (tenderIds.length === 0) return 0;
   await ensureDeskSchema();
   const db = getDb();

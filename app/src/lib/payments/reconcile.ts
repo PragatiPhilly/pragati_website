@@ -454,6 +454,30 @@ export async function applySquareTruth(
     squareAmountCents: p.amountCents,
   };
   if (owner.kind === "registration") {
+    // ── walk-in desk orders settle PER TENDER (touchpoint T7, mirrors T1) ──
+    // The scan above can raise a false_negative against a desk order, so an
+    // admin can land here holding one. markRegistrationPaid must never touch
+    // a desk order: it settles the WHOLE order (a $100 cash + $160 card split
+    // would be marked paid off a $160 card) and takes seats a second time,
+    // because the desk already took them at open. It throws for exactly this
+    // reason — so route to the same handler the webhook uses instead of
+    // letting that guard surface as a crash.
+    if (await isDeskRegistration(owner.id)) {
+      const { settleDeskCardTender } = await import("@/lib/desk/tenders");
+      const out = await settleDeskCardTender({
+        registrationId: owner.id,
+        squarePaymentId: p.paymentId,
+        squareOrderId: p.orderId,
+        squareAmountCents: p.amountCents,
+      });
+      if (!out.settled) {
+        throw new Error(
+          `This is a walk-in desk booking and the card payment could not be matched up automatically (${out.reason ?? "no reason given"}). ` +
+            `Open the booking from the walk-in desk and confirm the card payment there.`
+        );
+      }
+      return;
+    }
     const { markRegistrationPaid } = await import("@/lib/checkout");
     await markRegistrationPaid(owner.id, via);
   } else if (owner.kind === "donation") {

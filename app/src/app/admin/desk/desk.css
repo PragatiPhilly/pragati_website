@@ -99,6 +99,13 @@
   border-color: var(--sindoor);
   transform: translateY(-1px);
 }
+/* These are <span>s inside an <a>. Without display:block they run together on
+   one line — which is exactly what shipped the first time. */
+.desk-tile .t,
+.desk-tile .v,
+.desk-tile .s {
+  display: block;
+}
 .desk-tile .t {
   font-size: 11px;
   text-transform: uppercase;
@@ -118,6 +125,161 @@
   margin-top: 4px;
 }
 
+/* ── the volunteer's two jobs, and nothing else ────────────────────────── */
+.desk-hero {
+  border: 1px solid var(--line);
+  border-radius: 18px;
+  background: var(--card);
+  padding: 20px;
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+.desk-hero h2 {
+  font-family: var(--font-display), Georgia, serif;
+  font-size: 20px;
+  font-weight: 800;
+  margin: 0;
+}
+.desk-or {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  font-size: 12px;
+  color: var(--ink-soft);
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+}
+.desk-or::before,
+.desk-or::after {
+  content: "";
+  flex: 1;
+  border-top: 1px solid var(--line);
+}
+.big-action {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  width: 100%;
+  padding: 20px 24px;
+  border-radius: 16px;
+  border: 2px solid var(--sindoor);
+  background: var(--sindoor);
+  color: #fff;
+  font-size: 19px;
+  font-weight: 800;
+  text-align: center;
+  min-height: 64px;
+}
+.big-action:hover {
+  filter: brightness(1.06);
+}
+.big-action.ghost {
+  background: transparent;
+  color: var(--sindoor);
+}
+
+/* ── a quiet strip, never a wall ───────────────────────────────────────── */
+.cashbox-strip {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px 16px;
+  padding: 11px 16px;
+  border-radius: 12px;
+  border: 1px dashed var(--line);
+  font-size: 13px;
+  color: var(--ink-soft);
+}
+.cashbox-strip.on {
+  border-style: solid;
+  border-color: rgba(92, 138, 58, 0.4);
+  background: rgba(92, 138, 58, 0.06);
+}
+.cashbox-strip b {
+  color: var(--ink);
+}
+.cashbox-strip .spacer {
+  margin-left: auto;
+}
+
+/* ── plain-language help, native disclosure, no JS ─────────────────────── */
+details.desk-help {
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  background: var(--card);
+  padding: 0;
+  overflow: hidden;
+}
+details.desk-help > summary {
+  cursor: pointer;
+  padding: 12px 16px;
+  font-size: 13.5px;
+  font-weight: 700;
+  list-style: none;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+details.desk-help > summary::-webkit-details-marker {
+  display: none;
+}
+details.desk-help > summary::after {
+  content: "▾";
+  margin-left: auto;
+  color: var(--ink-soft);
+}
+details.desk-help[open] > summary::after {
+  content: "▴";
+}
+details.desk-help .help-body {
+  padding: 0 16px 16px;
+  font-size: 13.5px;
+  line-height: 1.6;
+  color: var(--ink-soft);
+}
+details.desk-help ol {
+  margin: 0 0 10px;
+  padding-left: 20px;
+}
+details.desk-help li {
+  margin-bottom: 6px;
+}
+details.desk-help b {
+  color: var(--ink);
+}
+
+/* ── secondary actions: present, but never louder than the money ───────── */
+details.more-actions > summary {
+  cursor: pointer;
+  font-size: 13px;
+  color: var(--ink-soft);
+  text-decoration: underline;
+  text-underline-offset: 4px;
+  list-style: none;
+  padding: 4px 0;
+}
+details.more-actions > summary::-webkit-details-marker {
+  display: none;
+}
+.action-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  margin-top: 10px;
+}
+
+/* Bigger targets for a tablet held at waist height. */
+.kind-btn,
+.day-btn {
+  min-height: 44px;
+}
+.desk-field input,
+.desk-field select {
+  min-height: 46px;
+}
+
 /* ── the balance, the one number the desk runs on ──────────────────────── */
 .desk-balance {
   display: flex;
@@ -132,6 +294,12 @@
 .desk-balance--owed {
   border-color: var(--sindoor);
   background: var(--accent-soft);
+}
+/* Started on a card, not yet confirmed by Square. Neither "owed" nor "paid" —
+   amber, because the one thing a volunteer must not do is read it as done. */
+.desk-balance--waiting {
+  border-color: var(--marigold);
+  background: color-mix(in srgb, var(--marigold) 14%, transparent);
 }
 .desk-balance .amount {
   font-family: var(--font-display), Georgia, serif;
@@ -228,10 +396,14 @@
   font-weight: 600;
   color: var(--ink);
 }
+/* Red is reserved for "this button does something". A chosen option is
+   marigold, the same language the day buttons already speak — otherwise the
+   food preference shouts as loudly as the Take payment button. */
 .kind-btn[aria-pressed="true"] {
-  background: var(--sindoor);
-  border-color: var(--sindoor);
-  color: #fff;
+  background: var(--marigold);
+  border-color: var(--marigold);
+  color: #2a2438;
+  font-weight: 700;
 }
 .day-btn {
   padding: 8px 13px;
@@ -276,6 +448,25 @@
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
   gap: 12px;
+}
+/* A <select> will happily shrink to its column and clip the option text —
+   "They're volunteering to…" is not a reason anyone can read. Let the reason
+   dropdown claim a wider column, and never narrower than its own content. */
+.desk-grid2 > label:has(select) {
+  min-width: 0;
+}
+.desk-grid2 select {
+  width: 100%;
+  min-width: 0;
+  text-overflow: ellipsis;
+}
+.desk-grid2 > label.reason-wide {
+  grid-column: span 2;
+}
+@media (max-width: 640px) {
+  .desk-grid2 > label.reason-wide {
+    grid-column: span 1;
+  }
 }
 
 .desk-note {
@@ -337,4 +528,135 @@
   width: 128px;
   height: 128px;
   margin: 6px auto 2px;
+}
+
+/* The "type a name to see the price" nudge in the total strip. Quiet, but it
+   has to be legible against the marigold band it sits on. */
+.hint-need {
+  font-style: italic;
+  color: var(--ink);
+  opacity: 0.75;
+}
+
+/* ── to chase up: one card per family ──────────────────────────────────────
+   The old list was one row per problem, which put a note box and four controls
+   on every line and let the long status chips collide with the labels beside
+   them. Grouping by family means fewer, taller cards and one set of controls. */
+.followup-card {
+  padding: 14px 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+.followup-card .fu-head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 12px;
+}
+.followup-card .fu-who {
+  font-size: 16px;
+}
+.followup-card .fu-conf {
+  font-family: var(--font-mono, ui-monospace, monospace);
+  font-size: 11.5px;
+  color: var(--ink-soft);
+  margin-left: 8px;
+  letter-spacing: 0.02em;
+}
+.followup-card .fu-phone {
+  font-size: 13.5px;
+  font-weight: 600;
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
+.followup-card .fu-items {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+.followup-card .fu-items li {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 10px;
+  font-size: 13.5px;
+  color: var(--ink-soft);
+  padding: 7px 0;
+  border-top: 1px solid var(--line);
+}
+/* The chip is a label, not a headline — it must never grow so wide that it
+   runs into whatever sits beside it. */
+.followup-card .fu-items .desk-chip {
+  flex: none;
+  max-width: 100%;
+}
+.followup-card .fu-tick {
+  flex: none;
+  min-height: 34px;
+  padding: 4px 12px;
+  border-radius: 999px;
+  border: 1px solid var(--line);
+  background: var(--card);
+  font-size: 12.5px;
+  font-weight: 700;
+  cursor: pointer;
+}
+.followup-card .fu-tick:hover {
+  border-color: var(--marigold);
+  background: color-mix(in srgb, var(--marigold) 16%, transparent);
+}
+.followup-card .fu-email,
+.followup-card .fu-foot {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-end;
+  gap: 10px;
+  border-top: 1px solid var(--line);
+  padding-top: 10px;
+}
+.followup-card .fu-email .desk-field input {
+  min-width: 220px;
+}
+
+/* The payment code sits on its own line under the payment it belongs to, so it
+   is never squeezed between the chips and the buttons on a narrow tablet. */
+.pay-qr {
+  width: 100%;
+  order: 99;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 8px;
+  margin-top: 8px;
+  padding-top: 10px;
+  border-top: 1px dashed var(--line);
+}
+
+/* "This is an addition to PRG-2026-0003" — context for the whole screen, so it
+   sits above the money rather than below the adjustments. */
+.desk-kin {
+  border-left: 3px solid var(--marigold);
+  padding: 6px 0 6px 10px;
+}
+.desk-kin a {
+  font-weight: 700;
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
+
+/* Undoing a payment: the choice comes first, the optional note second. */
+.undo-panel {
+  width: 100%;
+  order: 98;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-end;
+  gap: 8px;
+  margin-top: 8px;
+  padding-top: 10px;
+  border-top: 1px dashed var(--line);
 }

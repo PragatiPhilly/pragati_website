@@ -52,9 +52,51 @@ export default async function NewWalkInPage({
   const foodIsAChoice = adultTypes.some((t) => t.withFood) && adultTypes.some((t) => !t.withFood);
 
   let parentLabel: string | null = null;
+  // An amendment goes onto an existing booking, so the buyer is already known.
+  // Making the volunteer retype the name is friction at a queue AND a data
+  // hazard: one typo and the addition carries a different name from the family
+  // it belongs to. Carry it through.
+  let parentBuyer: { name: string; phone: string; email: string } | null = null;
+  let parentAdults: { ticketId: string; label: string }[] = [];
   if (parent) {
     const [p] = await db.select().from(schema.registrations).where(eq(schema.registrations.id, parent));
-    if (p) parentLabel = `${p.buyerName} · ${p.confirmationNumber}`;
+    if (p) {
+      parentLabel = `${p.buyerName} · ${p.confirmationNumber}`;
+      parentBuyer = { name: p.buyerName ?? "", phone: p.buyerPhone ?? "", email: p.buyerEmail ?? "" };
+      // "The family registered but forgot the kid" is THE amendment. The adult
+      // the child is coming with is almost always already on this booking, so
+      // offer them as a tap rather than making someone search for a name that
+      // is printed at the top of the same screen.
+      const rows = await db
+        .select({
+          id: schema.tickets.id,
+          first: schema.tickets.attendeeFirstName,
+          last: schema.tickets.attendeeLastName,
+          age: schema.tickets.attendeeAge,
+          typeId: schema.tickets.ticketTypeId,
+        })
+        .from(schema.tickets)
+        .where(eq(schema.tickets.registrationId, parent));
+      // Who counts as an adult is the PASS they hold, not their age column.
+      // The desk deliberately leaves a child's age blank when nobody gave it,
+      // so "age is null" cannot mean "grown-up" — that would offer one child as
+      // another child's guardian, which is the single rule this desk exists to
+      // enforce.
+      const adultTypeIds = new Set(adultTypes.map((t) => t.id));
+      const seen = new Set<string>();
+      parentAdults = rows
+        .filter((r) => adultTypeIds.has(r.typeId) && (r.age === null || r.age === undefined || r.age >= 18))
+        .filter((r) => {
+          const k = `${r.first} ${r.last ?? ""}`.trim();
+          if (seen.has(k)) return false; // one row per person, not per day
+          seen.add(k);
+          return true;
+        })
+        .map((r) => ({
+          ticketId: r.id,
+          label: `${r.first ?? ""} ${r.last ?? ""}`.trim() || "someone",
+        }));
+    }
   }
 
   const builderEvent: BuilderEvent = {
@@ -71,6 +113,8 @@ export default async function NewWalkInPage({
       presetName={name ?? ""}
       parentRegistrationId={parent ?? null}
       parentLabel={parentLabel}
+      parentBuyer={parentBuyer}
+      parentAdults={parentAdults}
     />
   );
 }

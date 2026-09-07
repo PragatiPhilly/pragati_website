@@ -71,9 +71,9 @@ export async function createDeskOrder(
   await ensureDeskSchema();
   const db = getDb();
 
-  if (!input.buyerName.trim()) throw new DeskError("Type at least a first name for whoever is paying.");
+  if (!input.buyerName.trim()) throw new DeskError("Type the name of whoever is paying.");
   if (input.people.length === 0) throw new DeskError("Add at least one person.");
-  if (!input.idempotencyKey) throw new DeskError("Missing idempotency key — reload the desk and try again.");
+  if (!input.idempotencyKey) throw new DeskError("Something went wrong — reload the page and try again.");
 
   // ── idempotency: the same key always yields the same order ───────────────
   const [existing] = await db
@@ -112,11 +112,11 @@ export async function createDeskOrder(
   });
   if (unguarded.length > 0 && !input.overrideGuardian) {
     throw new DeskError(
-      `${unguarded.map((p) => p.firstName).join(", ")} ${unguarded.length === 1 ? "is" : "are"} under 18 — pick the adult they are coming with. (An admin can override this.)`
+      `${unguarded.map((p) => p.firstName).join(", ")} ${unguarded.length === 1 ? "is" : "are"} under 18. Pick the adult they came with — a child can't have a pass on their own.`
     );
   }
   if (unguarded.length > 0 && input.overrideGuardian && !actor.isAdmin) {
-    throw new DeskError("Only an admin can let a minor in without an adult attached.");
+    throw new DeskError("Only an admin can let a child in without an adult listed.");
   }
 
   // ── price the party ──────────────────────────────────────────────────────
@@ -131,7 +131,7 @@ export async function createDeskOrder(
   if (priced.problems.length > 0) {
     throw new DeskError(priced.problems.map((p) => p.why).join(" "));
   }
-  if (priced.passes.length === 0) throw new DeskError("Nothing to issue — check the days and passes chosen.");
+  if (priced.passes.length === 0) throw new DeskError("Nothing to issue yet — add someone and pick their days.");
 
   // ── capacity: never oversell without a named decision ────────────────────
   const demand = new Map<string, number>();
@@ -146,8 +146,8 @@ export async function createDeskOrder(
   }
   if (overCapacity.length > 0) {
     if (!input.overrideCapacity)
-      throw new DeskError(`${overCapacity.join(" ")} An admin can override this at the door.`);
-    if (!actor.isAdmin) throw new DeskError("Only an admin can go past a pass's capacity.");
+      throw new DeskError(`${overCapacity.join(" ")} An admin can let them in anyway.`);
+    if (!actor.isAdmin) throw new DeskError("Only an admin can go past the limit on a pass.");
   }
 
   const donationCents = Math.max(0, Math.round(input.donationCents ?? 0));
@@ -252,7 +252,7 @@ export async function createDeskOrder(
   await recordOrderEvent({
     registrationId: reg.id,
     type: input.parentRegistrationId ? "amendment_created" : "order_opened",
-    summary: `${conf} opened for ${reg.buyerName} — ${priced.passes.length} pass${priced.passes.length === 1 ? "" : "es"}, ${fmt(dueCents)} due`,
+    summary: `${conf} started for ${reg.buyerName} — ${priced.passes.length} ${priced.passes.length === 1 ? "pass" : "passes"}, ${fmt(dueCents)} to pay`,
     actor,
     shiftId: input.shiftId ?? null,
     payload: {
@@ -292,7 +292,7 @@ export async function recomputeOrder(
 ): Promise<DeskOrderSummary> {
   const db = getDb();
   const s = await deskOrderSummary(registrationId);
-  if (!s) throw new DeskError("Order not found.");
+  if (!s) throw new DeskError("That booking no longer exists.");
   if (s.reg.deskState === "voided") return s;
 
   const settled = s.balanceCents <= 0;
@@ -317,12 +317,23 @@ export async function recomputeOrder(
 
   if (settled && !wasPaid) {
     await clearFollowups("balance_owed", { registrationId }, actor, "Balance settled at the desk.");
+    // "Nothing left to ask them for" is not the same as "the money is in".
+    // A card tender counts towards the balance while Square is still thinking
+    // about it, so this used to write "Paid in full — $0.00 taken" onto the
+    // timeline of a booking whose card had not gone through. The settlement
+    // rule is unchanged (they are done at the desk either way); only the
+    // sentence is, because a timeline that overstates is worse than none.
     await recordOrderEvent({
       registrationId,
       type: "order_settled",
-      summary: `Settled — ${fmt(s.collectedCents)} collected`,
+      summary:
+        s.pendingCents > 0
+          ? `Nothing left to pay — ${fmt(s.collectedCents)} taken, ${fmt(s.pendingCents)} still waiting on the card`
+          : s.collectedCents === 0
+            ? "Nothing to pay"
+            : `Paid in full — ${fmt(s.collectedCents)} taken`,
       actor,
-      payload: { collectedCents: s.collectedCents },
+      payload: { collectedCents: s.collectedCents, pendingCents: s.pendingCents },
     });
     await sendDeskTicketsEmail(registrationId, actor);
   }
@@ -378,9 +389,9 @@ export async function fillOrderDetails(
   await ensureDeskSchema();
   const db = getDb();
   const [reg] = await db.select().from(schema.registrations).where(eq(schema.registrations.id, registrationId));
-  if (!reg) throw new DeskError("Order not found.");
+  if (!reg) throw new DeskError("That booking no longer exists.");
   if (reg.deskState === "closed" && !actor.isAdmin)
-    throw new DeskError("This order is closed — an admin can reopen it, or add an amendment.");
+    throw new DeskError("This booking is finished. An admin can reopen it, or you can add more people as a new booking.");
 
   const set: Record<string, unknown> = { updatedAt: new Date() };
   const changes: string[] = [];
@@ -430,8 +441,8 @@ export async function fillOrderDetails(
 /** Let them in owing money. Always attributed, never silent. */
 export async function admitWithBalance(registrationId: string, actor: DeskActor): Promise<void> {
   const s = await deskOrderSummary(registrationId);
-  if (!s) throw new DeskError("Order not found.");
-  if (s.balanceCents <= 0) throw new DeskError("Nothing is owed on this order.");
+  if (!s) throw new DeskError("That booking no longer exists.");
+  if (s.balanceCents <= 0) throw new DeskError("They don't owe anything.");
   await assertMayAdmitWithBalance(actor, s.balanceCents);
 
   const db = getDb();
@@ -448,7 +459,7 @@ export async function admitWithBalance(registrationId: string, actor: DeskActor)
   await recordOrderEvent({
     registrationId,
     type: "admitted_with_balance",
-    summary: `Admitted owing ${fmt(s.balanceCents)}`,
+    summary: `Let in still owing ${fmt(s.balanceCents)}`,
     actor,
     payload: { balanceCents: s.balanceCents },
   });
@@ -457,10 +468,10 @@ export async function admitWithBalance(registrationId: string, actor: DeskActor)
 /** Sign the order off. Only from a zero balance. */
 export async function closeOrder(registrationId: string, actor: DeskActor): Promise<void> {
   const s = await deskOrderSummary(registrationId);
-  if (!s) throw new DeskError("Order not found.");
-  if (s.reg.deskState === "voided") throw new DeskError("That order was voided.");
+  if (!s) throw new DeskError("That booking no longer exists.");
+  if (s.reg.deskState === "voided") throw new DeskError("This booking was cancelled.");
   if (s.balanceCents > 0)
-    throw new DeskError(`${fmt(s.balanceCents)} still owed — take a payment, comp it, or admit with a balance.`);
+    throw new DeskError(`They still owe ${fmt(s.balanceCents)}. Take the payment, make it free, or let them in and collect later.`);
 
   const db = getDb();
   await db
@@ -470,13 +481,13 @@ export async function closeOrder(registrationId: string, actor: DeskActor): Prom
   await recordOrderEvent({
     registrationId,
     type: "order_closed",
-    summary: `Closed — ${fmt(s.collectedCents)} collected${s.adjustedCents ? `, ${fmt(s.adjustedCents)} adjusted` : ""}`,
+    summary: `Finished — ${fmt(s.collectedCents)} taken${s.adjustedCents ? `, ${fmt(s.adjustedCents)} taken off` : ""}`,
     actor,
   });
 }
 
 export async function reopenOrder(registrationId: string, actor: DeskActor, why: string): Promise<void> {
-  if (!actor.isAdmin) throw new DeskError("Reopening a closed order is an admin action.");
+  if (!actor.isAdmin) throw new DeskError("Only an admin can reopen a finished booking.");
   if (!why.trim()) throw new DeskError("Say why you're reopening it.");
   const db = getDb();
   await db
@@ -504,16 +515,16 @@ export async function voidOrder(
   await ensureDeskSchema();
   const db = getDb();
   const s = await deskOrderSummary(registrationId);
-  if (!s) throw new DeskError("Order not found.");
+  if (!s) throw new DeskError("That booking no longer exists.");
   if (s.reg.deskState === "voided") return;
 
   const scanned = s.tickets.filter((t) => t.checkedInAt).length;
   if (s.collectedCents > 0 && !actor.isAdmin)
-    throw new DeskError("This order has taken money — an admin has to void it.");
+    throw new DeskError("Money has already been taken on this booking. An admin has to cancel it.");
   if (scanned > 0 && !actor.isAdmin)
-    throw new DeskError("Someone on this order has already been scanned in — an admin has to void it.");
+    throw new DeskError("Someone on this booking has already been scanned in at the gate. An admin has to cancel it.");
   if (s.reg.deskState === "closed" && !actor.isAdmin)
-    throw new DeskError("This order is closed — an admin has to void it.");
+    throw new DeskError("This booking is finished. An admin has to cancel it.");
 
   // Open tenders are cancelled; settled ones are left standing and become a
   // refund the treasurer owes. We never pretend money we took didn't arrive.
@@ -559,7 +570,7 @@ export async function voidOrder(
   await recordOrderEvent({
     registrationId,
     type: "order_voided",
-    summary: `Voided (${reason})${note ? ` — ${note}` : ""}${s.collectedCents > 0 ? ` · ${fmt(s.collectedCents)} refund owed` : ""}`,
+    summary: `Cancelled (${reason.replaceAll("_", " ")})${note ? ` — ${note}` : ""}${s.collectedCents > 0 ? ` · ${fmt(s.collectedCents)} to refund` : ""}`,
     actor,
     payload: { reason, note, collectedCents: s.collectedCents, scanned },
   });
@@ -678,12 +689,14 @@ export async function guardianCandidates(eventId: string, q: string) {
         ticketId: schema.tickets.id,
         name: sql<string>`trim(coalesce(${schema.tickets.attendeeFirstName},'') || ' ' || coalesce(${schema.tickets.attendeeLastName},''))`,
         age: schema.tickets.attendeeAge,
+        ageBand: schema.ticketTypes.ageBand,
         conf: schema.registrations.confirmationNumber,
         buyerName: schema.registrations.buyerName,
         checkedInAt: schema.tickets.checkedInAt,
       })
       .from(schema.tickets)
       .innerJoin(schema.registrations, eq(schema.tickets.registrationId, schema.registrations.id))
+      .innerJoin(schema.ticketTypes, eq(schema.tickets.ticketTypeId, schema.ticketTypes.id))
       .where(
         and(
           eq(schema.registrations.eventId, eventId),
@@ -696,8 +709,16 @@ export async function guardianCandidates(eventId: string, q: string) {
         )
       )
       .limit(20);
-    // Only adults may act as a guardian.
-    return rows.filter((r) => r.age === null || r.age === undefined || r.age >= 18);
+    // Only adults may act as a guardian — and "adult" is the PASS they hold,
+    // not their age column. The desk leaves a child's age blank when nobody
+    // gave it (a made-up age is not a fact), so treating null as grown-up would
+    // let one child stand as another child's guardian and quietly defeat the
+    // one rule this whole flow exists to enforce.
+    return rows.filter(
+      (r) =>
+        (r.ageBand === "adult" || r.ageBand === "all") &&
+        (r.age === null || r.age === undefined || r.age >= 18)
+    );
   } catch {
     return [];
   }

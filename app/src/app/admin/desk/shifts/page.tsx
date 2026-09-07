@@ -8,7 +8,7 @@ import { listShifts, shiftCloseView } from "@/lib/desk/shifts";
 import CloseOutPanel from "./CloseOutPanel";
 
 export const dynamic = "force-dynamic";
-export const metadata = { title: "Desk tills" };
+export const metadata = { title: "Cash boxes" };
 
 export default async function ShiftsPage() {
   const session = await requireSectionAccess("desk");
@@ -17,8 +17,8 @@ export default async function ShiftsPage() {
   if (!event)
     return (
       <div className="max-w-2xl">
-        <h1 className="font-[family-name:var(--font-display)] text-3xl font-black mb-2">Tills</h1>
-        <p className="desk-note">No active event.</p>
+        <h1 className="font-[family-name:var(--font-display)] text-3xl font-black mb-2">Cash boxes</h1>
+        <p className="desk-note">No event is switched on yet.</p>
       </div>
     );
 
@@ -35,26 +35,28 @@ export default async function ShiftsPage() {
         <Link href="/admin/desk" className="text-xs underline underline-offset-4">
           ← Desk
         </Link>
-        <h1 className="font-[family-name:var(--font-display)] text-3xl font-black mb-1">Tills</h1>
+        <h1 className="font-[family-name:var(--font-display)] text-3xl font-black mb-1">Cash boxes</h1>
         <p className="desk-note">
-          Every payment carries the till it was taken on, so two stations running at once still reconcile separately.
+          A cash box is the money in front of one desk: what it started with, what went into it, and what was counted
+          at the end. Every payment remembers which box it went into, so two desks running at once still add up
+          separately — and a shortfall belongs to a shift, not to a person.
         </p>
         <p className="desk-note mt-2">
-          For the treasurer:{" "}
+          Spreadsheets for the treasurer:{" "}
           <a className="underline underline-offset-4" href="/api/admin/export/desk?view=tenders">
             every payment
           </a>{" "}
           ·{" "}
           <a className="underline underline-offset-4" href="/api/admin/export/desk?view=orders">
-            orders &amp; balances
+            bookings &amp; what’s owed
           </a>{" "}
           ·{" "}
           <a className="underline underline-offset-4" href="/api/admin/export/desk?view=adjustments">
-            comps &amp; discounts
+            free passes &amp; discounts
           </a>{" "}
           ·{" "}
           <a className="underline underline-offset-4" href="/api/admin/export/desk?view=shifts">
-            tills
+            cash boxes
           </a>{" "}
           (CSV)
         </p>
@@ -75,7 +77,7 @@ export default async function ShiftsPage() {
         )}
 
       <div>
-        <h2 className="font-[family-name:var(--font-display)] text-lg font-bold mb-2">All tills</h2>
+        <h2 className="font-[family-name:var(--font-display)] text-lg font-bold mb-2">All cash boxes</h2>
         <div className="festive-card overflow-hidden">
           {shifts.map((s) => (
             <div key={s.id} className="desk-row">
@@ -93,34 +95,41 @@ export default async function ShiftsPage() {
                   })}
                 </span>
               </span>
-              <span className="desk-note">float {formatCents(s.openingFloatCents)}</span>
-              {s.dropsCents > 0 && <span className="desk-note">drops {formatCents(s.dropsCents)}</span>}
+              <span className="desk-note">started with {formatCents(s.openingFloatCents)}</span>
+              {s.dropsCents > 0 && (
+                <span className="desk-note">{formatCents(s.dropsCents)} handed over</span>
+              )}
               {s.status === "open" ? (
-                <span className="desk-chip chip-warn">open</span>
+                <span className="desk-chip chip-warn">still open</span>
               ) : (
                 <>
                   <span className="desk-note">counted {formatCents(s.countedCashCents ?? 0)}</span>
                   <span className={`desk-chip ${(s.varianceCents ?? 0) === 0 ? "chip-ok" : "chip-stop"}`}>
                     {(s.varianceCents ?? 0) === 0
-                      ? "balanced"
-                      : `${(s.varianceCents ?? 0) > 0 ? "over" : "short"} ${formatCents(Math.abs(s.varianceCents ?? 0))}`}
+                      ? "matched"
+                      : `${(s.varianceCents ?? 0) > 0 ? "extra" : "missing"} ${formatCents(Math.abs(s.varianceCents ?? 0))}`}
                   </span>
                 </>
               )}
               {s.varianceNote && <span className="desk-note">{s.varianceNote}</span>}
             </div>
           ))}
-          {shifts.length === 0 && <p className="desk-row desk-note">No tills opened yet.</p>}
+          {shifts.length === 0 && (
+            <p className="desk-row desk-note">
+              No cash box has been started yet. One gets started from the desk when the first payment is taken.
+            </p>
+          )}
         </div>
       </div>
 
       {shifts.some((s) => s.status === "closed") && (
         <p className="desk-note">
-          Counted across closed tills: <strong>{formatCents(takings)}</strong>
+          Counted across finished cash boxes: <strong>{formatCents(takings)}</strong>
           {variance !== 0 && (
             <>
               {" "}
-              · net variance <strong>{formatCents(variance)}</strong>
+              · <strong>{formatCents(Math.abs(variance))}</strong> {variance > 0 ? "more" : "less"} than expected
+              overall
             </>
           )}
         </p>

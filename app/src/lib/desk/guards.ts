@@ -31,8 +31,8 @@ async function actorFrom(session: SessionUser | null, section: "desk" | "desk_mo
   if (!isSuper && !allowed?.includes(section)) {
     throw new DeskError(
       section === "desk_money"
-        ? "Clearing money into the org account is a treasurer action."
-        : "You don't have access to the walk-in desk."
+        ? "Only the treasurer can mark money as reaching Pragati's account."
+        : "You don't have access to the walk-in desk. Ask an admin to add you."
     );
   }
   return {
@@ -58,7 +58,7 @@ export async function requireDeskMoney(): Promise<DeskActor> {
 /** Actions only an admin may take: comps, voiding a closed order, overrides. */
 export async function requireDeskAdmin(what: string): Promise<DeskActor> {
   const actor = await requireDesk();
-  if (!actor.isAdmin) throw new DeskError(`${what} needs an admin — ask one to sign in on this tablet.`);
+  if (!actor.isAdmin) throw new DeskError(`${what} needs an admin. Ask one to sign in on this tablet.`);
   return actor;
 }
 
@@ -82,12 +82,12 @@ export function canVoidTender(
 ): { ok: true } | { ok: false; why: string } {
   if (actor.isAdmin) return { ok: true };
   if (tender.collectedBy !== actor.userId)
-    return { ok: false, why: "Only the person who took this payment can undo it — otherwise an admin." };
+    return { ok: false, why: "Only the person who took this payment can undo it. Otherwise ask an admin." };
   if (tender.shiftId && currentShiftId && tender.shiftId !== currentShiftId)
-    return { ok: false, why: "That payment belongs to a closed shift — an admin has to undo it." };
+    return { ok: false, why: "That payment is from a cash box that's already been counted. An admin has to undo it." };
   const age = tender.createdAt ? Date.now() - new Date(tender.createdAt).getTime() : Infinity;
   if (age > SELF_VOID_WINDOW_MS)
-    return { ok: false, why: "That payment is more than 15 minutes old — an admin has to undo it." };
+    return { ok: false, why: "That payment is more than 15 minutes old. An admin has to undo it." };
   return { ok: true };
 }
 
@@ -102,7 +102,7 @@ export async function assertMayAdmitWithBalance(actor: DeskActor, balanceCents: 
   if (balanceCents > cap) {
     const dollars = (cap / 100).toFixed(0);
     throw new DeskError(
-      `Letting someone in owing more than $${dollars} needs an admin. Ask one to approve it on this tablet.`
+      `Letting someone in who still owes more than $${dollars} needs an admin. Ask one to approve it here.`
     );
   }
 }

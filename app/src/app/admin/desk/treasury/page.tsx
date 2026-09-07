@@ -9,9 +9,10 @@ import { ensureDeskSchema } from "@/lib/desk/ensure";
 import { custodyGroups } from "@/lib/desk/tenders";
 import { adjustmentTotals } from "@/lib/desk/adjustments";
 import CustodyPanel, { type CustodyGroupView, type CustodyRow } from "./CustodyPanel";
+import HelpPanel from "../HelpPanel";
 
 export const dynamic = "force-dynamic";
-export const metadata = { title: "Desk treasury" };
+export const metadata = { title: "Money to bank" };
 
 const days = (d: Date) => Math.floor((Date.now() - new Date(d).getTime()) / 86_400_000);
 
@@ -52,7 +53,7 @@ export default async function TreasuryPage() {
             ? typeof inst.sentTo === "object"
               ? `from ${inst.senderHandle ?? "sender unknown"}${inst.senderLast4 ? ` (…${inst.senderLast4})` : ""}`
               : "org account"
-            : "cash";
+            : ""; // cash needs no detail — "Cash · cash" is not information
       return {
         id: t.id,
         amountCents: t.amountCents,
@@ -76,22 +77,24 @@ export default async function TreasuryPage() {
         <Link href="/admin/desk" className="text-xs underline underline-offset-4">
           ← Desk
         </Link>
-        <h1 className="font-[family-name:var(--font-display)] text-3xl font-black mb-1">Treasury</h1>
+        <h1 className="font-[family-name:var(--font-display)] text-3xl font-black mb-1">Money to bank</h1>
         <p className="desk-note">
-          Money the desk took that has <strong>not reached the organisation</strong>. These guests are settled — this
-          page is not about them, it is about where their money physically is.
+          Money the desk took that hasn’t reached Pragati’s account yet. <strong>These guests have already
+          paid</strong> — this page isn’t about chasing them, it’s about where their money physically is.
         </p>
       </div>
 
+      <HelpPanel variant="money" />
+
       <div className="desk-balance desk-balance--owed">
         <span>
-          <span className="lbl">Not in the org account</span>
+          <span className="lbl">Not banked yet</span>
           <br />
           <span className="amount">{formatCents(total)}</span>
         </span>
         <span className="desk-note">
-          across {view.length} holder{view.length === 1 ? "" : "s"} · anything older than {overdueDays} days is flagged
-          to the nightly reconciler
+          held by {view.length} {view.length === 1 ? "person or box" : "people and boxes"} · anything still out after{" "}
+          {overdueDays} days gets flagged automatically
         </span>
       </div>
 
@@ -99,7 +102,7 @@ export default async function TreasuryPage() {
 
       {givenAway.length > 0 && (
         <div>
-          <h2 className="font-[family-name:var(--font-display)] text-lg font-bold mb-2">Comped &amp; discounted</h2>
+          <h2 className="font-[family-name:var(--font-display)] text-lg font-bold mb-2">Given away</h2>
           <div className="festive-card overflow-hidden">
             {givenAway.map((a) => (
               <div key={`${a.kind}:${a.reasonCode}`} className="desk-row">

@@ -36,22 +36,22 @@ export async function addAdjustment(
   // Comps and write-offs are money the organisation decides not to collect.
   // A volunteer taking cash all evening is not the person who gets to make
   // that call — the screen asks for an admin, and so does the server.
-  if (!actor.isAdmin) throw new DeskError("Comps and discounts need an admin — ask one to approve it on this tablet.");
+  if (!actor.isAdmin) throw new DeskError("Making something free or giving a discount needs an admin. Ask one to approve it here.");
   await ensureDeskSchema();
 
   const reason = ADJUSTMENT_REASONS.find((r) => r.code === input.reasonCode);
   if (!reason) throw new DeskError("Pick a reason.");
-  if (!reason.kinds.includes(input.kind)) throw new DeskError(`"${reason.label}" doesn't apply to a ${input.kind}.`);
-  if (input.reasonCode === "other" && !input.note?.trim()) throw new DeskError('"Other" needs a note.');
+  if (!reason.kinds.includes(input.kind)) throw new DeskError(`"${reason.label}" doesn't fit that choice.`);
+  if (input.reasonCode === "other" && !input.note?.trim()) throw new DeskError("Say what the reason is.");
   if (input.amountCents === 0) throw new DeskError("Type an amount.");
 
   const s = await deskOrderSummary(input.registrationId);
-  if (!s) throw new DeskError("Order not found.");
-  if (s.reg.deskState === "voided") throw new DeskError("That order was voided.");
+  if (!s) throw new DeskError("That booking no longer exists.");
+  if (s.reg.deskState === "voided") throw new DeskError("This booking was cancelled.");
 
   const signed = input.kind === "surcharge" ? -Math.abs(input.amountCents) : Math.abs(input.amountCents);
   if (signed > 0 && signed > s.balanceCents + s.collectedCents)
-    throw new DeskError(`That is more than the order is worth (${fmt(s.dueCents)}).`);
+    throw new DeskError(`That's more than the booking is worth (${fmt(s.dueCents)}).`);
 
   const db = getDb();
   await db.insert(schema.deskAdjustments).values({
@@ -79,11 +79,11 @@ function labelFor(kind: AdjustmentKind): string {
 }
 
 export async function voidAdjustment(id: string, why: string, actor: DeskActor): Promise<void> {
-  if (!actor.isAdmin) throw new DeskError("Undoing a comp is an admin action.");
+  if (!actor.isAdmin) throw new DeskError("Only an admin can undo this.");
   if (!why.trim()) throw new DeskError("Say why.");
   const db = getDb();
   const [row] = await db.select().from(schema.deskAdjustments).where(eq(schema.deskAdjustments.id, id));
-  if (!row) throw new DeskError("That adjustment is gone.");
+  if (!row) throw new DeskError("That's no longer there.");
   if (row.voidedAt) return;
   await db
     .update(schema.deskAdjustments)

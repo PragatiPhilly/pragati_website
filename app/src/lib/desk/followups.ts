@@ -96,9 +96,9 @@ export async function resolveFollowup(id: string, actor: DeskActor, note: string
   await ensureDeskSchema();
   const db = getDb();
   const [row] = await db.select().from(schema.deskFollowups).where(eq(schema.deskFollowups.id, id));
-  if (!row) throw new DeskError("That follow-up no longer exists.");
-  if (row.status !== "open") throw new DeskError("That follow-up is already closed.");
-  if (waive && !note.trim()) throw new DeskError("Waiving needs a note — say why it will never be supplied.");
+  if (!row) throw new DeskError("That item is no longer there.");
+  if (row.status !== "open") throw new DeskError("That item has already been dealt with.");
+  if (waive && !note.trim()) throw new DeskError("Say why you're dropping this — it stays on the record.");
 
   await db
     .update(schema.deskFollowups)

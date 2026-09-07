@@ -54,7 +54,7 @@ export const SECTIONS: Section[] = [
   { key: "donations", label: "Donations", href: "/admin/donations", icon: "🎁", group: "money" },
   // Money the desk took that is NOT in the org account yet — cash in a drawer,
   // an undeposited cheque, a Zelle sitting in someone's personal account.
-  { key: "desk_money", label: "Treasury", href: "/admin/desk/treasury", icon: "🏦", group: "money" },
+  { key: "desk_money", label: "Money to bank", href: "/admin/desk/treasury", icon: "🏦", group: "money" },
 
   { key: "registrations", label: "Registrations", href: "/admin/registrations", icon: "🎟", group: "people" },
   { key: "members", label: "Members", href: "/admin/members", icon: "👪", group: "people" },

@@ -80,10 +80,23 @@ export async function approveFinding(id: string, note?: string): Promise<ActionR
     };
   }
 
-  await applySquareTruth(
-    { kind: f.entityKind as "registration" | "donation" | "membership", id: f.entityId },
-    check.payment
-  );
+  // The correction can legitimately refuse — a walk-in desk booking whose card
+  // tender can't be matched up, for one. That is an answer, not a crash: leave
+  // the item open and say what to do about it.
+  try {
+    await applySquareTruth(
+      { kind: f.entityKind as "registration" | "donation" | "membership", id: f.entityId },
+      check.payment
+    );
+  } catch (err) {
+    return {
+      ok: false,
+      message:
+        err instanceof Error
+          ? err.message
+          : "That correction could not be applied. Nothing was changed — dismiss this with a note.",
+    };
+  }
 
   const now = new Date();
   await db

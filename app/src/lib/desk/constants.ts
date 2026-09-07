@@ -34,12 +34,20 @@ export type Custody =
   | "held_by_person" // sent to an individual, or cash they pocketed
   | "n_a"; // comp / waiver / write-off — no money exists
 
+/**
+ * Written for a volunteer, not a bookkeeper.
+ *
+ * Every one of these strings appears on a screen someone reads while a queue
+ * watches them. "Custody" and "tender" are the words in the code because they
+ * are precise; they are never the words on the screen, because nobody at a
+ * pujo door has them.
+ */
 export const CUSTODY_LABEL: Record<Custody, string> = {
-  org_account: "In the org account",
-  in_drawer: "Cash in drawer",
-  undeposited_check: "Cheque not deposited",
-  held_by_person: "Held by a person",
-  n_a: "No money (comp)",
+  org_account: "Reached Pragati's account",
+  in_drawer: "In the cash box",
+  undeposited_check: "Cheque not banked yet",
+  held_by_person: "Someone is holding it",
+  n_a: "No money (free)",
 };
 
 /** Custody values a treasurer still has to chase. */
@@ -84,17 +92,17 @@ export type FollowupKind =
   | "card_unconfirmed";
 
 export const FOLLOWUP_LABEL: Record<FollowupKind, string> = {
-  missing_email: "No email address",
-  missing_phone: "No phone number",
-  missing_age: "Age not given",
-  name_uncertain: "Name needs checking",
-  verify_membership: "Membership claim to verify",
-  check_uncleared: "Cheque not deposited",
-  zelle_with_person: "Zelle held by a person",
-  balance_owed: "Balance owed",
-  guardian_unlinked: "Minor without a guardian",
-  duplicate_suspected: "Possible duplicate",
-  refund_due: "Refund owed",
+  missing_email: "Need their email",
+  missing_phone: "Need their phone",
+  missing_age: "Need the child's age",
+  name_uncertain: "Check the spelling",
+  verify_membership: "Check if they're a member",
+  check_uncleared: "Cheque still to bank",
+  zelle_with_person: "Zelle went to someone's own account",
+  balance_owed: "Still to pay",
+  guardian_unlinked: "Child with no adult listed",
+  duplicate_suspected: "Might be a duplicate",
+  refund_due: "We owe them money back",
   card_unconfirmed: "Card payment not confirmed",
 };
 
@@ -104,18 +112,18 @@ export const FOLLOWUP_LABEL: Record<FollowupKind, string> = {
 export type AdjustmentKind = "comp" | "discount" | "writeoff" | "surcharge";
 
 export const ADJUSTMENT_REASONS: { code: string; label: string; kinds: AdjustmentKind[] }[] = [
-  { code: "volunteer", label: "Volunteer", kinds: ["comp"] },
-  { code: "clergy", label: "Priest / clergy", kinds: ["comp"] },
-  { code: "performer", label: "Performer / artist", kinds: ["comp"] },
+  { code: "volunteer", label: "They're volunteering today", kinds: ["comp"] },
+  { code: "clergy", label: "Priest", kinds: ["comp"] },
+  { code: "performer", label: "Performing today", kinds: ["comp"] },
   { code: "guest_of_org", label: "Invited guest of Pragati", kinds: ["comp"] },
-  { code: "sponsor_allocation", label: "Sponsor package", kinds: ["comp"] },
+  { code: "sponsor_allocation", label: "Included in a sponsor package", kinds: ["comp"] },
   { code: "committee", label: "Committee member", kinds: ["comp"] },
-  { code: "hardship", label: "Hardship", kinds: ["discount", "comp"] },
-  { code: "goodwill", label: "Goodwill / service recovery", kinds: ["discount"] },
-  { code: "price_correction", label: "Price correction", kinds: ["discount", "surcharge"] },
-  { code: "bounced_check", label: "Cheque bounced — written off", kinds: ["writeoff"] },
-  { code: "uncollectable", label: "Uncollectable balance", kinds: ["writeoff"] },
-  { code: "other", label: "Other (explain)", kinds: ["comp", "discount", "writeoff", "surcharge"] },
+  { code: "hardship", label: "Can't afford it", kinds: ["discount", "comp"] },
+  { code: "goodwill", label: "Making up for a problem", kinds: ["discount"] },
+  { code: "price_correction", label: "We charged the wrong price", kinds: ["discount", "surcharge"] },
+  { code: "bounced_check", label: "Cheque bounced — giving up on it", kinds: ["writeoff"] },
+  { code: "uncollectable", label: "We won't get this money", kinds: ["writeoff"] },
+  { code: "other", label: "Something else (say what)", kinds: ["comp", "discount", "writeoff", "surcharge"] },
 ];
 
 export const VOID_REASONS = [
@@ -127,6 +135,23 @@ export const VOID_REASONS = [
   "other",
 ] as const;
 export type VoidReason = (typeof VOID_REASONS)[number];
+
+/**
+ * Said out loud, not spelled out of an enum.
+ *
+ * The cancel form used to print the raw codes with the underscores swapped for
+ * spaces — "created in error", "wrong family" — which reads like a database
+ * looking back at you, and "test entry" tells a volunteer nothing about when to
+ * pick it. Same values on the wire; only the words change.
+ */
+export const VOID_REASON_LABEL: Record<VoidReason, string> = {
+  created_in_error: "I started this by mistake",
+  duplicate: "They are already booked — this is a second copy",
+  guest_left: "They changed their mind and left",
+  wrong_family: "I put it on the wrong family",
+  test_entry: "This was only a test",
+  other: "Something else (say what below)",
+};
 
 /** Timeline event types. Every one of these is written by a named person. */
 export type OrderEventType =
@@ -158,7 +183,7 @@ export type PersonKind = "adult" | "youth" | "under5" | "student" | "concert";
 
 export const PERSON_KIND_LABEL: Record<PersonKind, string> = {
   adult: "Adult",
-  youth: "Youth 5–18",
+  youth: "Child 5–18",
   under5: "Under 5",
   student: "Student",
   concert: "Concert only",

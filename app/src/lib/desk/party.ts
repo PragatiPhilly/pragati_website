@@ -262,7 +262,13 @@ export function priceParty(
       ticketTypeName: ttMap.get(e.attendee.ticketTypeId)?.name ?? "Pass",
       attendeeFirstName: e.attendee.firstName,
       attendeeLastName: e.attendee.lastName,
-      attendeeAge: e.attendee.age,
+      // The age carried through pricing may be a PLACEHOLDER — an under-5 with
+      // no age typed still has to price as an under-5, so party pricing fills
+      // in a nominal 3 or 10 to pick the right band. That number is a pricing
+      // device, not something anyone told us, so it must never reach the
+      // ticket and be read back as fact. Store only what was actually said;
+      // the "we still need this child's age" follow-up is what closes the gap.
+      attendeeAge: byRef.get(e.personRef)?.age,
       foodPref: e.attendee.foodPref,
       dayKey: e.day,
       priceCents: line.priceCents,

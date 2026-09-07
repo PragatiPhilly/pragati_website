@@ -21,9 +21,15 @@ export async function GET(req: NextRequest) {
   const raw = req.nextUrl.searchParams.get("data") ?? "";
   if (!raw) return NextResponse.json({ error: "Missing data" }, { status: 400 });
 
+  // A payment link may arrive RELATIVE — the dev Square simulator returns
+  // "/pay/square-simulator?…", and a self-hosted payment page would too. A
+  // relative path is useless in a QR code (a phone camera has no idea what it
+  // is relative to), so resolve it against this request's own origin. Before
+  // this, such a link silently produced a broken image on the one screen where
+  // a guest is standing there waiting to scan something.
   let url: URL;
   try {
-    url = new URL(raw);
+    url = new URL(raw, req.nextUrl.origin);
   } catch {
     return NextResponse.json({ error: "Not a URL" }, { status: 400 });
   }

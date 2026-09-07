@@ -6,3 +6,4 @@ node_modules/
 /public/media/
 # admin-uploaded magazine PDFs (runtime user content, local dev only)
 /public/magazines/
+Claude outputs/

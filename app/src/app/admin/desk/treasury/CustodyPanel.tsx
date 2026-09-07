@@ -72,7 +72,7 @@ export default function CustodyPanel({ groups, overdueDays }: { groups: CustodyG
   if (groups.length === 0)
     return (
       <p className="desk-note">
-        Everything the desk took has reached the org account. Nothing to chase.
+        Everything the desk took has reached Pragati’s account. Nothing to chase.
       </p>
     );
 
@@ -86,11 +86,11 @@ export default function CustodyPanel({ groups, overdueDays }: { groups: CustodyG
             </b>
           </span>
           <label className="desk-field">
-            Deposit reference
+            Bank slip or reference
             <input
               value={depositRef}
               onChange={(e) => setDepositRef(e.target.value)}
-              placeholder="Slip no. / batch id"
+              placeholder="Deposit slip number"
               style={{ width: 200 }}
             />
           </label>
@@ -112,7 +112,7 @@ export default function CustodyPanel({ groups, overdueDays }: { groups: CustodyG
               })
             }
           >
-            {busy ? "Clearing…" : "Mark as reached the org account"}
+            {busy ? "Saving…" : "✓ This has been banked"}
           </button>
         </div>
       )}
@@ -124,10 +124,10 @@ export default function CustodyPanel({ groups, overdueDays }: { groups: CustodyG
             <span className="desk-chip chip-warn">{CUSTODY_LABEL[g.custody]}</span>
             <span className="money">{money(g.amountCents)}</span>
             {g.oldestDays >= overdueDays && (
-              <span className="desk-chip chip-stop">oldest {g.oldestDays} days — overdue</span>
+              <span className="desk-chip chip-stop">out for {g.oldestDays} days — chase this</span>
             )}
             <button className="text-xs underline underline-offset-4" onClick={() => selectGroup(g)}>
-              select all
+              tick all of these
             </button>
           </div>
           <div className="festive-card overflow-hidden">
@@ -136,10 +136,11 @@ export default function CustodyPanel({ groups, overdueDays }: { groups: CustodyG
                 <input type="checkbox" checked={selected.has(r.id)} onChange={() => toggle(r.id)} aria-label="Select payment" />
                 <span className="money">{money(r.amountCents)}</span>
                 <span className="grow">
-                  <strong className="capitalize">{r.method}</strong> · {r.detail}
+                  <strong className="capitalize">{r.method}</strong>
+                  {r.detail ? ` · ${r.detail}` : ""}
                   {r.takenByEmail && <span className="desk-note"> · taken by {r.takenByEmail}</span>}
                 </span>
-                <span className="desk-note">{r.ageDays}d old</span>
+                <span className="desk-note">{r.ageDays} days ago</span>
                 <a className="text-xs underline underline-offset-4" href={`/admin/desk/o/${r.registrationId}`}>
                   {r.conf ?? "order"}
                 </a>

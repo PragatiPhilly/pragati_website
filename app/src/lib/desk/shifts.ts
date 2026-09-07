@@ -45,8 +45,8 @@ export async function openShift(
   const db = getDb();
   const station = input.station.trim() || "desk-1";
   const existing = await currentShift(input.eventId, station);
-  if (existing) throw new DeskError(`${station} is already open (by ${existing.openedByEmail ?? "someone"}). Use that shift, or close it first.`);
-  if (input.openingFloatCents < 0) throw new DeskError("The float can't be negative.");
+  if (existing) throw new DeskError(`The ${station} cash box is already open (started by ${existing.openedByEmail ?? "someone"}). Use it, or count it first.`);
+  if (input.openingFloatCents < 0) throw new DeskError("Starting change can't be a negative number.");
 
   const [row] = await db
     .insert(schema.deskShifts)
@@ -65,13 +65,13 @@ export async function openShift(
 
 /** Cash handed to the treasurer mid-shift. The drawer's expected total drops. */
 export async function recordDrop(shiftId: string, amountCents: number, toWhom: string, actor: DeskActor): Promise<void> {
-  if (amountCents <= 0) throw new DeskError("Type the amount handed over.");
-  if (!toWhom.trim()) throw new DeskError("Say who took it.");
+  if (amountCents <= 0) throw new DeskError("Type how much cash you handed over.");
+  if (!toWhom.trim()) throw new DeskError("Say who you handed it to.");
   await ensureDeskSchema();
   const db = getDb();
   const [shift] = await db.select().from(schema.deskShifts).where(eq(schema.deskShifts.id, shiftId));
-  if (!shift) throw new DeskError("That shift is gone.");
-  if (shift.status !== "open") throw new DeskError("That shift is closed.");
+  if (!shift) throw new DeskError("That cash box is no longer there.");
+  if (shift.status !== "open") throw new DeskError("That cash box has already been counted.");
   await db
     .update(schema.deskShifts)
     .set({
@@ -147,13 +147,13 @@ export async function closeShift(
   actor: DeskActor
 ): Promise<{ varianceCents: number }> {
   if (!actor.isAdmin && !actor.isTreasurer)
-    throw new DeskError("Closing a till is an admin or treasurer action.");
+    throw new DeskError("Counting the cash box at the end is done by an admin or the treasurer.");
   const view = await shiftCloseView(input.shiftId);
-  if (!view) throw new DeskError("That shift is gone.");
-  if (view.shift.status === "closed") throw new DeskError("That shift is already closed.");
+  if (!view) throw new DeskError("That cash box is no longer there.");
+  if (view.shift.status === "closed") throw new DeskError("That cash box has already been counted.");
   if (view.openOrders.length > 0 && !input.force)
     throw new DeskError(
-      `${view.openOrders.length} order${view.openOrders.length === 1 ? " is" : "s are"} still open on this till (${view.openOrders
+      `${view.openOrders.length} order${view.openOrders.length === 1 ? " is" : "s are"} still unfinished at this desk (${view.openOrders
         .map((o) => o.conf)
         .join(", ")}). Settle or void them first.`
     );
@@ -161,7 +161,7 @@ export async function closeShift(
   const variance = Math.round(input.countedCashCents) - view.expectedCashCents;
   if (variance !== 0 && !input.varianceNote?.trim())
     throw new DeskError(
-      `The drawer is ${variance > 0 ? "over" : "short"} by $${(Math.abs(variance) / 100).toFixed(2)} — add a note before closing.`
+      `There's $${(Math.abs(variance) / 100).toFixed(2)} ${variance > 0 ? "more" : "less"} in the box than expected — say what you think happened before finishing.`
     );
 
   const db = getDb();

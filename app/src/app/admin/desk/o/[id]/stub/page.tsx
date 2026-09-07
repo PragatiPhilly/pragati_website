@@ -1,5 +1,5 @@
 import { notFound } from "next/navigation";
-import { eq } from "drizzle-orm";
+import { eq, inArray } from "drizzle-orm";
 import "../../../desk.css";
 import { getDb, schema } from "@/db/client";
 import { requireSectionAccess } from "@/lib/auth/access";
@@ -9,8 +9,21 @@ import { siteUrl } from "@/lib/site-url";
 import { deskOrderSummary } from "@/lib/desk/summary";
 import { followupsForOrder } from "@/lib/desk/followups";
 import { FOLLOWUP_LABEL, type FollowupKind } from "@/lib/desk/constants";
+import PrintButton from "./PrintButton";
 
 export const dynamic = "force-dynamic";
+
+const DESK_WORDS: Record<string, string> = {
+  "Youth (5–18)": "Child 5–18",
+  "Little one (under 5)": "Under 5",
+};
+const DAY_WORDS: Record<string, string> = { fri: "Friday", sat: "Saturday", sun: "Sunday" };
+const FOOD_WORDS: Record<string, string> = {
+  veg: "veg meal",
+  non_veg: "non-veg meal",
+  kid: "kid's meal",
+  none: "no meal",
+};
 
 /**
  * Paper, for the people who don't have email.
@@ -32,17 +45,34 @@ export default async function StubPage({ params }: { params: Promise<{ id: strin
   const [event] = await db.select().from(schema.events).where(eq(schema.events.id, s.reg.eventId));
   const gaps = await followupsForOrder(id);
   const base = siteUrl();
-  const typeName = (tid: string) => types.find((t) => t.id === tid)?.name ?? "Pass";
+
+  // Guardians may live on another booking entirely (the family registered on
+  // Friday, the child was added on Saturday), so look them up by id rather than
+  // assuming they are in this party.
+  const guardianIds = [...new Set(s.tickets.map((t) => t.guardianTicketId).filter(Boolean) as string[])];
+  const guardianRows = guardianIds.length
+    ? await db.select().from(schema.tickets).where(inArray(schema.tickets.id, guardianIds))
+    : [];
+  const guardianName = (tid: string | null) =>
+    tid ? (guardianRows.find((g) => g.id === tid)?.attendeeFirstName ?? null) : null;
+  /* Ticket-type names are written for the website and already carry the days
+     and the meal — printing them AND our own gave "Youth (5–18) · All 3 days ·
+     kid meal · all days · kid" on a paper slip a guest has to read at a door.
+     Take who the person is; say the rest in the desk's own words, exactly as
+     the order screen does, so paper and screen never disagree. */
+  const typeName = (tid: string) => {
+    const raw = types.find((t) => t.id === tid)?.name ?? "Pass";
+    const who = raw.split("·")[0].trim();
+    return DESK_WORDS[who] ?? who;
+  };
 
   return (
     <div>
-      <div className="no-print mb-4 flex gap-3">
+      <div className="no-print mb-4 flex flex-wrap items-center gap-3">
         <a className="btn-secondary" href={`/admin/desk/o/${id}`}>
-          ← Back to the order
+          ← Back to the booking
         </a>
-        <span className="desk-note self-center">
-          Use your browser&apos;s print (⌘P). Reprinting is fine — it is recorded on the timeline.
-        </span>
+        <PrintButton registrationId={id} />
       </div>
 
       <div className="stub">
@@ -64,9 +94,12 @@ export default async function StubPage({ params }: { params: Promise<{ id: strin
               </strong>
             </div>
             <div>
-              {typeName(t.ticketTypeId)} · {t.dayKey === "all" ? "all days" : t.dayKey} ·{" "}
-              {t.foodPref && t.foodPref !== "none" ? t.foodPref.replace("_", "-") : "no meal"}
+              {typeName(t.ticketTypeId)} · {t.dayKey === "all" ? "all 3 days" : (DAY_WORDS[t.dayKey ?? ""] ?? t.dayKey ?? "")}{" "}
+              · {FOOD_WORDS[t.foodPref ?? "none"] ?? "no meal"}
             </div>
+            {/* A child's paper pass without the adult's name on it is no use at
+                the gate, which is the one place this slip gets read. */}
+            {guardianName(t.guardianTicketId) && <div>comes in with {guardianName(t.guardianTicketId)}</div>}
             {/* eslint-disable-next-line @next/next/no-img-element */}
             <img className="qr" alt={`Pass for ${t.attendeeFirstName}`} src={`${base}/api/qr/${t.qrCode}`} />
             <div style={{ textAlign: "center", fontSize: 10 }}>{t.qrCode.slice(-12)}</div>

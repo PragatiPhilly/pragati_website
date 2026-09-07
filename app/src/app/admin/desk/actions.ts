@@ -31,6 +31,7 @@ import { addTender, clearCustody, failTender, pollCardTender, reverseTender, voi
 import { addAdjustment, voidAdjustment } from "@/lib/desk/adjustments";
 import { bulkResolve, resolveFollowup } from "@/lib/desk/followups";
 import { closeShift, openShift, recordDrop } from "@/lib/desk/shifts";
+import { recordOrderEvent } from "@/lib/desk/events";
 import type { AdjustmentKind, VoidReason } from "@/lib/desk/constants";
 import type { DeskPerson } from "@/lib/desk/party";
 
@@ -122,7 +123,7 @@ export async function voidOrderAction(registrationId: string, reason: VoidReason
   return run(async (actor) => {
     await voidOrder(registrationId, reason, note, actor);
     revalidatePath(`/admin/desk/o/${registrationId}`);
-    return { message: "Order voided — the passes and the timeline stay." };
+    return { message: "Booking cancelled — the passes and the history stay on file." };
   });
 }
 
@@ -141,6 +142,27 @@ export async function resendTicketsAction(registrationId: string): Promise<Actio
   });
 }
 
+/**
+ * A paper slip left the desk.
+ *
+ * The stub page told volunteers "reprinting is recorded on the timeline" while
+ * nothing recorded it — `stub_printed` was a declared event type nobody ever
+ * wrote. A paper pass is a bearer instrument: if two turn up at the gate, the
+ * only way to tell a reprint from a forgery is a line saying who printed what
+ * and when. So the claim is now true.
+ */
+export async function printStubAction(registrationId: string): Promise<ActionResult> {
+  return run(async (actor) => {
+    await recordOrderEvent({
+      registrationId,
+      type: "stub_printed",
+      summary: "Paper slip printed",
+      actor,
+    });
+    return { message: "Printed" };
+  });
+}
+
 // ── tenders ───────────────────────────────────────────────────────────────
 
 export async function addTenderAction(
@@ -149,8 +171,8 @@ export async function addTenderAction(
   return run(async (actor) => {
     const out = await addTender(input, actor);
     revalidatePath(`/admin/desk/o/${input.registrationId}`);
-    const bits = [`Recorded ${(input.amountCents / 100).toFixed(2)}`];
-    if (out.changeDueCents > 0) bits.push(`change $${(out.changeDueCents / 100).toFixed(2)}`);
+    const bits = [`Recorded $${(input.amountCents / 100).toFixed(2)}`];
+    if (out.changeDueCents > 0) bits.push(`give $${(out.changeDueCents / 100).toFixed(2)} change`);
     return { message: bits.join(" · "), data: out };
   });
 }
@@ -275,7 +297,7 @@ export async function recordDropAction(shiftId: string, amountCents: number, toW
   return run(async (actor) => {
     await recordDrop(shiftId, amountCents, toWhom, actor);
     revalidatePath("/admin/desk/shifts");
-    return { message: "Drop recorded." };
+    return { message: "Noted — that cash is with the treasurer now." };
   });
 }
 

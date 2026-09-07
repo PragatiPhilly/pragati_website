@@ -50,15 +50,10 @@ export default function DeskSearch({ autoFocus = true }: { autoFocus?: boolean }
           autoFocus={autoFocus}
           value={q}
           onChange={(e) => setQ(e.target.value)}
-          placeholder="Name, phone, email, PRG-2026-0001, or scan a pass"
+          placeholder="Type a name or phone number…"
           aria-label="Find a family"
         />
-        <button
-          className="btn-secondary"
-          onClick={() => router.push(`/admin/desk/new${q.trim() ? `?name=${encodeURIComponent(q.trim())}` : ""}`)}
-        >
-          New walk-in →
-        </button>
+
       </div>
 
       {error && <p className="desk-error">{error}</p>}
@@ -68,7 +63,8 @@ export default function DeskSearch({ autoFocus = true }: { autoFocus?: boolean }
           {pending && <p className="desk-note">Looking…</p>}
           {hits.length === 0 && !pending && (
             <p className="desk-note">
-              Nobody found. If they&apos;ve never registered, start a <strong>New walk-in</strong>.
+              Nobody found with that name. Check the spelling, try their phone number, or register them as a new
+              family below.
             </p>
           )}
           {hits.map((h) => (
@@ -76,17 +72,17 @@ export default function DeskSearch({ autoFocus = true }: { autoFocus?: boolean }
               <span className="who">{h.buyerName}</span>
               <span className="conf">{h.conf}</span>
               {h.deskState === "voided" ? (
-                <span className="desk-chip chip-stop">voided</span>
+                <span className="desk-chip chip-stop">cancelled</span>
               ) : h.balanceCents > 0 ? (
                 <span className="desk-chip chip-stop">owes {money(h.balanceCents)}</span>
               ) : (
-                <span className="desk-chip chip-ok">settled</span>
+                <span className="desk-chip chip-ok">paid</span>
               )}
               <span className="desk-chip chip-mute">
-                {h.passes} pass{h.passes === 1 ? "" : "es"}
-                {h.checkedIn > 0 ? ` · ${h.checkedIn} in` : ""}
+                {h.passes} {h.passes === 1 ? "pass" : "passes"}
+                {h.checkedIn > 0 ? ` · ${h.checkedIn} already in` : ""}
               </span>
-              {h.source !== "desk" && <span className="desk-chip chip-mute">online</span>}
+              {h.source !== "desk" && <span className="desk-chip chip-mute">booked online</span>}
               <span className="grow" />
               <span className="desk-note">{h.buyerPhone ?? h.buyerEmail ?? "no contact"}</span>
             </button>

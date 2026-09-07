@@ -9,7 +9,7 @@ import { FOLLOWUP_LABEL, type FollowupKind } from "@/lib/desk/constants";
 import FollowupList, { type FollowupRow } from "./FollowupList";
 
 export const dynamic = "force-dynamic";
-export const metadata = { title: "Desk follow-ups" };
+export const metadata = { title: "To chase up" };
 
 export default async function FollowupsPage({
   searchParams,
@@ -54,10 +54,11 @@ export default async function FollowupsPage({
         <Link href="/admin/desk" className="text-xs underline underline-offset-4">
           ← Desk
         </Link>
-        <h1 className="font-[family-name:var(--font-display)] text-3xl font-black mb-1">Follow-ups</h1>
+        <h1 className="font-[family-name:var(--font-display)] text-3xl font-black mb-1">To chase up</h1>
         <p className="desk-note">
-          Everything the desk couldn&apos;t finish on the night. Nothing here expires on its own — an item leaves only
-          when a person resolves it, or waives it with a note.
+          Everything the desk couldn’t finish on the night — a missing email, a cheque still to bank, money
+          someone still owes. Nothing disappears on its own: an item goes away when someone deals with it, or drops it
+          with a note saying why.
         </p>
       </div>
 
