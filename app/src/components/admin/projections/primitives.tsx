@@ -47,6 +47,12 @@ export function moneySigned(cents: number): string {
 }
 
 export const num = (n: number): string => Math.round(n).toLocaleString("en-US");
+
+/** Scenario names already carry their year ("2024 · S3 …"), and every place that
+ *  shows one prints the year itself. Strip the duplicate. */
+export function stripYear(name: string): string {
+  return name.replace(/^\d{4}\s*[·.\-]?\s*/, "");
+}
 export const pct = (f: number, dp = 0): string => `${(f * 100).toFixed(dp)}%`;
 
 // ── animated figure ──────────────────────────────────────────────

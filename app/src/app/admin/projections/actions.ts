@@ -19,6 +19,7 @@ import {
   unlockScenario,
   updateScenario,
 } from "@/lib/projections/store";
+import { applyActuals, buildFromLive, pullLive, type BuildResult, type LivePull } from "@/lib/projections/from-live";
 import type { ProjectionModel } from "@/lib/projections/types";
 
 async function requireSuper() {
@@ -134,6 +135,121 @@ export async function captureBaselineAction(id: string, name: string): Promise<R
     return { ok: true, message: `“${name}” is now the ${row.year} baseline.`, id: newId };
   } catch (e) {
     return { ok: false, message: e instanceof Error ? e.message : "Could not capture the baseline." };
+  }
+}
+
+// ── live data ────────────────────────────────────────────────────
+
+export type LivePreview = {
+  live: LivePull;
+  build: BuildResult;
+  /** Ledger total vs the sum of every ticket's face value. They differ when a
+   *  desk discount or a comp was given, and the difference is worth showing
+   *  rather than quietly picking one. */
+  faceValueGapCents: number;
+};
+
+/**
+ * What the website can hand over, and what a model built from it would look
+ * like — WITHOUT creating anything. The review panel renders this so nobody
+ * commits to a scenario before seeing which numbers are facts and which are
+ * last year's guesses.
+ */
+export async function previewLiveAction(input: {
+  year: number;
+  carryFromId: string;
+  escalationPct: number;
+  includeDonations: boolean;
+  includeMembership: boolean;
+}): Promise<{ ok: boolean; message: string; preview?: LivePreview }> {
+  try {
+    await requireSuper();
+    const from = await getScenario(input.carryFromId);
+    if (!from) return { ok: false, message: "Pick a year to carry the costs from." };
+    const live = await pullLive();
+    const build = buildFromLive(live, {
+      year: input.year,
+      carryFrom: from.model,
+      escalationPct: input.escalationPct,
+      includeDonations: input.includeDonations,
+      includeMembership: input.includeMembership,
+    });
+    return {
+      ok: true,
+      message: "Pulled.",
+      preview: { live, build, faceValueGapCents: live.ticketRevenueCents - live.ticketFaceValueCents },
+    };
+  } catch (e) {
+    return { ok: false, message: e instanceof Error ? e.message : "Could not read live data." };
+  }
+}
+
+/** Create the scenario the preview showed. */
+export async function buildFromLiveAction(input: {
+  name: string;
+  year: number;
+  carryFromId: string;
+  escalationPct: number;
+  includeDonations: boolean;
+  includeMembership: boolean;
+}): Promise<Result> {
+  try {
+    const me = await requireSuper();
+    const from = await getScenario(input.carryFromId);
+    if (!from) return { ok: false, message: "Pick a year to carry the costs from." };
+    const live = await pullLive();
+    const { model, summary } = buildFromLive(live, {
+      year: input.year,
+      carryFrom: from.model,
+      escalationPct: input.escalationPct,
+      includeDonations: input.includeDonations,
+      includeMembership: input.includeMembership,
+    });
+    const id = await createScenario({
+      year: input.year,
+      name: input.name,
+      description: `Built from live site data on ${new Date().toLocaleDateString("en-US")} — ${summary.headsPulled} guests and ${(summary.liveRevenueCents / 100).toLocaleString("en-US", { style: "currency", currency: "USD", maximumFractionDigits: 0 })} pulled from the ledger; costs carried from “${from.name}”${input.escalationPct ? ` at +${input.escalationPct}%` : ""}.`,
+      model,
+      seededFrom: input.carryFromId,
+      userId: me.userId,
+      email: me.email,
+    });
+    await audit(me.userId, "projection_built_from_live", id, {
+      year: input.year,
+      heads: summary.headsPulled,
+      liveRevenueCents: summary.liveRevenueCents,
+    });
+    revalidatePath("/admin/projections");
+    return { ok: true, message: `Created “${input.name}” from live data.`, id };
+  } catch (e) {
+    return { ok: false, message: e instanceof Error ? e.message : "Could not build from live data." };
+  }
+}
+
+/**
+ * Fill the Actual column on an existing scenario from the ledger. Nothing a
+ * human typed is touched — only the lines that declare a ledger source.
+ */
+export async function pullActualsAction(id: string): Promise<Result> {
+  try {
+    const me = await requireSuper();
+    const row = await getScenario(id);
+    if (!row) return { ok: false, message: "Scenario not found." };
+    if (row.lockedAt) return { ok: false, message: "This baseline is locked. Unlock it first." };
+    const live = await pullLive();
+    const { model, filled } = applyActuals(row.model, live);
+    await updateScenario(id, { model }, me.userId);
+    await audit(me.userId, "projection_actuals_pulled", id, { filled, ticketRevenueCents: live.ticketRevenueCents });
+    revalidatePath("/admin/projections");
+    return {
+      ok: true,
+      message:
+        filled > 0
+          ? `Filled ${filled} line${filled === 1 ? "" : "s"} from the ledger. Everything else still needs your numbers.`
+          : "Nothing to pull yet — no settled payments for this event.",
+    };
+  } catch (e) {
+    return { ok: false, message: e instanceof Error ? e.message : "Could not pull actuals." };
   }
 }
 

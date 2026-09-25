@@ -322,6 +322,174 @@ describe("CSV export", () => {
   });
 });
 
+describe("building from live site data", () => {
+  const makePull = (over: Record<string, unknown> = {}) => ({
+    eventId: "e1",
+    eventName: "Durga Pujo 2026",
+    days: [
+      { key: "fri", label: "Friday", date: "2026-10-16" },
+      { key: "sat", label: "Saturday", date: "2026-10-17" },
+      { key: "sun", label: "Sunday", date: "2026-10-18" },
+    ],
+    attendance: {
+      fri: { withFood: 8, withoutFood: 3, kids: 7 },
+      sat: { withFood: 13, withoutFood: 5, kids: 10 },
+      sun: { withFood: 9, withoutFood: 3, kids: 9 },
+    },
+    realisedPrice: {
+      fri: { withFood: 3500, withoutFood: 2400, kids: 900 },
+      sat: { withFood: 3900, withoutFood: 2600, kids: 1000 },
+      sun: { withFood: 3700, withoutFood: 2400, kids: 950 },
+    },
+    listPrice: {
+      fri: { withFood: 5000, withoutFood: 3500, kids: 1200 },
+      sat: { withFood: 5000, withoutFood: 3500, kids: 1200 },
+      sun: { withFood: 5000, withoutFood: 3500, kids: 1200 },
+    },
+    ticketRevenueCents: 161000,
+    ticketOutstandingCents: 0,
+    donationCents: 75000,
+    donationLines: [{ id: "d1", label: "Dragon Gym", amountCents: 50000 }],
+    membershipCents: 11000,
+    feeCents: 4830,
+    totalHeads: 67,
+    ticketFaceValueCents: 161000,
+    asOf: new Date().toISOString(),
+    ...over,
+  });
+
+  it("classifies a sold ticket into the right segment", async () => {
+    const { classifySegment } = await import("../src/lib/projections/from-live");
+    // THE BUG THIS GUARDS: child_5_18 is this app's youth band. An earlier list
+    // named bands that do not exist here, so every youth counted as an adult.
+    expect(classifySegment({ ageBand: "child_5_18", foodPref: "kid", typeWithFood: true })).toBe("kids");
+    expect(classifySegment({ ageBand: "child_under_5", foodPref: "kid", typeWithFood: true })).toBe("kids");
+    expect(classifySegment({ ageBand: "adult", foodPref: "non_veg", typeWithFood: true })).toBe("withFood");
+    expect(classifySegment({ ageBand: "adult", foodPref: "none", typeWithFood: false })).toBe("withoutFood");
+    // a with-food ticket type whose buyer picked nothing still is not fed
+    expect(classifySegment({ ageBand: "adult", foodPref: null, typeWithFood: true })).toBe("withoutFood");
+    expect(classifySegment({ ageBand: "student", foodPref: "veg", typeWithFood: true })).toBe("withFood");
+    expect(classifySegment({ ageBand: "concert", foodPref: "none", typeWithFood: false })).toBe("withoutFood");
+    // an add-on is a parking space, not a person
+    expect(classifySegment({ ageBand: "addon", foodPref: "none", typeWithFood: false })).toBeNull();
+  });
+
+  it("takes attendance and realised prices from the site, and costs from last year", async () => {
+    const { buildFromLive } = await import("../src/lib/projections/from-live");
+    const { model, dayProvenance, summary } = buildFromLive(makePull(), {
+      year: 2026,
+      carryFrom: S2,
+      escalationPct: 0,
+      includeDonations: true,
+      includeMembership: false,
+    });
+
+    const sat = model.days.find((d) => d.key === "sat")!;
+    expect(sat.attendance).toEqual({ withFood: 13, withoutFood: 5, kids: 10 });
+    expect(sat.price.withFood).toBe(3900); // what people PAID, not the list price
+    expect(dayProvenance.sat.attendance).toBe("live");
+    // catering is never sold through this website
+    expect(dayProvenance.sat.foodCost).toBe("carried");
+    expect(sat.foodCost.dinner).toBe(S2.days.find((d) => d.key === "sat")!.foodCost.dinner);
+
+    // the hall is last year's number, untouched
+    const hall = model.costLines.find((l) => l.label === "Hall rental")!;
+    expect(hall.amountCents).toBe(S2.costLines.find((l) => l.label === "Hall rental")!.amountCents);
+    // card fees are the one cost the ledger knows exactly
+    const fees = model.costLines.find((l) => l.actualSource === "ledger:fees")!;
+    expect(fees.amountCents).toBe(4830);
+    expect(summary.headsPulled).toBe(67);
+  });
+
+  it("zeroes last year's sponsors instead of carrying their money forward", async () => {
+    const { buildFromLive } = await import("../src/lib/projections/from-live");
+    const { model } = buildFromLive(makePull(), {
+      year: 2026,
+      carryFrom: S2,
+      escalationPct: 0,
+      includeDonations: false,
+      includeMembership: false,
+    });
+    const sponsors = model.revenueLines.filter(
+      (l) => (l.head === "corporate" || l.head === "individual" || l.head === "magazine") && !l.computed
+    );
+    expect(sponsors.length).toBeGreaterThan(5);
+    // the names survive as a checklist; not one dollar does
+    expect(sponsors.every((l) => l.amountCents === 0)).toBe(true);
+    expect(sponsors.every((l) => l.confidence === "expected")).toBe(true);
+    expect(sponsors.some((l) => l.label === "Sunanda di")).toBe(true);
+    // stalls are not sponsorship — they carry
+    expect(model.revenueLines.filter((l) => l.head === "stalls").some((l) => l.amountCents > 0)).toBe(true);
+  });
+
+  it("escalation reaches the carried costs AND the per-head food cost", async () => {
+    const { buildFromLive } = await import("../src/lib/projections/from-live");
+    const { model } = buildFromLive(makePull(), {
+      year: 2026,
+      carryFrom: S2,
+      escalationPct: 10,
+      includeDonations: false,
+      includeMembership: false,
+    });
+    const hall = model.costLines.find((l) => l.label === "Hall rental")!;
+    expect(hall.amountCents).toBe(Math.round(D(12000) * 1.1));
+    const sat = model.days.find((d) => d.key === "sat")!;
+    expect(sat.foodCost.dinner).toBe(Math.round(D(16) * 1.1));
+  });
+
+  it("falls back to last year when nothing has sold yet", async () => {
+    const { buildFromLive } = await import("../src/lib/projections/from-live");
+    const empty = makePull({
+      attendance: { fri: { withFood: 0, withoutFood: 0, kids: 0 } },
+      realisedPrice: { fri: { withFood: 0, withoutFood: 0, kids: 0 } },
+      listPrice: { fri: { withFood: 0, withoutFood: 0, kids: 0 } },
+      days: [{ key: "fri", label: "Friday", date: "2026-10-16" }],
+      ticketRevenueCents: 0,
+      totalHeads: 0,
+    });
+    const { model, dayProvenance } = buildFromLive(empty, {
+      year: 2026,
+      carryFrom: S2,
+      escalationPct: 0,
+      includeDonations: false,
+      includeMembership: false,
+    });
+    expect(dayProvenance.fri.attendance).toBe("carried");
+    const fri = model.days.find((d) => d.key === "fri")!;
+    expect(fri.attendance).toEqual(S2.days.find((d) => d.key === "fri")!.attendance);
+    // the days last year had that this event does not are kept, disabled
+    expect(model.days.find((d) => d.key === "kalipuja")?.enabled).toBe(false);
+  });
+
+  it("adds website gifts only when asked, and never invents a carry-in", async () => {
+    const { buildFromLive } = await import("../src/lib/projections/from-live");
+    const withGifts = buildFromLive(makePull(), { year: 2026, carryFrom: S2, escalationPct: 0, includeDonations: true, includeMembership: true });
+    const without = buildFromLive(makePull(), { year: 2026, carryFrom: S2, escalationPct: 0, includeDonations: false, includeMembership: false });
+    expect(withGifts.model.revenueLines.some((l) => l.label === "Website donations (unallocated)")).toBe(true);
+    expect(withGifts.model.revenueLines.some((l) => l.label === "Membership dues")).toBe(true);
+    expect(without.model.revenueLines.some((l) => l.label.startsWith("Website donations"))).toBe(false);
+    // last year's closing cash is a bank fact nobody has typed yet
+    expect(withGifts.model.carryInCents).toBe(0);
+  });
+
+  it("fills only the ledger-backed lines when pulling actuals", async () => {
+    const { applyActuals } = await import("../src/lib/projections/from-live");
+    const typed: ProjectionModel = {
+      ...S2,
+      costLines: S2.costLines.map((l) => (l.label === "Hall rental" ? { ...l, actualCents: D(13333) } : l)),
+    };
+    const { model, filled } = applyActuals(typed, makePull());
+    expect(filled).toBeGreaterThan(0);
+    // the computed ticket line takes the ledger figure
+    expect(model.revenueLines.find((l) => l.computed)!.actualCents).toBe(161000);
+    expect(model.costLines.find((l) => l.actualSource === "ledger:fees")!.actualCents).toBe(4830);
+    // a number a human typed is never overwritten
+    expect(model.costLines.find((l) => l.label === "Hall rental")!.actualCents).toBe(D(13333));
+    // and a line the ledger knows nothing about stays empty
+    expect(model.costLines.find((l) => l.label === "Artists (Fakira + Sahana + Sanchita)")!.actualCents ?? null).toBeNull();
+  });
+});
+
 describe("safety", () => {
   it("the actuals module exports no mutation", async () => {
     const mod = await import("../src/lib/projections/actuals");

@@ -29,6 +29,17 @@ export type Segment = "withFood" | "withoutFood" | "kids";
 export const SEGMENTS: Segment[] = ["withFood", "withoutFood", "kids"];
 
 /**
+ * A day of the real event, as the events table stores it.
+ *
+ * Declared here rather than imported from lib/queries/events, so that
+ * from-live.ts — and therefore any client component that imports its TYPES —
+ * has no path back to the database module. (Same trap as lib/auth/sections.ts:
+ * a value import from a db-touching module drags `fs`, `net` and `tls` into the
+ * browser bundle and the page dies at runtime while the build stays silent.)
+ */
+export type EventDayLite = { key: string; label: string; date: string };
+
+/**
  * How sure we are of a line. This exists because the 2024 workbook's headline
  * revenue silently included three *expected* sponsors that its own roll-up
  * excluded — a $15,000 disagreement that turned a −$6,727 year into a

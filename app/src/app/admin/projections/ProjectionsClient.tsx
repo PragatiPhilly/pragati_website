@@ -37,11 +37,12 @@ import BreakEvenArc from "@/components/admin/projections/BreakEvenArc";
 import FanChart from "@/components/admin/projections/FanChart";
 import PaceChart from "@/components/admin/projections/PaceChart";
 import { SobolChart, Tornado, type TornadoRow } from "@/components/admin/projections/Sensitivity";
-import { AnimatedMoney, money0, moneySigned, num, pct } from "@/components/admin/projections/primitives";
+import NewScenario from "@/components/admin/projections/NewScenario";
+import { AnimatedMoney, money0, moneySigned, num, pct, stripYear } from "@/components/admin/projections/primitives";
 import {
   captureBaselineAction,
-  createScenarioAction,
   deleteScenarioAction,
+  pullActualsAction,
   saveScenarioAction,
   takeSnapshotAction,
   unlockScenarioAction,
@@ -236,6 +237,17 @@ export default function ProjectionsClient({
           <button type="button" className="proj-btn" onClick={() => setShowNew((v) => !v)}>
             + New scenario
           </button>
+          {!readOnly ? (
+            <button
+              type="button"
+              className="proj-btn"
+              disabled={pending}
+              title="Fill the Actual column from the payments ledger. Nothing you typed is touched."
+              onClick={() => run(() => pullActualsAction(selected.id))}
+            >
+              ⟳ Pull actuals
+            </button>
+          ) : null}
           <button type="button" className="proj-btn" disabled={pending} onClick={() => run(() => takeSnapshotAction(selected.id))}>
             📌 Snapshot now
           </button>
@@ -311,21 +323,19 @@ export default function ProjectionsClient({
       </div>
 
       {showNew ? (
-        <NewScenarioPanel
+        <NewScenario
           scenarios={scenarios}
-          current={{ id: selected.id, model }}
-          busy={pending}
+          currentId={selected.id}
           onClose={() => setShowNew(false)}
-          onCreate={(input) =>
-            run(async () => {
-              const r = await createScenarioAction(input);
-              if (r.ok && r.id) {
-                setShowNew(false);
-                setSelectedId(r.id);
-              }
-              return r;
-            })
-          }
+          onDone={(r) => {
+            setMsg({ ok: r.ok, text: r.message });
+            setTimeout(() => setMsg(null), 6000);
+            if (r.ok && r.id) {
+              setShowNew(false);
+              setDirty(false);
+              setSelectedId(r.id);
+            }
+          }}
         />
       ) : null}
 
@@ -586,130 +596,7 @@ export default function ProjectionsClient({
   );
 }
 
-// ── new scenario ─────────────────────────────────────────────────
-
-function NewScenarioPanel({
-  scenarios,
-  current,
-  busy,
-  onClose,
-  onCreate,
-}: {
-  scenarios: ScenarioLite[];
-  current: { id: string; model: ProjectionModel };
-  busy: boolean;
-  onClose: () => void;
-  onCreate: (input: { name: string; year: number; model: ProjectionModel; seededFrom?: string }) => void;
-}) {
-  const thisYear = new Date().getFullYear();
-  const [name, setName] = useState(`${thisYear} plan`);
-  const [year, setYear] = useState(thisYear);
-  const [source, setSource] = useState(current.id);
-  const [escalation, setEscalation] = useState(0);
-
-  const build = (): ProjectionModel => {
-    const base = scenarios.find((s) => s.id === source)?.model ?? current.model;
-    const f = 1 + escalation / 100;
-    // Hall quotes and artist fees do not stay still between years — and neither
-    // does catering, which is the biggest cost in the model, so the escalation
-    // has to reach the per-head food cost as well or it understates the year.
-    // Attendance and ticket prices are yours to decide, so they copy untouched.
-    return {
-      ...base,
-      year,
-      days: base.days.map((day) => ({
-        ...day,
-        foodCost: {
-          breakfast: Math.round(day.foodCost.breakfast * f),
-          lunch: Math.round(day.foodCost.lunch * f),
-          dinner: Math.round(day.foodCost.dinner * f),
-          kid: Math.round(day.foodCost.kid * f),
-        },
-      })),
-      costLines: base.costLines.map((l) => (l.computed ? l : { ...l, amountCents: Math.round(l.amountCents * f), actualCents: null })),
-      revenueLines: base.revenueLines.map((l) => ({ ...l, actualCents: null })),
-    };
-  };
-
-  return (
-    <motion.div
-      className="proj-card"
-      style={{ marginBottom: "1rem", borderColor: "var(--accent)" }}
-      initial={{ opacity: 0, height: 0 }}
-      animate={{ opacity: 1, height: "auto" }}
-    >
-      <h2 className="proj-card-title">New scenario</h2>
-      <p className="proj-card-note">
-        Seed it from a finished year and apply an escalation, or duplicate one of this year&rsquo;s plans and change one
-        thing.
-      </p>
-      <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(160px, 1fr))", gap: "0.6rem", alignItems: "end" }}>
-        <label style={{ fontSize: "0.75rem", display: "grid", gap: "0.2rem" }}>
-          Name
-          <input
-            value={name}
-            onChange={(e) => setName(e.target.value)}
-            style={{ font: "inherit", padding: "0.35rem 0.5rem", border: "1px solid var(--line)", borderRadius: 6, background: "var(--bg-soft)", color: "var(--ink)" }}
-          />
-        </label>
-        <label style={{ fontSize: "0.75rem", display: "grid", gap: "0.2rem" }}>
-          Year
-          <input
-            type="number"
-            value={year}
-            onChange={(e) => setYear(Number(e.target.value) || thisYear)}
-            style={{ font: "inherit", padding: "0.35rem 0.5rem", border: "1px solid var(--line)", borderRadius: 6, background: "var(--bg-soft)", color: "var(--ink)" }}
-          />
-        </label>
-        <label style={{ fontSize: "0.75rem", display: "grid", gap: "0.2rem" }}>
-          Seed from
-          <select
-            value={source}
-            onChange={(e) => setSource(e.target.value)}
-            style={{ font: "inherit", padding: "0.35rem 0.5rem", border: "1px solid var(--line)", borderRadius: 6, background: "var(--bg-soft)", color: "var(--ink)" }}
-          >
-            {scenarios.map((s) => (
-              <option key={s.id} value={s.id}>
-                {s.year} · {s.name}
-                {s.isBaseline ? " (baseline)" : ""}
-              </option>
-            ))}
-          </select>
-        </label>
-        <label style={{ fontSize: "0.75rem", display: "grid", gap: "0.2rem" }}>
-          Cost escalation %
-          <input
-            type="number"
-            value={escalation}
-            onChange={(e) => setEscalation(Number(e.target.value) || 0)}
-            style={{ font: "inherit", padding: "0.35rem 0.5rem", border: "1px solid var(--line)", borderRadius: 6, background: "var(--bg-soft)", color: "var(--ink)" }}
-          />
-        </label>
-      </div>
-      <div style={{ display: "flex", gap: "0.5rem", marginTop: "0.8rem" }}>
-        <button
-          type="button"
-          className="proj-btn proj-btn--primary"
-          disabled={busy || !name.trim()}
-          onClick={() => onCreate({ name: name.trim(), year, model: build(), seededFrom: source })}
-        >
-          Create
-        </button>
-        <button type="button" className="proj-btn" onClick={onClose}>
-          Cancel
-        </button>
-      </div>
-    </motion.div>
-  );
-}
-
 // ── compare ──────────────────────────────────────────────────────
-
-/** Scenario names already carry their year ("2024 · S3 …"); the chips and the
- *  comparison table print the year themselves, so strip the duplicate. */
-function stripYear(name: string): string {
-  return name.replace(/^\d{4}\s*[·.\-]?\s*/, "");
-}
 
 function CompareView({ ids, scenarios }: { ids: string[]; scenarios: ScenarioLite[] }) {
   const picked = [...new Set(ids)]

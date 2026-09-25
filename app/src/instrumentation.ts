@@ -98,7 +98,7 @@ export function onRequestError(
   // Classify the failure so the log line is self-explanatory at 2am.
   let kind = "unknown";
   if (/quota|exceeded the compute time/.test(blob)) kind = "DB_QUOTA_EXCEEDED";
-  else if (/econnrefused|enotfound|etimedout|connection terminated|connect timeout|socket/.test(blob))
+  else if (/econnrefused|enotfound|etimedout|connection terminated|connect[ _]timeout|socket/.test(blob))
     kind = "DB_UNREACHABLE";
   else if (/timeout|timed out/.test(blob)) kind = "TIMEOUT";
   else if (/relation .* does not exist|column .* does not exist/.test(blob)) kind = "SCHEMA_MISSING";

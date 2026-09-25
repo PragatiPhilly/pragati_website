@@ -52,7 +52,12 @@ export const EMPTY_ACTUALS: HeadActuals = {
 };
 
 /** Age bands that mean "child" for the projection's kids segment. */
-const KID_BANDS = new Set(["child_5_12", "child_under_5", "youth_5_18", "under_5"]);
+// Segment classification lives in from-live.ts, so there is ONE definition of
+// which age bands mean "a child". The list that used to sit here was wrong: it
+// named bands this app does not have (child_5_12, youth_5_18) and missed the one
+// it does (child_5_18), so every youth was silently counted as an adult — which
+// inflated the with-food segment and hid the fact that children are the segment
+// that loses money.
 
 export async function getActuals(): Promise<HeadActuals> {
   const out: HeadActuals = { ...EMPTY_ACTUALS, attendance: {}, asOf: new Date().toISOString() };
@@ -115,14 +120,13 @@ export async function getActuals(): Promise<HeadActuals> {
         .innerJoin(schema.ticketTypes, eq(schema.tickets.ticketTypeId, schema.ticketTypes.id))
         .where(and(eq(schema.registrations.eventId, event.id), eq(schema.registrations.status, "paid")));
 
+      const { classifySegment } = await import("./from-live");
       for (const t of rows) {
+        const seg = classifySegment({ foodPref: t.foodPref, ageBand: t.ageBand, typeWithFood: t.withFood });
+        if (!seg) continue; // an add-on (parking, an extra dinner) is not a head
         const key = t.dayKey ?? "all";
         const bucket = (out.attendance[key] ??= { withFood: 0, withoutFood: 0, kids: 0 });
-        const isKid = KID_BANDS.has(t.ageBand ?? "") || t.foodPref === "kid";
-        const eats = t.foodPref !== "none" && t.foodPref !== null && t.withFood !== false;
-        if (isKid) bucket.kids++;
-        else if (eats) bucket.withFood++;
-        else bucket.withoutFood++;
+        bucket[seg]++;
         out.totalHeads++;
       }
     }
