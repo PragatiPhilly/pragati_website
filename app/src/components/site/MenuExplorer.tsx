@@ -163,7 +163,6 @@ export default function MenuExplorer() {
       <div className="pmx-note">
         <span><Mark plate="veg" /> Veg</span>
         <span><Mark plate="nv" /> Non-veg</span>
-        <span>Single lunches and dinners can be added under Extras.</span>
         <a href={PUJO_MENU.poster} target="_blank" rel="noreferrer">
           Open the menu poster
         </a>

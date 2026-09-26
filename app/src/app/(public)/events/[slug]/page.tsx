@@ -415,14 +415,6 @@ export default async function EventDetailPage({
         </div>
       )}
 
-      {menuMatchesEvent(event) && (
-        <section id="menu" className="mt-14 scroll-mt-24">
-          <Reveal delay={0.2}>
-            <MenuExplorer />
-          </Reveal>
-        </section>
-      )}
-
       <Reveal delay={0.25}>
         <div id="tickets" className="mt-14 scroll-mt-24">
           <h2 className="font-[family-name:var(--font-display)] text-2xl font-bold mb-3">
@@ -432,19 +424,29 @@ export default async function EventDetailPage({
             className="rounded-2xl px-4 py-3.5 mb-6 flex items-center justify-between gap-x-4 gap-y-2 flex-wrap"
             style={{ background: 'var(--accent-soft)' }}
           >
-            <p className="text-sm leading-relaxed">
+            <p className="text-sm leading-relaxed flex-1 min-w-[16rem]">
               <span className="font-bold">Guest</span> and the lower{' '}
               <span className="font-bold" style={{ color: 'var(--leaf-deep)' }}>
                 Member ★
               </span>{' '}
               price. Pragati members save on every pass, all year.
             </p>
-            <Link
-              href="/signup"
-              className="btn-secondary !py-1.5 !px-4 text-xs whitespace-nowrap shrink-0"
-            >
-              Become a member →
-            </Link>
+            <div className="flex flex-wrap gap-2">
+              {menuMatchesEvent(event) && (
+                <a
+                  href="#menu"
+                  className="btn-secondary !py-1.5 !px-4 text-xs whitespace-nowrap"
+                >
+                  🍛 See the menu ↓
+                </a>
+              )}
+              <Link
+                href="/signup"
+                className="btn-secondary !py-1.5 !px-4 text-xs whitespace-nowrap"
+              >
+                Become a member →
+              </Link>
+            </div>
           </div>
 
           {adultGroups.length > 0 && (
@@ -512,6 +514,14 @@ export default async function EventDetailPage({
           )}
         </div>
       </Reveal>
+
+      {menuMatchesEvent(event) && (
+        <section id="menu" className="mt-12 scroll-mt-24">
+          <Reveal delay={0.1}>
+            <MenuExplorer />
+          </Reveal>
+        </section>
+      )}
 
       <Reveal delay={0.3}>
         <div className="mt-10 flex flex-wrap items-center gap-4">
