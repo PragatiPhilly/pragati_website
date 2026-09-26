@@ -31,6 +31,8 @@ import { getDonationMode, DONATION_COPY } from '@/lib/donation-mode';
 import PhotoCarousel from '@/components/site/PhotoCarousel';
 import PhotoSlideshow from '@/components/site/PhotoSlideshow';
 import PosterPanels from '@/components/site/PosterPanels';
+import ThaliMenu from '@/components/site/ThaliMenu';
+import { menuOnHomepage, photoCredits } from '@/lib/pujo-menu';
 import {
   getCarouselImages,
   getSlideshowImages,
@@ -430,8 +432,8 @@ export default async function HomePage() {
             {[
               {
                 src: '/lineup/anjan-dutt.jpg',
-                alt: 'Pragati presents Anjan Dutt & The Electric Band — the only East Coast stop this year',
-                date: 'Sat, Oct 10, 2026 · 6:30 PM',
+                alt: 'Pragati presents Anjan Dutt & The Electric Band — the only East Coast stop this year. Oct 10, 7:30 PM, Greater Philadelphia Expo Center, Durga Pujo 2026',
+                date: 'Sat, Oct 10, 2026 · 7:30 PM',
                 venue: 'Greater Philadelphia Expo Center',
                 accent: '#e9c25d',
                 bg: '#14100a',
@@ -439,8 +441,8 @@ export default async function HomePage() {
               },
               {
                 src: '/lineup/bhoomi.jpg',
-                alt: 'Pragati presents Bhoomi — মাটির গান, মনের টান — Music of the Soil & Soul',
-                date: 'Sun, Oct 11, 2026 · 6:30 PM',
+                alt: 'Pragati presents Bhoomi — Music of the Soil & Soul. Oct 11, 2026, 7 PM, Greater Philadelphia Expo Center',
+                date: 'Sun, Oct 11, 2026 · 7:00 PM',
                 venue: 'Greater Philadelphia Expo Center',
                 accent: '#9fc6e4',
                 bg: '#080e1c',
@@ -458,11 +460,22 @@ export default async function HomePage() {
                     }}
                   >
                     <div className="relative overflow-hidden aspect-[2/3]">
+                      {/* Same 2:3 frame as before. The poster is shown whole
+                          (object-contain, never cropped); a blurred copy of the
+                          same file fills the spare space so there is no flat
+                          band. Only the backdrop zooms on hover. */}
+                      {/* eslint-disable-next-line @next/next/no-img-element */}
+                      <img
+                        src={p.src}
+                        alt=""
+                        aria-hidden
+                        className="absolute inset-0 w-full h-full object-cover scale-110 blur-2xl opacity-60 transition-transform duration-700 group-hover:scale-[1.16]"
+                      />
                       {/* eslint-disable-next-line @next/next/no-img-element */}
                       <img
                         src={p.src}
                         alt={p.alt}
-                        className="absolute inset-0 w-full h-full object-contain object-top transition-transform duration-700 group-hover:scale-[1.04]"
+                        className="absolute inset-0 w-full h-full object-contain object-center drop-shadow-[0_10px_30px_rgba(0,0,0,0.45)]"
                       />
                     </div>
                   </div>
@@ -472,6 +485,44 @@ export default async function HomePage() {
           </div>
         )}
       </section>
+
+      {/* ══════════ PUJO MENU — the Kolapata Thali (only for this year's Durga Pujo) ══════════ */}
+      {featured && menuOnHomepage(featured) && (
+        <section
+          id="menu"
+          className="mx-auto max-w-6xl px-5 pt-6 pb-12 scroll-mt-20"
+        >
+          <Reveal>
+            <div className="text-center mb-10">
+              <Eyebrow bn="পুজোর ভোজ" en="Five meals · three days" center />
+              <h2 className="font-[family-name:var(--font-display)] text-3xl md:text-5xl font-black leading-tight">
+                <span
+                  className="font-[family-name:var(--font-bangla)] block text-xl font-normal mb-2"
+                  style={{ color: 'var(--terracotta)' }}
+                >
+                  পাঁচ বেলার ভোজ
+                </span>
+                A taste of <em style={{ color: 'var(--sindoor)' }}>Bengal</em>,
+                served.
+              </h2>
+            </div>
+          </Reveal>
+          <ThaliMenu ticketsHref={`/events/${featured.slug}#tickets`} />
+          <details className="thali-note">
+            <summary>
+              Photos show what each dish looks like. The Pujo kitchen&apos;s
+              plating will differ.
+            </summary>
+            <p>
+              Food photos from Unsplash by{' '}
+              {[...new Set(Object.values(photoCredits).map(([, who]) => who))]
+                .sort((a, b) => a.localeCompare(b))
+                .join(', ')}
+              .
+            </p>
+          </details>
+        </section>
+      )}
 
       <AlponaDivider variant="lotus" />
 

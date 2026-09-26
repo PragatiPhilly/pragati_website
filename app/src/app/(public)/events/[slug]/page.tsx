@@ -5,6 +5,8 @@ import { getEventImage } from '@/lib/media/queries';
 import { formatCents } from '@/lib/pricing';
 import Reveal from '@/components/site/Reveal';
 import MediaImg from '@/components/site/MediaImg';
+import MenuExplorer from '@/components/site/MenuExplorer';
+import { menuMatchesEvent } from '@/lib/pujo-menu';
 
 export const dynamic = 'force-dynamic';
 
@@ -413,8 +415,16 @@ export default async function EventDetailPage({
         </div>
       )}
 
+      {menuMatchesEvent(event) && (
+        <section id="menu" className="mt-14 scroll-mt-24">
+          <Reveal delay={0.2}>
+            <MenuExplorer />
+          </Reveal>
+        </section>
+      )}
+
       <Reveal delay={0.25}>
-        <div className="mt-14">
+        <div id="tickets" className="mt-14 scroll-mt-24">
           <h2 className="font-[family-name:var(--font-display)] text-2xl font-bold mb-3">
             Tickets
           </h2>

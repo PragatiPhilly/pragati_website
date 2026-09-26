@@ -1,6 +1,7 @@
 @import "tailwindcss";
 @import "./scenes.css";
 @import "./home.css";
+@import "./thali.css";
 
 /* ── Pragati theme system ─────────────────────────────────────────
    Three festival themes driven by data-theme on <html>.
