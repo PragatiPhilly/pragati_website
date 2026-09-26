@@ -70,7 +70,8 @@
 
 /* ── stage + leaf ── */
 .thali-stage { perspective: 1300px; perspective-origin: 50% 20%; }
-.thali-table { position: relative; aspect-ratio: 10 / 7.4; max-width: 100%; container-type: inline-size; transform-style: preserve-3d; }
+/* flat (no preserve-3d): the tilt is drawn as one image, so the pointer always finds the bowl on top */
+.thali-table { position: relative; aspect-ratio: 10 / 7.4; max-width: 100%; container-type: inline-size; }
 .thali-leaf { position: absolute; inset: 0; width: 100%; height: 100%; filter: drop-shadow(0 26px 30px rgba(60, 80, 20, 0.28)); }
 .thali-bowls { position: absolute; inset: 0; }
 
@@ -84,6 +85,7 @@
 .thali-bowl.is-star { --s: 25cqw; z-index: 3; }
 .thali-bowl.roomy:not(.is-star) { --s: 19cqw; }
 .thali-bowl.roomy.is-star { --s: 29cqw; }
+.thali-bowl__shadow-wrap { position: absolute; inset: 0; pointer-events: none; }
 .thali-bowl__shadow {
   position: absolute; left: 6%; right: 6%; top: 14%; bottom: -8%; border-radius: 50%;
   background: radial-gradient(closest-side, rgba(25, 40, 8, 0.45), transparent);
@@ -116,7 +118,15 @@
     radial-gradient(circle at 70% 80%, rgba(0, 0, 0, 0.22), transparent 55%);
 }
 @keyframes thali-turn { to { transform: rotate(360deg); } }
-.thali-bowl.is-hot .thali-bowl__rim { box-shadow: 0 0 0 3px var(--marigold-bright), 0 10px 22px rgba(40, 50, 10, 0.35); }
+/* hover / list-row highlight: the bowl body lifts on a short CSS transition (compositor-only) */
+.thali-bowl__body {
+  position: absolute; inset: 0; border-radius: 50%;
+  transition: transform 0.28s cubic-bezier(0.22, 1, 0.36, 1); will-change: transform;
+}
+.thali-bowl__shadow { transition: transform 0.28s cubic-bezier(0.22, 1, 0.36, 1), opacity 0.28s; }
+.thali-bowl:hover .thali-bowl__body, .thali-bowl:focus-visible .thali-bowl__body, .thali-bowl.is-hot .thali-bowl__body { transform: translateY(-7%) scale(1.07); }
+.thali-bowl:hover .thali-bowl__shadow, .thali-bowl.is-hot .thali-bowl__shadow { transform: translateY(6%) scale(1.08); opacity: 0.75; }
+.thali-bowl:hover .thali-bowl__rim, .thali-bowl.is-hot .thali-bowl__rim { box-shadow: 0 0 0 3px var(--marigold-bright), 0 10px 22px rgba(40, 50, 10, 0.35); }
 
 .thali-bowl__tag {
   position: absolute; left: 50%; top: calc(100% + 3px); transform: translateX(-50%); white-space: nowrap;

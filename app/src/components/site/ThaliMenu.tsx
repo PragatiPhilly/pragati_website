@@ -59,7 +59,7 @@ const bowl: Variants = {
     reduce
       ? { opacity: 0 }
       : mode === 'plate'
-        ? { opacity: 0, rotateY: 90, scale: 0.9 }
+        ? { opacity: 0, rotateY: 90, scale: 0.9, transformPerspective: 600 }
         : { opacity: 0, y: -80, scale: 1.3, rotate: -24 },
   rest: ({ reduce, i }: Ctx & { i: number }) => ({
     opacity: 1,
@@ -74,7 +74,7 @@ const bowl: Variants = {
     reduce
       ? { opacity: 0, transition: { duration: 0.15 } }
       : mode === 'plate'
-        ? { opacity: 0, rotateY: -90, scale: 0.9, transition: { duration: 0.26, ease: 'easeIn' } }
+        ? { opacity: 0, rotateY: -90, scale: 0.9, transformPerspective: 600, transition: { duration: 0.26, ease: 'easeIn' } }
         : { opacity: 0, x: 110, y: -36, rotate: 38, scale: 0.5, transition: { duration: 0.36, ease: [0.5, 0, 0.75, 0] } },
 };
 
@@ -153,7 +153,6 @@ export default function ThaliMenu({ ticketsHref }: { ticketsHref: string }) {
   const [kids, setKids] = useState(false);
   const [auto, setAuto] = useState(true);
   const [mode, setMode] = useState<Mode>('meal');
-  const [hot, setHot] = useState<string | null>(null);
   const [poster, setPoster] = useState(false);
 
   const root = useRef<HTMLDivElement>(null);
@@ -218,6 +217,15 @@ export default function ThaliMenu({ ticketsHref }: { ticketsHref: string }) {
   };
 
   const running = auto && inView && !reduce;
+
+  // Hover highlight (bowl <-> list row) is done on the DOM directly, so hovering
+  // never re-renders the menu or makes framer-motion re-measure the layout.
+  const markHot = (slug: string | null) => {
+    const r = root.current;
+    if (!r) return;
+    r.querySelectorAll('.is-hot').forEach((el) => el.classList.remove('is-hot'));
+    if (slug) r.querySelectorAll(`[data-slug="${slug}"]`).forEach((el) => el.classList.add('is-hot'));
+  };
   const heading = `${meal.day} · ${meal.meal}${kids ? ' · Kids' : ''}`;
 
   const renderBowl = (x: Dish, i: number, at: [number, number], isStar: boolean) => (
@@ -232,24 +240,26 @@ export default function ThaliMenu({ ticketsHref }: { ticketsHref: string }) {
       animate="rest"
       exit="exit"
       transition={{ layout: { type: 'spring', stiffness: 170, damping: 24 } }}
-      whileHover={reduce ? undefined : { y: -7, scale: 1.07, transition: { type: 'spring', stiffness: 400, damping: 22 } }}
-      className={`thali-bowl${isStar ? ' is-star' : ''}${!isStar && at[1] < 42 ? ' tag-up' : ''}${roomy ? ' roomy' : ''}${hot === x.slug ? ' is-hot' : ''}`}
+      className={`thali-bowl${isStar ? ' is-star' : ''}${!isStar && at[1] < 42 ? ' tag-up' : ''}${roomy ? ' roomy' : ''}`}
       style={{ left: `${at[0]}%`, top: `${at[1]}%` }}
+      data-slug={x.slug}
       aria-label={x.name}
-      onMouseEnter={() => setHot(x.slug)}
-      onMouseLeave={() => setHot(null)}
-      onFocus={() => setHot(x.slug)}
-      onBlur={() => setHot(null)}
-      onClick={() => {
-        setAuto(false);
-        setHot(x.slug);
-      }}
+      onPointerEnter={() => markHot(x.slug)}
+      onPointerLeave={() => markHot(null)}
+      onFocus={() => markHot(x.slug)}
+      onBlur={() => markHot(null)}
+      onClick={() => setAuto(false)}
     >
-      <motion.span className="thali-bowl__shadow" custom={{ ...ctx, i }} variants={landing} />
-      <span className="thali-bowl__rim" />
-      <span className="thali-bowl__food">
-        {/* eslint-disable-next-line @next/next/no-img-element */}
-        <img src={dishPhoto(x.slug)} alt="" draggable={false} style={{ animationDelay: `-${(x.slug.length * 7) % 60}s` }} />
+      <motion.span className="thali-bowl__shadow-wrap" custom={{ ...ctx, i }} variants={landing}>
+        <span className="thali-bowl__shadow" />
+      </motion.span>
+      {/* the lift on hover is plain CSS on this inner body — same feel for every bowl */}
+      <span className="thali-bowl__body">
+        <span className="thali-bowl__rim" />
+        <span className="thali-bowl__food">
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img src={dishPhoto(x.slug)} alt="" draggable={false} style={{ animationDelay: `-${(x.slug.length * 7) % 60}s` }} />
+        </span>
       </span>
       <span className="thali-bowl__tag">{x.name.replace(' (boneless)', '')}</span>
       {x.about && (
@@ -394,9 +404,9 @@ export default function ThaliMenu({ ticketsHref }: { ticketsHref: string }) {
                 initial={{ opacity: 0, x: 14 }}
                 animate={{ opacity: 1, x: 0, transition: { delay: reduce ? 0 : 0.05 + i * 0.035, duration: 0.3 } }}
                 exit={{ opacity: 0, x: -10, transition: { duration: 0.15 } }}
-                className={hot === x.slug ? 'is-hot' : undefined}
-                onMouseEnter={() => setHot(x.slug)}
-                onMouseLeave={() => setHot(null)}
+                data-slug={x.slug}
+                onPointerEnter={() => markHot(x.slug)}
+                onPointerLeave={() => markHot(null)}
               >
                 {/* eslint-disable-next-line @next/next/no-img-element */}
                 <img src={dishPhoto(x.slug)} alt="" loading="lazy" />
