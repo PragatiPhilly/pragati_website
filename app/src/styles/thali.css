@@ -153,12 +153,12 @@
 .thali-bowl:focus-visible .thali-bowl__rim { box-shadow: 0 0 0 3px var(--sindoor); }
 
 /* centre-dish highlight: a breathing golden glow + a slow dotted alpona ring (compositor-only) */
-.thali-bowl.is-star::before {
+.thali-bowl.is-star .thali-bowl__body::before {
   content: ""; position: absolute; inset: -16%; z-index: -1; border-radius: 50%; pointer-events: none;
   background: radial-gradient(closest-side, rgba(246, 201, 94, 0.65), rgba(246, 201, 94, 0.18) 60%, rgba(246, 201, 94, 0) 74%);
   animation: thali-halo 3.4s ease-in-out infinite; will-change: transform, opacity;
 }
-.thali-bowl.is-star::after {
+.thali-bowl.is-star .thali-bowl__body::after {
   content: ""; position: absolute; inset: -7%; border-radius: 50%; pointer-events: none;
   border: 2px dashed rgba(200, 16, 46, 0.5);
   animation: thali-spin 48s linear infinite; will-change: transform;
@@ -246,7 +246,7 @@
   .is-star .thali-bowl__tag { display: block; font-size: 11px; }
 }
 @media (prefers-reduced-motion: reduce) {
-  .thali-bowl__food img, .thali-orb__ring circle, .thali-bowl.is-star::before, .thali-bowl.is-star::after { animation: none; }
+  .thali-bowl__food img, .thali-orb__ring circle, .thali-bowl.is-star .thali-bowl__body::before, .thali-bowl.is-star .thali-bowl__body::after { animation: none; }
 }
 .thali-bowl:hover, .thali-bowl:focus-visible, .thali-bowl.is-hot { z-index: 6; }
 

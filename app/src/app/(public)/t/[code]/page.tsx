@@ -10,6 +10,7 @@ import { getDb, schema } from "@/db/client";
 import { getSession } from "@/lib/auth/session";
 import { ensureScanTables } from "@/lib/scans/ensure";
 import { getConfig } from "@/lib/system-config";
+import { dayLabel, fmtClock, foodLabel } from "@/lib/ticket-labels";
 import ScanCheckInButton from "./ScanCheckInButton";
 import ServeMealButtons from "./ServeMealButtons";
 
@@ -99,10 +100,18 @@ export default async function TicketPage({ params }: { params: Promise<{ code: s
               <span style={{ color: "var(--ink-soft)" }}>Pass:</span> <strong>{type?.name}</strong>
             </p>
             <p>
-              <span style={{ color: "var(--ink-soft)" }}>Day:</span> <strong>{ticket.dayKey === "all" ? "All days" : ticket.dayKey?.toUpperCase()}</strong>
+              <span style={{ color: "var(--ink-soft)" }}>Day:</span>{" "}
+              <strong>{dayLabel(ticket.dayKey, (event?.days as { key: string; label?: string }[] | null) ?? [])}</strong>
               <span className="mx-2" style={{ color: "var(--line)" }}>|</span>
-              <span style={{ color: "var(--ink-soft)" }}>Food:</span> <strong>{ticket.foodPref && ticket.foodPref !== "none" ? ticket.foodPref.replace("_", "-") : "No meal"}</strong>
+              <span style={{ color: "var(--ink-soft)" }}>Food:</span>{" "}
+              <strong>{type?.ageBand === "concert" ? "No meal (concert)" : foodLabel(ticket.foodPref)}</strong>
             </p>
+            {fmtClock(type?.checkInStart) && (
+              <p>
+                <span style={{ color: "var(--ink-soft)" }}>Entry from:</span> <strong>{fmtClock(type?.checkInStart)}</strong>
+                <span style={{ color: "var(--ink-soft)" }}> — this pass won&apos;t scan before then</span>
+              </p>
+            )}
             <p>
               <span style={{ color: "var(--ink-soft)" }}>Booked by:</span> {reg.buyerName} ·{" "}
               <span className="font-mono text-xs">{reg.confirmationNumber}</span>

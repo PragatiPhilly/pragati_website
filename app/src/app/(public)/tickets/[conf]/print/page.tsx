@@ -2,6 +2,7 @@ import { and, eq } from "drizzle-orm";
 import { notFound } from "next/navigation";
 import { getDb, schema } from "@/db/client";
 import { getConfig } from "@/lib/system-config";
+import { ticketDetail } from "@/lib/ticket-labels";
 
 export const dynamic = "force-dynamic";
 export const metadata = { title: "Print tickets" };
@@ -30,6 +31,8 @@ export default async function PrintTicketsPage({
   const tix = await db.select().from(schema.tickets).where(eq(schema.tickets.registrationId, reg.id));
   const [event] = await db.select().from(schema.events).where(eq(schema.events.id, reg.eventId));
   const orgName = await getConfig<string>("org_name");
+  const types = await db.select().from(schema.ticketTypes).where(eq(schema.ticketTypes.eventId, reg.eventId));
+  const days = (event?.days as { key: string; label?: string }[] | null) ?? [];
 
   return (
     <div className="mx-auto max-w-3xl px-6 py-10 print:p-0" style={{ background: "#fff", color: "#1a1a1a", minHeight: "100vh" }}>
@@ -52,9 +55,7 @@ export default async function PrintTicketsPage({
               <p className="text-lg mt-2 font-semibold">
                 {t.attendeeFirstName} {t.attendeeLastName}
               </p>
-              <p className="text-sm text-neutral-600">
-                {t.dayKey === "all" ? "All days" : `Day: ${t.dayKey?.toUpperCase()}`} · Food: {t.foodPref ?? "—"}
-              </p>
+              <p className="text-sm text-neutral-600">{ticketDetail(t, types.find((x) => x.id === t.ticketTypeId), days)}</p>
               <p className="text-xs mt-3 font-mono text-neutral-500">
                 {reg.confirmationNumber} · {t.qrCode}
               </p>

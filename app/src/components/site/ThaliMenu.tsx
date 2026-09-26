@@ -154,6 +154,8 @@ export default function ThaliMenu({ ticketsHref }: { ticketsHref: string }) {
   const [auto, setAuto] = useState(true);
   const [mode, setMode] = useState<Mode>('meal');
   const [poster, setPoster] = useState(false);
+  // Autoplay waits while someone is pointing at the menu, so a dish never changes under the cursor.
+  const [pointing, setPointing] = useState(false);
 
   const root = useRef<HTMLDivElement>(null);
   const tableRef = useRef<HTMLDivElement>(null);
@@ -176,13 +178,13 @@ export default function ThaliMenu({ ticketsHref }: { ticketsHref: string }) {
 
   // Autoplay while visible, until the first interaction.
   useEffect(() => {
-    if (!auto || !inView || reduce) return;
+    if (!auto || !inView || reduce || pointing) return;
     const t = setTimeout(() => {
       setMode('meal');
       setCur((c) => (c + 1) % MEALS.length);
     }, AUTOPLAY_MS);
     return () => clearTimeout(t);
-  }, [auto, inView, reduce, cur]);
+  }, [auto, inView, reduce, cur, pointing]);
 
   // Warm the cache for the next meal's photos.
   useEffect(() => {
@@ -216,7 +218,7 @@ export default function ThaliMenu({ ticketsHref }: { ticketsHref: string }) {
     setKids(v === 'kids');
   };
 
-  const running = auto && inView && !reduce;
+  const running = auto && inView && !reduce && !pointing;
 
   // Hover highlight (bowl <-> list row) is done on the DOM directly, so hovering
   // never re-renders the menu or makes framer-motion re-measure the layout.
@@ -273,7 +275,13 @@ export default function ThaliMenu({ ticketsHref }: { ticketsHref: string }) {
   );
 
   return (
-    <div ref={root} className={`thali${inView ? '' : ' is-idle'}`} aria-label="Durga Pujo menu">
+    <div
+      ref={root}
+      className={`thali${inView ? '' : ' is-idle'}`}
+      aria-label="Durga Pujo menu"
+      onPointerEnter={(e) => e.pointerType === 'mouse' && setPointing(true)}
+      onPointerLeave={(e) => e.pointerType === 'mouse' && setPointing(false)}
+    >
       {/* meal rail */}
       <div className="thali-rail" role="tablist" aria-label="Meals">
         {MEALS.map((m, i) => {

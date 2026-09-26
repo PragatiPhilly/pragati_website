@@ -16,6 +16,7 @@ import { useRouter } from "next/navigation";
 import { submitRegistration, validatePromoAction } from "./actions";
 import { formatCents, cardProcessingFeeCents } from "@/lib/pricing";
 import { matchConcertSelection, sameDaySet } from "@/lib/event-days";
+import { fmtClock } from "@/lib/ticket-labels";
 import { isEmail, buyerStepError } from "@/lib/validation";
 import JourneyScene from "@/components/register/JourneyScene";
 import PhoneInput from "@/components/site/PhoneInput";
@@ -165,7 +166,7 @@ function PersonRow({ title, children }: { title: React.ReactNode; children: Reac
 
 /** ── live price panel (desktop side rail + mobile bottom sheet) ── */
 
-type QuoteLine = { person: Person | null; label: string; typeName: string; price: number; memberPricing: boolean };
+type QuoteLine = { person: Person | null; label: string; typeName: string; price: number; memberPricing: boolean; note?: string };
 
 type OrderData = {
   lines: QuoteLine[];
@@ -222,6 +223,11 @@ function OrderLines({ lines, promoApplied, promoCode, promoDiscount, membershipC
                   : `Add-on ${l.label}`}
                 {l.memberPricing && " · member"}
               </p>
+              {l.person?.concertOnly && (
+                <p className="text-xs" style={{ color: "var(--ink-soft)" }}>
+                  No meal{l.note ? ` · ${l.note}` : ""}
+                </p>
+              )}
             </div>
             <p className="text-sm font-bold whitespace-nowrap">{l.price === 0 ? "Free" : formatCents(l.price)}</p>
           </div>
@@ -492,6 +498,35 @@ export default function RegisterFlow({
     [event.days, concertPasses]
   );
   const concertDayKeys = useMemo(() => concertDays.map((d) => d.key), [concertDays]);
+  /** Entry time for one night on its own (that night's single pass first). Display only. */
+  const nightEntry = (key: string): string | null => {
+    const own = concertPasses.find((t) => Array.isArray(t.dayKeys) && t.dayKeys.length === 1 && t.dayKeys[0] === key);
+    return fmtClock(own ? own.checkInStart : concertDays.find((d) => d.key === key)?.time);
+  };
+  /** The entry time a chip should show: for a picked night, the pass the order will really use. */
+  const chipEntry = (picked: string[], key: string): string | null => {
+    if (!picked.includes(key)) return nightEntry(key);
+    const sel = matchConcertSelection(concertPasses, picked);
+    if (sel.mode === "combo") return fmtClock(sel.pass.checkInStart);
+    return fmtClock(sel.items.find((x) => x.day === key)?.pass.checkInStart) ?? nightEntry(key);
+  };
+  /**
+   * "Entry opens at 6:00 PM." for the nights picked — using the exact passes the
+   * order will contain (a combined pass carries its own time). Display only.
+   */
+  const concertEntryText = (days: string[]): string => {
+    const sel = matchConcertSelection(concertPasses, days);
+    const rows =
+      sel.mode === "combo"
+        ? sel.days.map((day) => ({ day, at: fmtClock(sel.pass.checkInStart) }))
+        : sel.items.map(({ day, pass }) => ({ day, at: fmtClock(pass.checkInStart) }));
+    const timed = rows.filter((r) => r.at);
+    if (timed.length === 0) return "";
+    const times = [...new Set(timed.map((r) => r.at))];
+    if (times.length === 1) return `Entry opens at ${times[0]}.`;
+    const short = (k: string) => (event.days.find((d) => d.key === k)?.label ?? k).split(/[,·]/)[0].trim();
+    return `Entry opens at ${timed.map((r) => `${r.at} on ${short(r.day)}`).join(", ")}.`;
+  };
   const hasConcert = concertDays.length > 0;
   // arriving from a poster "buy concert" link — start everyone in concert mode for that day
   const initialConcertDay = concertDay && concertDayKeys.includes(concertDay) ? concertDay : null;
@@ -606,7 +641,7 @@ export default function RegisterFlow({
   const quote = useMemo(() => {
     // Joining now OR claiming existing membership → whole-household member pricing.
     const householdMemberPricing = wantsMembership || selfDeclaredMember;
-    const lines: { person: Person | null; label: string; typeName: string; price: number; memberPricing: boolean }[] = [];
+    const lines: QuoteLine[] = [];
     const issues: { person: Person; band: string; reason: string; combos: { key: string; days: string[]; label: string }[]; food: { withFood: boolean; noFood: boolean } }[] = [];
     for (const p of people) {
       // Concert-only person. A combined pass matching the chosen nights exactly
@@ -619,16 +654,22 @@ export default function RegisterFlow({
           const unit = memberPricing ? sel.pass.priceMemberCents : sel.pass.priceNonmemberCents;
           lines.push({
             person: p,
-            label: `🎶 ${sel.days.map((k) => event.days.find((d) => d.key === k)?.label.split(",")[0] ?? k.toUpperCase()).join(" + ")}`,
+            // nights listed in calendar order, whatever order they were tapped in (display only)
+            label: `🎶 ${[...sel.days]
+              .sort((a, b) => event.days.findIndex((d) => d.key === a) - event.days.findIndex((d) => d.key === b))
+              .map((k) => event.days.find((d) => d.key === k)?.label.split(",")[0] ?? k.toUpperCase())
+              .join(" + ")}`,
             typeName: sel.pass.name,
             price: unit < 0 ? 0 : unit,
             memberPricing,
+            note: fmtClock(sel.pass.checkInStart) ? `entry from ${fmtClock(sel.pass.checkInStart)}` : undefined,
           });
         } else {
           for (const { day, pass } of sel.items) {
             const unit = memberPricing ? pass.priceMemberCents : pass.priceNonmemberCents;
             const dLabel = event.days.find((d) => d.key === day)?.label ?? day.toUpperCase();
-            lines.push({ person: p, label: `🎶 ${dLabel}`, typeName: pass.name, price: unit < 0 ? 0 : unit, memberPricing });
+            const at = fmtClock(pass.checkInStart);
+            lines.push({ person: p, label: `🎶 ${dLabel}`, typeName: pass.name, price: unit < 0 ? 0 : unit, memberPricing, note: at ? `entry from ${at}` : undefined });
           }
         }
         continue;
@@ -1250,10 +1291,23 @@ export default function RegisterFlow({
                               })
                             }
                           >
-                            {p.concertOnly ? `🎶 ${d.label}` : d.label}
+                            {p.concertOnly ? (
+                              <>
+                                🎶 {d.label}
+                                {chipEntry(p.days, d.key) && <span className="opacity-70"> · from {chipEntry(p.days, d.key)}</span>}
+                              </>
+                            ) : (
+                              d.label
+                            )}
                           </button>
                         ))}
                       </div>
+                      {p.concertOnly && (
+                        <p className="mt-3 text-xs" style={{ color: "var(--ink-soft)" }}>
+                          🎶 Concert ticket — no meal included.{" "}
+                          {concertEntryText(p.days)}
+                        </p>
+                      )}
                       {!p.concertOnly && p.days.length > 0 && !bandDayOk(p) && (
                         <div className="mt-3 rounded-xl px-3.5 py-3 text-sm" style={{ background: "rgba(200,16,46,0.07)", border: "1px solid rgba(200,16,46,0.25)" }}>
                           <p className="font-semibold" style={{ color: "var(--sindoor)" }}>
@@ -1301,7 +1355,9 @@ export default function RegisterFlow({
                   return (
                     <PersonRow key={p.id} title={<>{p.isStudent ? "🎓" : p.isKid ? "🧒" : "🧑"} {p.firstName}</>}>
                       {p.concertOnly ? (
-                        <p style={{ color: "var(--ink-soft)" }}>🎶 Concert ticket — no meal</p>
+                        <p style={{ color: "var(--ink-soft)" }}>
+                          🎶 Concert ticket — no meal. {concertEntryText(p.days)}
+                        </p>
                       ) : p.isKid ? (
                         <p style={{ color: "var(--ink-soft)" }}>Kid&apos;s meal included 🍚</p>
                       ) : (
@@ -1484,7 +1540,7 @@ export default function RegisterFlow({
                       </p>
                       <p className="text-sm mt-0.5" style={{ color: "var(--ink-soft)" }}>
                         {l.person
-                          ? `${l.label} · ${l.person.concertOnly ? "concert · no meal" : l.person.isStudent ? (l.person.withFood ? `student · food: ${l.person.foodPref.replace("_", "-")}` : "student · no food") : l.person.isKid ? ((l.person.age ?? 6) < 5 ? "under 5 · free" : "youth · meal included") : l.person.withFood ? `food: ${l.person.foodPref.replace("_", "-")}` : "no food"}`
+                          ? `${l.label} · ${l.person.concertOnly ? `concert · no meal${l.note ? ` · ${l.note}` : ""}` : l.person.isStudent ? (l.person.withFood ? `student · food: ${l.person.foodPref.replace("_", "-")}` : "student · no food") : l.person.isKid ? ((l.person.age ?? 6) < 5 ? "under 5 · free" : "youth · meal included") : l.person.withFood ? `food: ${l.person.foodPref.replace("_", "-")}` : "no food"}`
                           : "Add-on pass"}
                         {l.memberPricing && (
                           <span className="ml-1.5 font-semibold" style={{ color: "var(--leaf-deep)" }}>

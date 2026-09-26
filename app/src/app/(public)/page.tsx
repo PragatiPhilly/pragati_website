@@ -42,6 +42,7 @@ import {
 import { listMagazines } from '@/lib/magazines';
 import MagazineShelf from '@/components/site/MagazineShelf';
 import { formatCents } from '@/lib/pricing';
+import { fmtClock } from '@/lib/ticket-labels';
 import { site } from '@/config/site';
 
 function toPhoto(m: MediaImage) {
@@ -132,16 +133,24 @@ export default async function HomePage() {
   // concert-only checkout for that day). Empty → the posters stay "coming soon".
   const concertPasses = active ? await getConcertPasses(active.id) : [];
   const concertBuy = (dayKey: string) => {
-    const pass = concertPasses.find(
-      (c) =>
-        Array.isArray(c.dayKeys) && (c.dayKeys as string[]).includes(dayKey),
-    );
+    // Prefer that night's own pass over a combined "Sat + Sun" pass, so the
+    // button shows the single-night price.
+    const keysOf = (c: (typeof concertPasses)[number]) =>
+      Array.isArray(c.dayKeys) ? (c.dayKeys as string[]) : [];
+    const pass =
+      concertPasses.find(
+        (c) => keysOf(c).length === 1 && keysOf(c)[0] === dayKey,
+      ) ?? concertPasses.find((c) => keysOf(c).includes(dayKey));
     if (!pass || !active) return null;
     const price =
       pass.priceNonmemberCents >= 0
         ? pass.priceNonmemberCents
         : pass.priceMemberCents;
-    return { href: `/register?event=${active.slug}&concert=${dayKey}`, price };
+    return {
+      href: `/register?event=${active.slug}&concert=${dayKey}`,
+      price,
+      entry: fmtClock(pass.checkInStart),
+    };
   };
   const now = new Date();
   const upcoming = events.filter((e) => e.endsAt > now);
@@ -478,6 +487,28 @@ export default async function HomePage() {
                         className="absolute inset-0 w-full h-full object-contain object-center drop-shadow-[0_10px_30px_rgba(0,0,0,0.45)]"
                       />
                     </div>
+                    {buy && (
+                      <div
+                        className="flex flex-wrap items-center justify-between gap-x-4 gap-y-2 px-5 py-4"
+                        style={{ borderTop: '1px solid rgba(255,255,255,0.12)' }}
+                      >
+                        <p className="text-sm leading-snug" style={{ color: 'rgba(255,255,255,0.78)' }}>
+                          🎶 Concert only · no meal
+                          {buy.entry && (
+                            <>
+                              <br />
+                              <span style={{ color: p.accent }}>Entry from {buy.entry}</span>
+                            </>
+                          )}
+                        </p>
+                        <Link
+                          href={buy.href}
+                          className="btn-primary !py-2.5 !px-5 text-sm whitespace-nowrap"
+                        >
+                          🎟 Buy · {formatCents(buy.price)}
+                        </Link>
+                      </div>
+                    )}
                   </div>
                 </Reveal>
               );

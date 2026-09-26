@@ -2,6 +2,7 @@ import { and, eq } from "drizzle-orm";
 import { getDb, schema } from "@/db/client";
 import { formatCents } from "@/lib/pricing";
 import PujoPass from "@/components/site/PujoPass";
+import { ticketDetail } from "@/lib/ticket-labels";
 
 export const dynamic = "force-dynamic";
 export const metadata = { title: "Find my tickets" };
@@ -12,7 +13,13 @@ export default async function LookupPage({
   searchParams: Promise<{ email?: string; conf?: string }>;
 }) {
   const { email, conf } = await searchParams;
-  let result: { reg: typeof schema.registrations.$inferSelect; tix: (typeof schema.tickets.$inferSelect)[]; eventName: string; eventBengali: string | null } | null = null;
+  let result: {
+    reg: typeof schema.registrations.$inferSelect;
+    tix: (typeof schema.tickets.$inferSelect)[];
+    eventName: string;
+    eventBengali: string | null;
+    detail: (t: typeof schema.tickets.$inferSelect) => string;
+  } | null = null;
   let notFoundMsg = false;
 
   if (email && conf) {
@@ -29,7 +36,15 @@ export default async function LookupPage({
     if (reg) {
       const tix = await db.select().from(schema.tickets).where(eq(schema.tickets.registrationId, reg.id));
       const [event] = await db.select().from(schema.events).where(eq(schema.events.id, reg.eventId));
-      result = { reg, tix, eventName: event?.name ?? "", eventBengali: event?.nameBengali ?? null };
+      const types = await db.select().from(schema.ticketTypes).where(eq(schema.ticketTypes.eventId, reg.eventId));
+      const days = (event?.days as { key: string; label?: string }[] | null) ?? [];
+      result = {
+        reg,
+        tix,
+        eventName: event?.name ?? "",
+        eventBengali: event?.nameBengali ?? null,
+        detail: (t) => ticketDetail(t, types.find((x) => x.id === t.ticketTypeId), days),
+      };
     } else {
       notFoundMsg = true;
     }
@@ -64,7 +79,7 @@ export default async function LookupPage({
             attendees={result.tix.map((t) => ({
               name: `${t.attendeeFirstName} ${t.attendeeLastName ?? ""}`.trim(),
               qr: t.qrCode,
-              detail: `${t.dayKey === "all" ? "All days" : t.dayKey?.toUpperCase()} · food: ${t.foodPref ?? "—"}`,
+              detail: result!.detail(t),
             }))}
             printHref={`/tickets/${result.reg.confirmationNumber}/print?email=${encodeURIComponent(result.reg.buyerEmail)}`}
           />
@@ -112,7 +127,7 @@ export default async function LookupPage({
                     {t.attendeeFirstName} {t.attendeeLastName}
                   </p>
                   <p className="text-sm" style={{ color: "var(--ink-soft)" }}>
-                    {t.dayKey === "all" ? "All days" : t.dayKey?.toUpperCase()} · food: {t.foodPref ?? "—"} · {formatCents(t.priceCents)}
+                    {result!.detail(t)} · {formatCents(t.priceCents)}
                   </p>
                   <p className="text-xs mt-1 font-mono break-all" style={{ color: "var(--ink-soft)" }}>
                     {t.qrCode}
