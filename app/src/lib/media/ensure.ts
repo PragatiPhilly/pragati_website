@@ -46,6 +46,9 @@ export function ensureMediaTables(): Promise<void> {
       ALTER TABLE media_images ADD COLUMN IF NOT EXISTS in_poster boolean NOT NULL DEFAULT false;
     `);
     await db.execute(sql`
+      ALTER TABLE media_images ADD COLUMN IF NOT EXISTS in_caterer boolean NOT NULL DEFAULT false;
+    `);
+    await db.execute(sql`
       CREATE TABLE IF NOT EXISTS contact_messages (
         id text PRIMARY KEY,
         name text NOT NULL,

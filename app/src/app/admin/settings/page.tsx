@@ -53,6 +53,15 @@ const GROUPS: { title: string; note?: string; keys: { key: string; label: string
     ],
   },
   {
+    title: "Pujo menu — caterer",
+    note: "The caterer's signboard that hangs over the Pujo menu on the homepage. To change the logo, upload it in Admin → Photos and tick \"Caterer logo\" — the newest ticked one is used.",
+    keys: [
+      { key: "caterer_enabled", label: "Show the caterer's signboard", type: "toggle" },
+      { key: "caterer_name", label: "Caterer name (read aloud by screen readers)" },
+      { key: "caterer_url", label: "Caterer website (optional — makes the signboard a link)" },
+    ],
+  },
+  {
     title: "Emails",
     note: "In test mode all outbound email is redirected to TEST_EMAIL_OVERRIDE from .env — these become live values in production.",
     keys: [

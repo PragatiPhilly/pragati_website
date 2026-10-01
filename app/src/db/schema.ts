@@ -660,6 +660,7 @@ export const mediaImages = pgTable(
     inCarousel: boolean("in_carousel").notNull().default(false), // "by the numbers" photo garland
     inSlideshow: boolean("in_slideshow").notNull().default(false), // mission/community panel
     inPoster: boolean("in_poster").notNull().default(false), // homepage two-panel poster slideshow
+    inCaterer: boolean("in_caterer").notNull().default(false), // caterer signboard over the homepage Pujo menu
     eventSlug: text("event_slug"), // featured image on that event's page
     sortOrder: integer("sort_order").notNull().default(0),
     createdBy: text("created_by"),

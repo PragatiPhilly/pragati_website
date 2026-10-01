@@ -11,6 +11,7 @@ export type Placements = {
   inCarousel: boolean;
   inSlideshow: boolean;
   inPoster: boolean;
+  inCaterer: boolean;
   eventSlug: string | null;
 };
 
@@ -35,6 +36,7 @@ export async function setPlacementsAction(
         inCarousel: placements.inCarousel,
         inSlideshow: placements.inSlideshow,
         inPoster: placements.inPoster,
+        inCaterer: placements.inCaterer,
         eventSlug: placements.eventSlug || null,
       })
       .where(eq(schema.mediaImages.id, id));

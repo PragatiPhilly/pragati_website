@@ -15,6 +15,7 @@ type Img = {
   inCarousel: boolean;
   inSlideshow: boolean;
   inPoster: boolean;
+  inCaterer: boolean;
   eventSlug: string | null;
 };
 
@@ -40,6 +41,7 @@ function normalize(row: Record<string, unknown>): Img {
     inCarousel: !!row.inCarousel,
     inSlideshow: !!row.inSlideshow,
     inPoster: !!row.inPoster,
+    inCaterer: !!row.inCaterer,
     eventSlug: (row.eventSlug as string) ?? null,
   };
 }
@@ -200,6 +202,7 @@ function PlacementTags({ img }: { img: Img }) {
   if (img.inCarousel) tags.push("Carousel");
   if (img.inSlideshow) tags.push("Slideshow");
   if (img.inPoster) tags.push("Poster");
+  if (img.inCaterer) tags.push("Caterer");
   if (img.eventSlug) tags.push(`Event`);
   if (tags.length === 0) return <span className="text-[11px]" style={{ color: "var(--ink-soft)" }}>Unassigned</span>;
   return (
@@ -291,6 +294,7 @@ function AssignModal({
     inCarousel: img.inCarousel,
     inSlideshow: img.inSlideshow,
     inPoster: img.inPoster,
+    inCaterer: img.inCaterer,
     eventSlug: img.eventSlug,
   });
   const [busy, setBusy] = useState(false);
@@ -336,6 +340,12 @@ function AssignModal({
               hint="Homepage two-panel poster slideshow (portrait works best)"
               checked={draft.inPoster}
               onChange={(v) => setDraft((d) => ({ ...d, inPoster: v }))}
+            />
+            <Toggle
+              label="Caterer logo"
+              hint="The signboard over the homepage Pujo menu (wide logo works best; the newest ticked one is used)"
+              checked={draft.inCaterer}
+              onChange={(v) => setDraft((d) => ({ ...d, inCaterer: v }))}
             />
             <div className="rounded-xl p-3" style={{ background: "var(--bg-soft)" }}>
               <label className="text-sm font-semibold">Feature on an event page</label>

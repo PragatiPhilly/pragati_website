@@ -98,4 +98,11 @@ export const systemConfigDefaults: Record<string, unknown> = {
   home_banner_cta_label: "",
   home_banner_href: "/register",
   home_banner_deadline: "2026-09-05", // optional YYYY-MM-DD → live "N days left" chip (blank to hide)
+
+  // ── caterer signboard over the homepage Pujo menu (Admin → Settings).
+  //    The logo is picked in Admin → Photos ("Caterer logo"); until one is
+  //    ticked, the bundled /brand/caterer-logo.jpg is shown.
+  caterer_enabled: "yes", // yes = hang the caterer's signboard over the menu
+  caterer_name: "Taste of Bengal",
+  caterer_url: "", // optional website — the signboard becomes a link when set
 };

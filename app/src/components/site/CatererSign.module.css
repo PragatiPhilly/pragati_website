@@ -1,0 +1,126 @@
+/* Caterer signboard over the homepage Pujo menu — see CatererSign.tsx */
+.wrap {
+  --w: 300px;
+  position: relative;
+  width: var(--w);
+  margin: -18px auto 30px;
+  padding-top: 6px;
+}
+
+/* brass nail — stays put while the board swings from it */
+.nail {
+  position: absolute;
+  z-index: 2;
+  top: 0;
+  left: 50%;
+  width: 12px;
+  height: 12px;
+  margin-left: -6px;
+  border-radius: 50%;
+  background: radial-gradient(circle at 35% 30%, #fff3c4, #e8a93c 45%, #8a5a12 100%);
+  box-shadow: 0 2px 3px rgba(60, 30, 0, 0.45);
+}
+
+.hanger {
+  transform-origin: 50% 6px;
+  animation: catererSway 5.5s ease-in-out infinite alternate;
+}
+.wrap:hover .hanger {
+  animation-duration: 1.1s;
+}
+
+.strings {
+  display: block;
+  width: 100%;
+  height: 44px;
+  overflow: visible;
+}
+.strings path {
+  fill: none;
+  stroke: #a07a45;
+  stroke-width: 2.2;
+  stroke-linecap: round;
+  stroke-dasharray: 3 1.2; /* a little twist, like jute */
+}
+
+/* the wooden frame */
+.board {
+  position: relative;
+  display: block;
+  margin-top: -2px;
+  padding: 7px 8px 8px;
+  border-radius: 9px;
+  text-decoration: none;
+  background:
+    repeating-linear-gradient(92deg, rgba(255, 255, 255, 0.05) 0 2px, transparent 2px 9px),
+    repeating-linear-gradient(88deg, rgba(0, 0, 0, 0.07) 0 1px, transparent 1px 13px),
+    linear-gradient(180deg, #9a6236, #6e3f1d);
+  box-shadow:
+    inset 0 1px 0 rgba(255, 220, 170, 0.35),
+    inset 0 -2px 0 rgba(0, 0, 0, 0.25),
+    0 14px 26px rgba(70, 35, 5, 0.32),
+    0 3px 6px rgba(70, 35, 5, 0.25);
+}
+/* the two eyelets the strings tie through */
+.board::before,
+.board::after {
+  content: "";
+  position: absolute;
+  top: -3px;
+  width: 9px;
+  height: 9px;
+  border-radius: 50%;
+  background: radial-gradient(circle at 40% 35%, #fff3c4, #c98f2a 60%, #6b4310);
+}
+.board::before { left: 14px; }
+.board::after { right: 14px; }
+
+/* engraved line above the logo */
+.plate {
+  display: flex;
+  align-items: baseline;
+  justify-content: center;
+  gap: 6px;
+  padding: 1px 0 6px;
+  color: #f6deb0;
+  text-shadow: 0 -1px 0 rgba(0, 0, 0, 0.45);
+  line-height: 1.2;
+  white-space: nowrap;
+}
+.bn { font-family: var(--font-bangla); font-size: 13px; }
+.dot { opacity: 0.7; }
+.en { font-size: 10.5px; font-weight: 600; letter-spacing: 1.6px; text-transform: uppercase; }
+
+/* the logo sits on a black slate, like a shop's signboard */
+.slate {
+  display: block;
+  padding: 7px 10px;
+  border-radius: 5px;
+  background: #000;
+  box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.06), inset 0 2px 6px rgba(0, 0, 0, 0.8);
+}
+.slate img {
+  display: block;
+  width: 100%;
+  height: auto;
+}
+
+a.board { transition: transform 0.25s ease, box-shadow 0.25s ease; }
+a.board:hover { transform: translateY(-1px); }
+a.board:focus-visible { outline: 2px solid var(--sindoor); outline-offset: 3px; }
+
+@keyframes catererSway {
+  from { transform: rotate(-1.6deg); }
+  to { transform: rotate(1.6deg); }
+}
+
+@media (max-width: 640px) {
+  .wrap { --w: 250px; margin: -14px auto 24px; }
+  .bn { font-size: 12px; }
+  .en { font-size: 9.5px; letter-spacing: 1.2px; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .hanger,
+  .wrap:hover .hanger { animation: none; }
+}

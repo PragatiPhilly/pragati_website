@@ -3,7 +3,7 @@
  * exist and degrades to an empty list on any error, so the public site never
  * crashes if the media feature hasn't been used yet.
  */
-import { and, asc, eq } from "drizzle-orm";
+import { and, asc, desc, eq } from "drizzle-orm";
 import { getDb, schema } from "@/db/client";
 import { ensureMediaTables } from "./ensure";
 
@@ -19,6 +19,7 @@ export type MediaImage = {
   inCarousel: boolean;
   inSlideshow: boolean;
   inPoster: boolean;
+  inCaterer: boolean;
   eventSlug: string | null;
   sortOrder: number;
   createdAt: Date;
@@ -37,6 +38,7 @@ function normalize(rows: (typeof schema.mediaImages.$inferSelect)[]): MediaImage
     inCarousel: r.inCarousel,
     inSlideshow: r.inSlideshow,
     inPoster: r.inPoster,
+    inCaterer: r.inCaterer ?? false,
     eventSlug: r.eventSlug,
     sortOrder: r.sortOrder ?? 0,
     createdAt: r.createdAt,
@@ -111,6 +113,23 @@ export async function getEventImage(slug: string): Promise<MediaImage | null> {
       .from(schema.mediaImages)
       .where(and(eq(schema.mediaImages.eventSlug, slug)))
       .orderBy(asc(schema.mediaImages.createdAt))
+      .limit(1);
+    return normalize(rows)[0] ?? null;
+  } catch {
+    return null;
+  }
+}
+
+/** The caterer logo for the homepage menu: the most recently added image ticked "Caterer logo". */
+export async function getCatererLogo(): Promise<MediaImage | null> {
+  try {
+    await ensureMediaTables();
+    const db = getDb();
+    const rows = await db
+      .select()
+      .from(schema.mediaImages)
+      .where(eq(schema.mediaImages.inCaterer, true))
+      .orderBy(desc(schema.mediaImages.createdAt))
       .limit(1);
     return normalize(rows)[0] ?? null;
   } catch {

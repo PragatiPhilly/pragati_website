@@ -41,6 +41,8 @@ import {
 } from '@/lib/media/queries';
 import { listMagazines } from '@/lib/magazines';
 import MagazineShelf from '@/components/site/MagazineShelf';
+import CatererSign from '@/components/site/CatererSign';
+import { getCaterer } from '@/lib/caterer';
 import { formatCents } from '@/lib/pricing';
 import { site } from '@/config/site';
 
@@ -149,6 +151,7 @@ export default async function HomePage() {
     active && active.status === 'published' ? active : upcoming[0];
   const others = upcoming.filter((e) => e.id !== featured?.id).slice(0, 4);
   const theme = active?.theme ?? 'durga';
+  const caterer = featured && menuOnHomepage(featured) ? await getCaterer() : null;
 
   return (
     <div className="relative">
@@ -507,6 +510,11 @@ export default async function HomePage() {
               </h2>
             </div>
           </Reveal>
+          {caterer && (
+            <Reveal delay={0.1}>
+              <CatererSign caterer={caterer} />
+            </Reveal>
+          )}
           <ThaliMenu ticketsHref={`/events/${featured.slug}#tickets`} />
           <details className="thali-note">
             <summary>
