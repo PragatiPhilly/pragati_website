@@ -6,6 +6,7 @@ import { canUseMemberPortal } from "@/lib/member-mode";
 import { getDonationMode, DONATION_COPY } from "@/lib/donation-mode";
 import MobileNav from "./MobileNav";
 import HeaderScroll from "./HeaderScroll";
+import FacebookLink from "./FacebookLink";
 
 export default async function Header() {
   const session = await getSession();
@@ -44,6 +45,10 @@ export default async function Header() {
           </nav>
 
           <div className="flex items-center gap-3 text-sm shrink-0">
+            {/* Phones get it inside the menu instead (no room in the bar) */}
+            <span className="hidden sm:inline-flex">
+              <FacebookLink />
+            </span>
             <MobileNav nav={nav} signedIn={!!session} isAdmin={!!isAdmin} portalEnabled={portalEnabled} />
             {session ? (
               <>

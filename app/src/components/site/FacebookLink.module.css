@@ -1,0 +1,91 @@
+/* Facebook "Shine" icon — see FacebookLink.tsx */
+.link {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.75rem;
+  min-width: 2.75rem; /* 44px tap target */
+  min-height: 2.75rem;
+  flex-shrink: 0;
+  border-radius: 999px;
+  outline-offset: 2px;
+}
+.withLabel {
+  justify-content: flex-start;
+}
+
+.icon {
+  display: grid;
+  flex-shrink: 0;
+}
+
+.logo,
+.glint {
+  grid-area: 1 / 1;
+  width: 2.125rem; /* 34px */
+  height: 2.125rem;
+  border-radius: 999px;
+  overflow: hidden;
+}
+
+.logo {
+  display: block;
+  transition: box-shadow 0.3s ease;
+}
+.logo img {
+  display: block;
+  width: 100%;
+  height: 100%;
+}
+
+.glint {
+  position: relative;
+  pointer-events: none;
+}
+.glint::before {
+  content: "";
+  position: absolute;
+  top: -20%;
+  bottom: -20%;
+  left: -60%;
+  width: 45%;
+  background: linear-gradient(100deg, transparent, rgba(255, 255, 255, 0.75), transparent);
+  transform: skewX(-18deg);
+  animation: fbSweep 3.6s ease-in-out infinite;
+}
+
+.link:hover .logo,
+.link:focus-visible .logo {
+  animation: fbPop 0.6s cubic-bezier(0.3, 1.6, 0.5, 1) both;
+  box-shadow: 0 6px 16px rgba(24, 119, 242, 0.35);
+}
+.link:hover .glint,
+.link:focus-visible .glint {
+  animation: fbPop 0.6s cubic-bezier(0.3, 1.6, 0.5, 1) both;
+}
+.link:hover .glint::before,
+.link:focus-visible .glint::before {
+  animation-duration: 1.1s;
+}
+
+@keyframes fbSweep {
+  0%, 55% { left: -60%; }
+  85%, 100% { left: 125%; }
+}
+@keyframes fbPop {
+  0% { transform: scale(1); }
+  40% { transform: scale(1.16); }
+  70% { transform: scale(0.97); }
+  100% { transform: scale(1.08); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .glint::before,
+  .link:hover .logo,
+  .link:hover .glint,
+  .link:focus-visible .logo,
+  .link:focus-visible .glint {
+    animation: none;
+  }
+}

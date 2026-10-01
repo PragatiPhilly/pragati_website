@@ -16,6 +16,7 @@ export const site = {
   address: '127 Lotus Lane, Malvern, PA 19355',
   phone: '615.478.3724',
   foundedYear: 1972,
+  facebookUrl: 'https://www.facebook.com/share/1JDUVA1MkJ/',
   nav: [
     { label: 'Events', bn: 'উৎসব', href: '/events' },
     { label: 'About', bn: 'আমরা', href: '/about' },

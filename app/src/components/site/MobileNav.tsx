@@ -3,6 +3,7 @@
 import { useState } from "react";
 import Link from "next/link";
 import { AnimatePresence, motion } from "framer-motion";
+import FacebookLink from "./FacebookLink";
 
 export default function MobileNav({
   nav,
@@ -49,6 +50,10 @@ export default function MobileNav({
               <Link href="/register" className="rounded-xl px-4 py-3 font-medium hover:bg-[var(--accent-soft)] transition-colors" onClick={() => setOpen(false)}>
                 Register for the next event
               </Link>
+              <FacebookLink
+                label="Pragati on Facebook"
+                className="!rounded-xl px-4 py-1.5 font-medium hover:bg-[var(--accent-soft)] transition-colors"
+              />
               {signedIn ? (
                 (isAdmin || portalEnabled) && (
                   <Link href={isAdmin ? "/admin" : "/m"} className="rounded-xl px-4 py-3 font-semibold hover:bg-[var(--accent-soft)] transition-colors" style={{ color: "var(--sindoor)" }} onClick={() => setOpen(false)}>
