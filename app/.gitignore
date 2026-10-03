@@ -4,6 +4,8 @@ node_modules/
 .env.local
 # admin-uploaded photos (runtime user content)
 /public/media/
+# admin-uploaded Pujo flyers (runtime user content, local dev only)
+/public/pujo/uploads/
 # admin-uploaded magazine PDFs (runtime user content, local dev only)
 /public/magazines/
 Claude outputs/

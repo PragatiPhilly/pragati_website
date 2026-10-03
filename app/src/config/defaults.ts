@@ -3,6 +3,8 @@
  * Every one of these is editable at runtime from Admin → Settings —
  * no redeploy needed. Spec: 03-data-model.md § system_config.
  */
+import { DEFAULT_PUJO_SCHEDULE } from "../lib/pujo-schedule/model";
+
 export const systemConfigDefaults: Record<string, unknown> = {
   org_name: "Pragati — Bengali Association of Greater Philadelphia",
   org_address: "127 Lotus Lane, Malvern, PA 19355",
@@ -105,4 +107,10 @@ export const systemConfigDefaults: Record<string, unknown> = {
   caterer_enabled: "yes", // yes = hang the caterer's signboard over the menu
   caterer_name: "Taste of Bengal",
   caterer_url: "", // optional website — the signboard becomes a link when set
+
+  // ── Pujo schedule (Pujo Nirghonto) — the terracotta wall on the homepage.
+  //    Admin → Content → Pujo schedule edits it; until then the committee's
+  //    2026 flyer timings (and the bundled flyer image) are shown.
+  //    Spec: spec/15-pujo-schedule.md
+  pujo_schedule: DEFAULT_PUJO_SCHEDULE,
 };

@@ -13,7 +13,7 @@
 export type SectionKey =
   | "dashboard" | "payments" | "reconciliation" | "zelle" | "registrations" | "donations" | "members" | "events"
   | "checkin" | "scans" | "kitchen" | "desk" | "desk_money" | "media" | "magazines" | "messages" | "emails"
-  | "email_preview" | "roles" | "audit" | "settings" | "projections";
+  | "email_preview" | "roles" | "audit" | "settings" | "projections" | "pujo_schedule";
 
 /**
  * Nav groups.
@@ -74,6 +74,8 @@ export const SECTIONS: Section[] = [
 
   { key: "media", label: "Photos", href: "/admin/media", icon: "🖼", group: "content" },
   { key: "magazines", label: "Magazines", href: "/admin/magazines", icon: "📖", group: "content" },
+  // The homepage "Pujo, hour by hour" terracotta wall — timings + the flyer.
+  { key: "pujo_schedule", label: "Pujo schedule", href: "/admin/pujo-schedule", icon: "🪔", group: "content" },
 
   { key: "roles", label: "Roles & access", href: "/admin/roles", icon: "🔑", group: "system" },
   { key: "audit", label: "Audit log", href: "/admin/audit", icon: "📜", group: "system" },

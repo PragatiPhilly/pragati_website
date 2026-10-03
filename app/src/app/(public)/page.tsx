@@ -43,6 +43,10 @@ import { listMagazines } from '@/lib/magazines';
 import MagazineShelf from '@/components/site/MagazineShelf';
 import CatererSign from '@/components/site/CatererSign';
 import { getCaterer } from '@/lib/caterer';
+import PujoSchedule from '@/components/site/PujoSchedule';
+import { getPujoSchedule, venueLine } from '@/lib/pujo-schedule/server';
+import { publicFlyer, scheduleVisible } from '@/lib/pujo-schedule/model';
+import { siteUrl } from '@/lib/site-url';
 import { formatCents } from '@/lib/pricing';
 import { site } from '@/config/site';
 
@@ -152,6 +156,9 @@ export default async function HomePage() {
   const others = upcoming.filter((e) => e.id !== featured?.id).slice(0, 4);
   const theme = active?.theme ?? 'durga';
   const caterer = featured && menuOnHomepage(featured) ? await getCaterer() : null;
+  // Pujo Nirghonto — read from the config snapshot already fetched above (no extra query)
+  const pujoSchedule = await getPujoSchedule();
+  const showSchedule = scheduleVisible(pujoSchedule, now);
 
   return (
     <div className="relative">
@@ -488,6 +495,17 @@ export default async function HomePage() {
           </div>
         )}
       </section>
+
+      {/* ══════════ PUJO NIRGHONTO — the terracotta temple wall (Admin → Pujo schedule) ══════════ */}
+      {showSchedule && (
+        <PujoSchedule
+          days={pujoSchedule.days}
+          flyer={publicFlyer(pujoSchedule)}
+          nowISO={now.toISOString()}
+          venue={venueLine(featured)}
+          pageUrl={siteUrl('/#schedule')}
+        />
+      )}
 
       {/* ══════════ PUJO MENU — the Kolapata Thali (only for this year's Durga Pujo) ══════════ */}
       {featured && menuOnHomepage(featured) && (
