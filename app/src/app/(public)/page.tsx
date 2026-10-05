@@ -5,7 +5,7 @@ import {
   getConcertPasses,
 } from '@/lib/queries/events';
 import { getConfig } from '@/lib/system-config';
-import Countdown from '@/components/site/Countdown';
+import PujoCountdown from '@/components/site/PujoCountdown';
 import Reveal from '@/components/site/Reveal';
 import AlponaDivider from '@/components/site/AlponaDivider';
 import AlponaSpine from '@/components/site/AlponaSpine';
@@ -336,9 +336,14 @@ export default async function HomePage() {
             {/* mobile countdown (desktop version floats between sections) */}
             {featured && (
               <Reveal delay={0.34} className="md:hidden">
-                <div className="mt-8 festive-card inline-block px-6 py-3">
-                  <Countdown target={featured.startsAt.toISOString()} />
-                </div>
+                <PujoCountdown
+                  className="mt-10 inline-block"
+                  name={featured.name}
+                  theme={featured.theme}
+                  startsAt={featured.startsAt}
+                  endsAt={featured.endsAt}
+                  now={now}
+                />
               </Reveal>
             )}
           </div>
@@ -377,11 +382,14 @@ export default async function HomePage() {
       {/* countdown — centered on the seam between hero and lineup */}
       {featured && (
         <div className="hidden md:flex justify-center relative z-20 -mt-12">
-          <div
-            className="festive-card px-9 py-4"
-            style={{ boxShadow: 'var(--shadow)' }}
-          >
-            <Countdown target={featured.startsAt.toISOString()} />
+          <div style={{ boxShadow: 'var(--shadow)', borderRadius: '1.25rem' }}>
+            <PujoCountdown
+              name={featured.name}
+              theme={featured.theme}
+              startsAt={featured.startsAt}
+              endsAt={featured.endsAt}
+              now={now}
+            />
           </div>
         </div>
       )}

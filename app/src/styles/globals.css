@@ -319,3 +319,27 @@ body.home-bg {
 }
 .petal[data-state="done"] { background: var(--marigold); }
 .petal[data-state="active"] { background: var(--sindoor); transform: rotate(45deg) scale(1.35); }
+
+/* ── Homepage Pujo countdown frame (PujoCountdown.tsx) ── */
+.pujo-countdown {
+  background:
+    radial-gradient(120% 90% at 50% 0%, var(--accent-soft) 0%, transparent 70%),
+    var(--card);
+  border-color: color-mix(in srgb, var(--marigold) 45%, transparent);
+}
+.pujo-countdown .pc-tab {
+  background: linear-gradient(90deg, var(--sindoor), var(--terracotta));
+  color: var(--cream);
+  box-shadow: 0 6px 16px -6px rgba(200, 16, 46, 0.55);
+}
+.pujo-countdown .pc-foot {
+  border-top: 1px dashed var(--line);
+  padding-top: 0.55rem;
+}
+.pc-stick-l { transform-origin: 10px 7px; animation: pc-tap-l 1.1s ease-in-out infinite; }
+.pc-stick-r { transform-origin: 20px 7px; animation: pc-tap-r 1.1s ease-in-out 0.55s infinite; }
+@keyframes pc-tap-l { 0%, 60%, 100% { transform: rotate(0); } 30% { transform: rotate(-22deg); } }
+@keyframes pc-tap-r { 0%, 60%, 100% { transform: rotate(0); } 30% { transform: rotate(22deg); } }
+@media (prefers-reduced-motion: reduce) {
+  .pc-stick-l, .pc-stick-r { animation: none; }
+}
