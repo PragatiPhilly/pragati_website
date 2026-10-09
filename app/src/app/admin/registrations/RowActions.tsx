@@ -73,6 +73,9 @@ export default function RowActions({
           >
             {pending ? "…" : "✉ Resend"}
           </button>
+          <a href={`/admin/registrations/${registrationId}/refund`} className="btn-secondary !py-1.5 !px-3 text-xs whitespace-nowrap">
+            ↩ Refund
+          </a>
         </>
       )}
       {(status === "pending_payment" || status === "pending_zelle_verification") && (

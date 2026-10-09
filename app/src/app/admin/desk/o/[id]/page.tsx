@@ -19,6 +19,7 @@ import HelpPanel from "../../HelpPanel";
 import OnlineSettlePanel from "./OnlineSettlePanel";
 import TicketChange from "./TicketChange";
 import { canChangeFood, dayOptions } from "@/lib/desk/changes";
+import { voidedTicketIds } from "@/lib/refunds";
 import { onlineBookingState } from "@/lib/desk/online";
 
 export const dynamic = "force-dynamic";
@@ -79,6 +80,7 @@ export default async function DeskOrderPage({ params }: { params: Promise<{ id: 
     .from(schema.ticketTypes)
     .where(eq(schema.ticketTypes.eventId, s.reg.eventId));
   const [eventRow] = await db.select().from(schema.events).where(eq(schema.events.id, s.reg.eventId));
+  const voidedTickets = await voidedTicketIds(); // passes cancelled after a refund
   // Ticket type names are written for the website and already carry the whole
   // story: "Adult · All 3 days · with food". Printing that AND the day AND the
   // meal gave lines like "Adult · All 3 days · with food · all days · non-veg".
@@ -357,8 +359,8 @@ export default async function DeskOrderPage({ params }: { params: Promise<{ id: 
                 firstName={t.attendeeFirstName}
                 lastName={t.attendeeLastName ?? ""}
                 food={t.foodPref}
-                canFood={!voided && !!tt && canChangeFood(tt, t)}
-                days={!voided && tt ? dayOptions(t, tt, ticketTypes, evDays).map((o) => ({ ticketTypeId: o.ticketTypeId, label: o.label })) : []}
+                canFood={!voided && !voidedTickets.has(t.id) && !!tt && canChangeFood(tt, t)}
+                days={!voided && !voidedTickets.has(t.id) && tt ? dayOptions(t, tt, ticketTypes, evDays).map((o) => ({ ticketTypeId: o.ticketTypeId, label: o.label })) : []}
                 locked={!!t.checkedInAt}
               >
                 <span className="grow">
@@ -384,6 +386,7 @@ export default async function DeskOrderPage({ params }: { params: Promise<{ id: 
                     </span>
                   )}
                 </span>
+                {voidedTickets.has(t.id) && <span className="desk-chip chip-stop">cancelled · refunded</span>}
                 {t.checkedInAt && <span className="desk-chip chip-ok">checked in</span>}
                 <span className="money">{money(t.priceCents)}</span>
                 <a className="text-xs underline underline-offset-4" href={`/t/${t.qrCode}`} target="_blank" rel="noreferrer">

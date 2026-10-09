@@ -12,6 +12,7 @@ import { ensureScanTables } from "@/lib/scans/ensure";
 import { getConfig } from "@/lib/system-config";
 import { dayLabel, fmtClock, foodLabel } from "@/lib/ticket-labels";
 import { dailyState, daysLabel, type EventDayLite } from "@/lib/checkin/daily";
+import { isTicketVoided } from "@/lib/refunds";
 import ScanCheckInButton from "./ScanCheckInButton";
 import ServeMealButtons from "./ServeMealButtons";
 
@@ -29,7 +30,9 @@ export default async function TicketPage({ params }: { params: Promise<{ code: s
 
   const session = await getSession();
   const isAdmin = session && ["admin", "super_admin", "volunteer"].includes(session.role);
-  const paid = reg.status === "paid";
+  // A pass cancelled after a refund behaves like an unpaid one: it never admits.
+  const cancelled = await isTicketVoided(ticket.id);
+  const paid = reg.status === "paid" && !cancelled;
   // Per day (lib/checkin/daily.ts): on an event day, "checked in" means
   // checked in TODAY, and a pass for another day says so.
   const evDays = (event?.days as EventDayLite[] | null) ?? [];
@@ -82,7 +85,9 @@ export default async function TicketPage({ params }: { params: Promise<{ code: s
     }
   }
 
-  const status = !paid
+  const status = cancelled
+    ? { label: "CANCELLED — this pass was refunded", bg: "rgba(200,16,46,0.12)", fg: "var(--sindoor)", icon: "⛔" }
+    : !paid
     ? { label: "NOT VALID — payment pending", bg: "rgba(200,16,46,0.12)", fg: "var(--sindoor)", icon: "⛔" }
     : wrongDay
       ? { label: `NOT FOR TODAY — valid ${daysLabel(day.covered, evDays)}`, bg: "rgba(200,16,46,0.12)", fg: "var(--sindoor)", icon: "📅" }

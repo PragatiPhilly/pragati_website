@@ -18,7 +18,7 @@ export type DaySummary = {
   generatedAt: string;
   attendance: { expected: number; inside: number };
   walkIns: { bookings: number; passes: number };
-  money: { rows: { label: string; onlineCents: number; deskCents: number }[]; totalCents: number };
+  money: { rows: { label: string; onlineCents: number; deskCents: number }[]; totalCents: number; refundedCents: number };
   custody: { label: string; amountCents: number }[];
   couponsGivenFamilies: number;
   plates: { today: DayReport | null; next: DayReport | null };
@@ -50,9 +50,11 @@ export async function buildDaySummary(event: { id: string; name: string; days: u
     .innerJoin(schema.ticketTypes, eq(schema.ticketTypes.id, schema.tickets.ticketTypeId))
     .where(eq(schema.ticketTypes.eventId, event.id));
 
-  // Attendance for the day
+  // Attendance for the day (passes cancelled after a refund don't count)
+  const { voidedTicketIds } = await import("@/lib/refunds");
+  const voided = await voidedTicketIds();
   const forDay = rows
-    .filter((x) => admittedIds.has(x.t.registrationId) && x.band !== "addon" && coveredDays(x.t.dayKey, x.dayKeys, days).includes(day.key))
+    .filter((x) => admittedIds.has(x.t.registrationId) && !voided.has(x.t.id) && x.band !== "addon" && coveredDays(x.t.dayKey, x.dayKeys, days).includes(day.key))
     .map((x) => x.t);
   const inMap = await inTodayMap(forDay, day);
 
@@ -68,6 +70,11 @@ export async function buildDaySummary(event: { id: string; name: string; days: u
         (p) => p.paidAt && nyYmd(p.paidAt) === day.date && !p.reversedAt
       )
     : [];
+  const refundedCents = regIds.length
+    ? (await db.select().from(schema.payments).where(and(inArray(schema.payments.entityId, regIds), eq(schema.payments.status, "refunded"))))
+        .filter((p) => p.source === "refund" && p.paidAt && nyYmd(p.paidAt) === day.date)
+        .reduce((n, p) => n + p.amountCents, 0)
+    : 0;
   const byMethod = new Map<string, { onlineCents: number; deskCents: number }>();
   for (const p of pays) {
     const k = METHOD_LABEL[p.method] ?? p.method;
@@ -116,7 +123,7 @@ export async function buildDaySummary(event: { id: string; name: string; days: u
     generatedAt: new Date().toISOString(),
     attendance: { expected: forDay.length, inside: forDay.filter((t) => inMap.has(t.id)).length },
     walkIns: { bookings: deskRegs.length, passes: deskPasses },
-    money: { rows: moneyRows, totalCents: pays.reduce((n, p) => n + p.amountCents, 0) },
+    money: { rows: moneyRows, totalCents: pays.reduce((n, p) => n + p.amountCents, 0), refundedCents },
     custody,
     couponsGivenFamilies,
     plates: { today: meals.find((m) => m.key === day.key) ?? null, next: idx >= 0 ? (meals[idx + 1] ?? null) : null },
@@ -146,6 +153,7 @@ export function summaryEmail(s: DaySummary): { subject: string; text: string; ht
     ...(s.money.rows.length
       ? s.money.rows.map((r) => `  ${r.label}: ${formatCents(r.onlineCents + r.deskCents)} (online ${formatCents(r.onlineCents)} · desk ${formatCents(r.deskCents)})`)
       : ["  none"]),
+    ...(s.money.refundedCents ? [`  Refunded this day: ${formatCents(s.money.refundedCents)}`] : []),
     ``,
     `Not yet in Pragati's account:`,
     ...(s.custody.length ? s.custody.map((c) => `  ${c.label}: ${formatCents(c.amountCents)}`) : ["  nothing outstanding"]),

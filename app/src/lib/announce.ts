@@ -24,9 +24,11 @@ export async function audienceFor(event: { id: string; days: unknown }, dayKey: 
     .from(schema.tickets)
     .innerJoin(schema.ticketTypes, eq(schema.ticketTypes.id, schema.tickets.ticketTypeId))
     .where(eq(schema.ticketTypes.eventId, event.id));
+  const { voidedTicketIds } = await import("@/lib/refunds");
+  const voided = await voidedTicketIds();
   const coming = new Set(
     rows
-      .filter((x) => x.band !== "addon" && (dayKey === "all" || coveredDays(x.t.dayKey, x.dayKeys, days).includes(dayKey)))
+      .filter((x) => x.band !== "addon" && !voided.has(x.t.id) && (dayKey === "all" || coveredDays(x.t.dayKey, x.dayKeys, days).includes(dayKey)))
       .map((x) => x.t.registrationId)
   );
   const seen = new Map<string, { email: string; name: string; conf: string }>();

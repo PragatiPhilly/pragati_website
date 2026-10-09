@@ -647,7 +647,10 @@ export async function sendTicketsEmail(registrationId: string, opts: { resend?: 
   const [reg] = await db.select().from(schema.registrations).where(eq(schema.registrations.id, registrationId));
   if (!reg || reg.status !== "paid") return false;
 
-  const tix = await db.select().from(schema.tickets).where(eq(schema.tickets.registrationId, registrationId));
+  // Passes cancelled after a refund (lib/refunds.ts) are left out of the email.
+  const { voidedTicketIds } = await import("@/lib/refunds");
+  const voided = await voidedTicketIds();
+  const tix = (await db.select().from(schema.tickets).where(eq(schema.tickets.registrationId, registrationId))).filter((t) => !voided.has(t.id));
   const types = await db.select().from(schema.ticketTypes);
   const typeName = (id: string) => types.find((t) => t.id === id)?.name ?? "Ticket";
   const [event] = await db.select().from(schema.events).where(eq(schema.events.id, reg.eventId));

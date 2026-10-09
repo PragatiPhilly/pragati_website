@@ -4,6 +4,7 @@ import { eq, ilike, inArray, or } from "drizzle-orm";
 import { getDb, schema } from "@/db/client";
 import { getSession } from "@/lib/auth/session";
 import { ensureExtraColumns } from "@/lib/schema-ensure";
+import { isTicketVoided, voidedTicketIds } from "@/lib/refunds";
 import {
   coveredDays,
   dailyState,
@@ -149,7 +150,9 @@ export async function lookupTicketsAction(rawQuery: string): Promise<CheckinTick
     return r.status === "paid" || (isDesk && !!r.admittedUnsettledAt);
   };
 
-  const shown = tickets.filter((t) => admits(regById.get(t.registrationId))).slice(0, 30);
+  // Passes cancelled after a refund (lib/refunds.ts) never show as valid.
+  const voided = await voidedTicketIds();
+  const shown = tickets.filter((t) => admits(regById.get(t.registrationId)) && !voided.has(t.id)).slice(0, 30);
   // Per-day view: on an event day, "in" means in TODAY, and a ticket for
   // another day says so (so "check in all" never burns tomorrow's pass).
   const types = new Map(
@@ -250,6 +253,9 @@ export async function entryScanAction(rawQuery: string): Promise<EntryScanResult
       kind: "invalid",
       reason: isDesk ? "NOT PAID — send them to the walk-in desk." : "NOT VALID — payment pending on this ticket.",
     };
+
+  if (await isTicketVoided(ticket.id))
+    return { kind: "invalid", reason: "CANCELLED — this pass was refunded. Send them to the walk-in desk." };
 
   const blocked = await checkInBlockedReason(db, ticket);
   if (blocked) return { kind: "invalid", reason: blocked };
@@ -376,7 +382,7 @@ export async function checkInTicketAction(ticketId: string) {
   const staff = await requireCheckinStaff();
   const db = getDb();
   const { ticket, today } = await todayForTicket(db, ticketId);
-  if (!ticket) return;
+  if (!ticket || (await isTicketVoided(ticketId))) return;
   await recordCheckin(ticketId, today, staff.userId);
   await db.insert(schema.auditLog).values({
     userId: staff.userId,
@@ -392,7 +398,7 @@ export async function checkInAllAction(ticketIds: string[]) {
   const db = getDb();
   for (const id of ticketIds) {
     const { ticket, today } = await todayForTicket(db, id);
-    if (!ticket) continue;
+    if (!ticket || (await isTicketVoided(id))) continue;
     await recordCheckin(id, today, staff.userId);
     await db.insert(schema.auditLog).values({ userId: staff.userId, action: "check_in", entityType: "tickets", entityId: id });
   }

@@ -83,6 +83,9 @@ export default async function AdminPaymentsPage({
     .filter((p) => p.status === "pending" || p.status === "pending_verification")
     .reduce((t, p) => t + p.amountCents, 0);
   const fees = all.filter((p) => p.status === "paid").reduce((t, p) => t + p.feeCents, 0);
+  // Refunds recorded on Registrations → Refund (lib/refunds.ts). Shown, not netted
+  // silently: "received" stays what came in; refunds are what went back.
+  const refunded = all.filter((p) => p.status === "refunded" && p.source === "refund").reduce((t, p) => t + p.amountCents, 0);
 
   const qs = (next: { status?: string; kind?: string }) => {
     const p = new URLSearchParams();
@@ -138,6 +141,7 @@ export default async function AdminPaymentsPage({
           <p className="text-xs" style={{ color: "var(--ink-soft)" }}>
             {formatCents(collected.registration)} tickets · {formatCents(collected.donation)} donations ·{" "}
             {formatCents(collected.membership)} dues
+            {refunded > 0 && ` · ${formatCents(refunded)} refunded (net ${formatCents(totalCollected - refunded)})`}
           </p>
         </div>
         <div className="festive-card p-4">

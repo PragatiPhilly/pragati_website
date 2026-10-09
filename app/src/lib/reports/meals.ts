@@ -41,6 +41,8 @@ export async function mealReport(eventId: string, days: Day[]): Promise<DayRepor
     .innerJoin(schema.ticketTypes, eq(schema.ticketTypes.id, schema.tickets.ticketTypeId))
     .where(eq(schema.ticketTypes.eventId, eventId));
   const dayKeys = days.map((d) => d.key);
+  const { voidedTicketIds } = await import("@/lib/refunds");
+  const voided = await voidedTicketIds();
 
   const out: DayReport[] = days.map((d) => ({
     key: d.key,
@@ -57,7 +59,7 @@ export async function mealReport(eventId: string, days: Day[]): Promise<DayRepor
   const byKey = new Map(out.map((d) => [d.key, d]));
 
   for (const { t, tt } of rows) {
-    if (tt.ageBand === "addon") continue;
+    if (tt.ageBand === "addon" || voided.has(t.id)) continue;
     const s = standing.get(t.registrationId);
     if (s === "skip" || s === undefined) continue;
     const ct: CouponTicket = {

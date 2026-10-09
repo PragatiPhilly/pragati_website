@@ -887,3 +887,17 @@ export const ticketDayCheckins = pgTable(
   },
   (t) => [primaryKey({ columns: [t.ticketId, t.dayKey] })]
 );
+
+// ── ticket_voids ───────────────────────────────────────────────
+// A pass that was cancelled after it was paid for (partial or full cancellation
+// with a refund — lib/refunds.ts). The ticket row itself is never changed or
+// deleted: a void row makes it stop working at the gate and drop out of every
+// count, while the history stays. Created lazily by lib/refunds.ts.
+export const ticketVoids = pgTable("ticket_voids", {
+  ticketId: text("ticket_id").primaryKey(),
+  registrationId: text("registration_id").notNull(),
+  voidedAt: timestamp("voided_at", { withTimezone: true }).notNull().defaultNow(),
+  voidedBy: text("voided_by"),
+  reason: text("reason"),
+  refundPaymentId: text("refund_payment_id"),
+});

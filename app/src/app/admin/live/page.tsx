@@ -86,7 +86,12 @@ export default async function LivePage({ searchParams }: { searchParams: Promise
       <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
         <Tile value={`${s.attendance.inside} / ${s.attendance.expected}`} label="checked in / with a pass" href="/admin/checkin" />
         <Tile value={s.walkIns.bookings} label={`walk-in bookings (${s.walkIns.passes} passes)`} href="/admin/desk" />
-        <Tile value={formatCents(s.money.totalCents)} label="money in this day" href="/admin/payments" tone="ok" />
+        <Tile
+          value={formatCents(s.money.totalCents)}
+          label={s.money.refundedCents ? `money in this day · ${formatCents(s.money.refundedCents)} refunded` : "money in this day"}
+          href="/admin/payments"
+          tone="ok"
+        />
         <Tile value={s.couponsGivenFamilies} label="families given coupons" href="/admin/coupons" />
       </div>
 

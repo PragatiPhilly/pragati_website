@@ -54,3 +54,14 @@ export async function changeTicketAction(
     return { message: `${summary}. Their pass QR stays the same — email the passes again if they want the updated copy.` };
   });
 }
+
+/** Turn one offline notebook entry into a real walk-in booking (safe to repeat). */
+export async function importOfflineEntryAction(
+  entry: import("@/lib/desk/offline").OfflineEntry
+): Promise<Result<{ conf: string; registrationId: string; notes: string[] }>> {
+  return run(async () => {
+    const actor = await requireDesk();
+    const { importOfflineEntry } = await import("@/lib/desk/offline");
+    return { data: await importOfflineEntry(entry, actor) };
+  });
+}

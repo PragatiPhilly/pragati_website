@@ -159,8 +159,10 @@ export async function todayCounts(eventId: string, days: EventDayLite[]): Promis
     .from(schema.tickets)
     .innerJoin(schema.ticketTypes, eq(schema.ticketTypes.id, schema.tickets.ticketTypeId))
     .where(eq(schema.ticketTypes.eventId, eventId));
+  const { voidedTicketIds } = await import("@/lib/refunds");
+  const voided = await voidedTicketIds();
   const todays = rows
-    .filter((x) => regIds.has(x.t.registrationId) && x.band !== "addon")
+    .filter((x) => regIds.has(x.t.registrationId) && x.band !== "addon" && !voided.has(x.t.id))
     .filter((x) => coveredDays(x.t.dayKey, x.dayKeys, days).includes(today.key))
     .map((x) => x.t);
   const inMap = await inTodayMap(todays, today);

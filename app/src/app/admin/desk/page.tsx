@@ -188,6 +188,8 @@ export default async function DeskHome() {
             <Link href="/admin/desk/shifts">Cash boxes</Link>
           </>
         )}
+        {" · "}
+        <Link href="/admin/desk/offline">📓 Offline notebook (if the Wi-Fi drops)</Link>
       </div>
     </div>
   );

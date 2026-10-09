@@ -64,6 +64,8 @@ export async function changeTicket(
   if (reg.deskState === "voided" || reg.status.startsWith("cancelled")) throw new DeskError("This booking was cancelled — it can't be changed.");
   const [type] = await db.select().from(schema.ticketTypes).where(eq(schema.ticketTypes.id, ticket.ticketTypeId));
   if (!type) throw new DeskError("That pass type no longer exists.");
+  const { isTicketVoided } = await import("@/lib/refunds");
+  if (await isTicketVoided(ticketId)) throw new DeskError("This pass was cancelled and refunded — it can't be changed.");
 
   const set: Partial<Ticket> = {};
   const said: string[] = [];

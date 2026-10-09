@@ -68,6 +68,8 @@ export async function loadCouponDesk(eventId: string, eventDays: string[], since
     .innerJoin(schema.ticketTypes, eq(schema.ticketTypes.id, schema.tickets.ticketTypeId))
     .where(inArray(schema.tickets.registrationId, ids));
   const handouts = await db.select().from(schema.couponHandouts).where(inArray(schema.couponHandouts.registrationId, ids));
+  const { voidedTicketIds } = await import("@/lib/refunds");
+  const voided = await voidedTicketIds(); // passes cancelled after a refund earn no coupons
   const givenBy = new Map(handouts.map((h) => [h.registrationId, h]));
 
   const famKey = (r: { id: string; buyerEmail: string }) => r.buyerEmail.trim().toLowerCase() || `reg:${r.id}`;
@@ -83,7 +85,7 @@ export async function loadCouponDesk(eventId: string, eventDays: string[], since
     const tally = emptyTally();
     const people: DeskPerson[] = [];
     for (const { t, tt } of rows.filter((x) => x.t.registrationId === r.id)) {
-      if (tt.ageBand === "addon") continue;
+      if (tt.ageBand === "addon" || voided.has(t.id)) continue;
       const ct = {
         ageBand: tt.ageBand,
         passWithFood: tt.withFood,

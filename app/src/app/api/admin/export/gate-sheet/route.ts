@@ -16,6 +16,7 @@ import { getSession } from "@/lib/auth/session";
 import { getActiveEvent } from "@/lib/queries/events";
 import { getConfig } from "@/lib/system-config";
 import { coveredDays, daysLabel, inTodayMap, regAdmits, todayOf, type EventDayLite } from "@/lib/checkin/daily";
+import { voidedTicketIds } from "@/lib/refunds";
 
 export const dynamic = "force-dynamic";
 
@@ -35,7 +36,8 @@ export async function GET() {
       : await db.select().from(schema.registrations).where(eq(schema.registrations.status, "paid"))
   ).filter(regAdmits);
   const regById = new Map(regs.map((r) => [r.id, r]));
-  const tickets = (await db.select().from(schema.tickets)).filter((t) => regById.has(t.registrationId));
+  const voided = await voidedTicketIds(); // passes cancelled after a refund
+  const tickets = (await db.select().from(schema.tickets)).filter((t) => regById.has(t.registrationId) && !voided.has(t.id));
   // Per day: which days each ticket admits on, and whether it was let in TODAY.
   const days = (event?.days as EventDayLite[] | null) ?? [];
   const today = todayOf(days);

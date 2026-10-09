@@ -14,6 +14,7 @@ import { getActiveEvent } from "@/lib/queries/events";
 import { coveredDays, inTodayMap, regAdmits, todayOf, type EventDayLite } from "@/lib/checkin/daily";
 import { whoIs } from "@/lib/coupons/rules";
 import PrintButton from "./PrintButton";
+import { voidedTicketIds } from "@/lib/refunds";
 
 export const dynamic = "force-dynamic";
 export const metadata = { title: "Door list" };
@@ -38,8 +39,13 @@ export default async function DoorListPage({ searchParams }: { searchParams: Pro
     .from(schema.tickets)
     .innerJoin(schema.ticketTypes, eq(schema.ticketTypes.id, schema.tickets.ticketTypeId))
     .where(eq(schema.ticketTypes.eventId, event.id));
+  const voided = await voidedTicketIds();
   const list = rows.filter(
-    (x) => regById.has(x.t.registrationId) && x.tt.ageBand !== "addon" && coveredDays(x.t.dayKey, x.tt.dayKeys, days).includes(day.key)
+    (x) =>
+      regById.has(x.t.registrationId) &&
+      !voided.has(x.t.id) &&
+      x.tt.ageBand !== "addon" &&
+      coveredDays(x.t.dayKey, x.tt.dayKeys, days).includes(day.key)
   );
   const inMap = today && today.key === day.key ? await inTodayMap(list.map((x) => x.t), day) : new Map<string, Date>();
 
