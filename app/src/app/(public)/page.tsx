@@ -140,7 +140,9 @@ export default async function HomePage() {
   const concertBuy = (dayKey: string) => {
     const pass = concertPasses.find(
       (c) =>
-        Array.isArray(c.dayKeys) && (c.dayKeys as string[]).includes(dayKey),
+        !c.onlineClosedAt &&
+        Array.isArray(c.dayKeys) &&
+        (c.dayKeys as string[]).includes(dayKey),
     );
     if (!pass || !active) return null;
     const price =
@@ -431,6 +433,18 @@ export default async function HomePage() {
                     c.priceNonmemberCents >= 0
                       ? c.priceNonmemberCents
                       : c.priceMemberCents;
+                  // Closed for online sale (Admin → Events): no buy link,
+                  // but say plainly that tickets are still sold at the door.
+                  if (c.onlineClosedAt)
+                    return (
+                      <span
+                        key={c.id}
+                        className="btn-secondary !py-2.5 !px-6 text-sm cursor-default"
+                        aria-disabled="true"
+                      >
+                        🎟 {c.name} · tickets at the venue
+                      </span>
+                    );
                   return (
                     <Link
                       key={c.id}

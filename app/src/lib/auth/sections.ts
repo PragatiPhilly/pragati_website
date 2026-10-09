@@ -12,7 +12,7 @@
  */
 export type SectionKey =
   | "dashboard" | "payments" | "reconciliation" | "zelle" | "registrations" | "donations" | "members" | "events"
-  | "checkin" | "scans" | "kitchen" | "desk" | "desk_money" | "media" | "magazines" | "messages" | "emails"
+  | "checkin" | "scans" | "kitchen" | "coupons" | "desk" | "desk_money" | "media" | "magazines" | "messages" | "emails"
   | "email_preview" | "roles" | "audit" | "settings" | "projections" | "pujo_schedule";
 
 /**
@@ -67,6 +67,8 @@ export const SECTIONS: Section[] = [
   { key: "desk", label: "Walk-in desk", href: "/admin/desk", icon: "🧾", group: "eventday" },
   { key: "scans", label: "Scan setup", href: "/admin/scans", icon: "📲", group: "eventday" },
   { key: "kitchen", label: "Kitchen", href: "/admin/kitchen", icon: "🍛", group: "eventday" },
+  // Which food coupons each family is owed, and who has already collected them.
+  { key: "coupons", label: "Coupon desk", href: "/admin/coupons", icon: "🎫", group: "eventday" },
 
   { key: "messages", label: "Messages", href: "/admin/messages", icon: "✉", group: "comms" },
   { key: "emails", label: "Email log", href: "/admin/emails", icon: "📧", group: "comms" },

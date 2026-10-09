@@ -1,18 +1,25 @@
 import Link from "next/link";
-import { desc, isNull } from "drizzle-orm";
+import { asc, desc, isNull } from "drizzle-orm";
 import { getDb, schema } from "@/db/client";
 import { formatCents } from "@/lib/pricing";
 import { getConfig } from "@/lib/system-config";
 import SetActiveButton from "./SetActiveButton";
+import { EventOnlineShortcuts, PassOnlineSwitch } from "./OnlineSwitch";
+import { ensureExtraColumns } from "@/lib/schema-ensure";
 import { requireSectionAccess } from "@/lib/auth/access";
 
 export const dynamic = "force-dynamic";
 
 export default async function AdminEventsPage() {
   await requireSectionAccess("events");
+  await ensureExtraColumns(); // ticket_types.online_closed_at
   const db = getDb();
   const events = await db.select().from(schema.events).orderBy(desc(schema.events.startsAt));
-  const allTypes = await db.select().from(schema.ticketTypes).where(isNull(schema.ticketTypes.archivedAt));
+  const allTypes = await db
+    .select()
+    .from(schema.ticketTypes)
+    .where(isNull(schema.ticketTypes.archivedAt))
+    .orderBy(asc(schema.ticketTypes.displayOrder));
   const activeSlug = await getConfig<string>("active_event_slug");
 
   return (
@@ -56,14 +63,22 @@ export default async function AdminEventsPage() {
                   {activeSlug !== e.slug && <SetActiveButton slug={e.slug} />}
                 </div>
               </div>
+              {types.length > 0 && (
+                <EventOnlineShortcuts eventId={e.id} openCount={types.filter((t) => !t.onlineClosedAt).length} total={types.length} />
+              )}
               <div className="mt-4 grid sm:grid-cols-2 lg:grid-cols-3 gap-2">
                 {types.map((t) => (
-                  <div key={t.id} className="hairline rounded-xl px-3.5 py-2.5 text-sm">
+                  <div
+                    key={t.id}
+                    className="hairline rounded-xl px-3.5 py-2.5 text-sm"
+                    style={t.onlineClosedAt ? { background: "rgba(200,16,46,0.04)" } : undefined}
+                  >
                     <p className="font-medium leading-tight">{t.name}</p>
                     <p className="text-xs mt-1" style={{ color: "var(--ink-soft)" }}>
                       {t.priceNonmemberCents < 0 ? "members only" : formatCents(t.priceNonmemberCents)} / member {formatCents(t.priceMemberCents)} · sold {t.soldCount}
                       {t.capacity !== null && ` / ${t.capacity}`}
                     </p>
+                    <PassOnlineSwitch id={t.id} name={t.name} open={!t.onlineClosedAt} />
                   </div>
                 ))}
               </div>

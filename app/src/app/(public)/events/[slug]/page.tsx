@@ -123,6 +123,18 @@ function SoldOutTag() {
   );
 }
 
+/** Admin closed this pass for online sale — still sold at the walk-in desk. */
+function ClosedOnlineTag() {
+  return (
+    <span
+      className="ml-1.5 text-[10px] font-bold uppercase"
+      style={{ color: 'var(--sindoor)' }}
+    >
+      closed online
+    </span>
+  );
+}
+
 function TicketGroup({
   title,
   sub,
@@ -178,6 +190,7 @@ function CoverageCard({ label, passes }: { label: string; passes: Ticket[] }) {
           <span key={`${t.id}-l`} style={{ color: 'var(--ink-soft)' }}>
             {t.withFood ? '🍛 With food' : 'No food'}
             {soldOut(t) && <SoldOutTag />}
+            {t.onlineClosedAt && <ClosedOnlineTag />}
           </span>,
           <span
             key={`${t.id}-g`}
@@ -214,6 +227,7 @@ function SimpleRows({ passes }: { passes: Ticket[] }) {
           <span className="font-medium text-sm">
             {t.name}
             {soldOut(t) && <SoldOutTag />}
+            {t.onlineClosedAt && <ClosedOnlineTag />}
           </span>
           <PriceCell t={t} />
         </div>
@@ -234,6 +248,7 @@ function ConcertCard({ t, days }: { t: Ticket; days: EventDay[] }) {
         {coverageLabel(t.dayKeys, days)}
         {time ? ` · No admission before ${time}` : ''} · no meal
         {soldOut(t) && <SoldOutTag />}
+            {t.onlineClosedAt && <ClosedOnlineTag />}
       </p>
       <div className="mt-2">
         <PriceCell t={t} />
@@ -258,6 +273,7 @@ function AddonCard({ t, days }: { t: Ticket; days: EventDay[] }) {
         {time ? `${time} · ` : ''}
         {t.withFood ? 'includes food' : 'no meal'}
         {soldOut(t) && <SoldOutTag />}
+            {t.onlineClosedAt && <ClosedOnlineTag />}
       </p>
       <div className="mt-2">
         <PriceCell t={t} />

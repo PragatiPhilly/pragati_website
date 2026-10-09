@@ -102,6 +102,7 @@ export default async function RegisterPage({
       checkInStart: t.checkInStart ?? null,
       priceMemberCents: t.priceMemberCents,
       priceNonmemberCents: t.priceNonmemberCents,
+      onlineClosed: !!t.onlineClosedAt,
     })),
   };
 

@@ -20,6 +20,7 @@ export function ensureExtraColumns(): Promise<void> {
       sql`ALTER TABLE registrations ADD COLUMN IF NOT EXISTS membership_signup boolean NOT NULL DEFAULT false;`,
       sql`ALTER TABLE ticket_types ADD COLUMN IF NOT EXISTS check_in_start text;`,
       sql`ALTER TABLE ticket_types ADD COLUMN IF NOT EXISTS archived_at timestamptz;`,
+      sql`ALTER TABLE ticket_types ADD COLUMN IF NOT EXISTS online_closed_at timestamptz;`,
       sql`ALTER TABLE promo_codes ADD COLUMN IF NOT EXISTS archived_at timestamptz;`,
       sql`ALTER TABLE registrations ADD COLUMN IF NOT EXISTS donation_cents integer NOT NULL DEFAULT 0;`,
       sql`ALTER TABLE tickets ADD COLUMN IF NOT EXISTS student_info jsonb;`,

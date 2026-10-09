@@ -15,7 +15,7 @@ import { AnimatePresence, motion } from "framer-motion";
 import { useRouter } from "next/navigation";
 import { submitRegistration, validatePromoAction } from "./actions";
 import { formatCents, cardProcessingFeeCents } from "@/lib/pricing";
-import { matchConcertSelection, sameDaySet } from "@/lib/event-days";
+import { matchConcertSelection, onlineClosedMessage, sameDaySet } from "@/lib/event-days";
 import { fmtClock } from "@/lib/ticket-labels";
 import { isEmail, buyerStepError } from "@/lib/validation";
 import JourneyScene from "@/components/register/JourneyScene";
@@ -37,6 +37,8 @@ export type FlowEvent = {
     checkInStart: string | null;
     priceMemberCents: number;
     priceNonmemberCents: number;
+    /** Closed for online sale by an admin (Admin → Events). The desk still sells it. */
+    onlineClosed?: boolean;
   }[];
 };
 
@@ -451,6 +453,39 @@ function defaultSelection(passes: FlowTT[], eventDayKeys: string[]): { days: str
   return { days, withFood: passes.some((t) => Array.isArray(t.dayKeys) && sameDaySet(t.dayKeys as string[], days) && t.withFood) };
 }
 
+/** A person's pick resolves to a pass that is closed for online sale. */
+function ClosedNotice({
+  reason,
+  combos,
+  onPick,
+}: {
+  reason: string;
+  combos: { key: string; days: string[]; label: string }[];
+  onPick?: (days: string[]) => void;
+}) {
+  return (
+    <div className="mt-3 rounded-xl px-3.5 py-3 text-sm" role="alert" style={{ background: "rgba(200,16,46,0.07)", border: "1px solid rgba(200,16,46,0.25)" }}>
+      <p className="font-semibold" style={{ color: "var(--sindoor)" }}>
+        🚪 {reason}
+      </p>
+      {onPick && combos.length > 0 && (
+        <>
+          <p className="text-xs mt-1.5 mb-2" style={{ color: "var(--ink-soft)" }}>
+            Still open online — tap one to switch:
+          </p>
+          <div className="flex flex-wrap gap-2">
+            {combos.map((c) => (
+              <button key={c.key} className="choice-chip !py-2 !px-3.5 text-xs" onClick={() => onPick(c.days)}>
+                {c.label}
+              </button>
+            ))}
+          </div>
+        </>
+      )}
+    </div>
+  );
+}
+
 export default function RegisterFlow({
   event,
   member,
@@ -485,17 +520,25 @@ export default function RegisterFlow({
   const router = useRouter();
   const dayCount = Math.max(event.days.length, 1);
 
+  // Passes an admin has closed for ONLINE sale (Admin → Events). Matching and
+  // pricing still run over EVERY pass, exactly like the server, so a pick that
+  // lands on a closed pass is named and explained — never silently swapped for
+  // a different (differently priced) pass. Defaults, quick-fix suggestions,
+  // concert chips, extras and the price list only offer the open ones.
+  const openTypes = useMemo(() => event.ticketTypes.filter((t) => !t.onlineClosed), [event.ticketTypes]);
+
   // ── concert passes (ageBand "concert"): sold via their own opt-in, food-free ──
   const concertPasses = useMemo(() => event.ticketTypes.filter((t) => t.ageBand === "concert"), [event.ticketTypes]);
+  const openConcertPasses = useMemo(() => openTypes.filter((t) => t.ageBand === "concert"), [openTypes]);
   const concertDays = useMemo(
     () =>
       event.days
         .map((d) => {
-          const pass = concertPasses.find((t) => t.dayKeys == null || (t.dayKeys ?? []).includes(d.key));
+          const pass = openConcertPasses.find((t) => t.dayKeys == null || (t.dayKeys ?? []).includes(d.key));
           return pass ? { key: d.key, label: d.label, passName: pass.name, time: pass.checkInStart ?? null } : null;
         })
         .filter((x): x is { key: string; label: string; passName: string; time: string | null } => x !== null),
-    [event.days, concertPasses]
+    [event.days, openConcertPasses]
   );
   const concertDayKeys = useMemo(() => concertDays.map((d) => d.key), [concertDays]);
   /** Entry time for one night on its own (that night's single pass first). Display only. */
@@ -532,11 +575,11 @@ export default function RegisterFlow({
   const initialConcertDay = concertDay && concertDayKeys.includes(concertDay) ? concertDay : null;
 
   // ── add-on / extra passes (ageBand "addon"): lunch, dinner, parking… ──
-  const addonPasses = useMemo(() => event.ticketTypes.filter((t) => t.ageBand === "addon"), [event.ticketTypes]);
+  const addonPasses = useMemo(() => openTypes.filter((t) => t.ageBand === "addon"), [openTypes]);
   const hasAddons = addonPasses.length > 0;
 
   // ── student passes (ageBand "student"): edu ID required, own price ──
-  const hasStudent = useMemo(() => event.ticketTypes.some((t) => t.ageBand === "student"), [event.ticketTypes]);
+  const hasStudent = useMemo(() => openTypes.some((t) => t.ageBand === "student"), [openTypes]);
   const todayKey = useMemo(() => {
     const today = new Date().toISOString().slice(0, 10);
     return event.days.find((d) => d.date === today)?.key ?? event.days[0]?.key ?? "all";
@@ -642,7 +685,7 @@ export default function RegisterFlow({
     // Joining now OR claiming existing membership → whole-household member pricing.
     const householdMemberPricing = wantsMembership || selfDeclaredMember;
     const lines: QuoteLine[] = [];
-    const issues: { person: Person; band: string; reason: string; combos: { key: string; days: string[]; label: string }[]; food: { withFood: boolean; noFood: boolean } }[] = [];
+    const issues: { person: Person; band: string; reason: string; combos: { key: string; days: string[]; label: string }[]; food: { withFood: boolean; noFood: boolean }; closed?: boolean }[] = [];
     for (const p of people) {
       // Concert-only person. A combined pass matching the chosen nights exactly
       // (e.g. "Sat & Sun") is ONE line at the combo price — mirrors the server,
@@ -650,6 +693,11 @@ export default function RegisterFlow({
       if (p.concertOnly) {
         const memberPricing = householdMemberPricing || (isMemberPurchase && (p.isMemberFlagged || discountMode === "whole_family"));
         const sel = matchConcertSelection(concertPasses, p.days);
+        const closedConcert = (sel.mode === "combo" ? [sel.pass] : sel.items.map((x) => x.pass)).find((t) => t.onlineClosed);
+        if (closedConcert) {
+          issues.push({ person: p, band: "concert", reason: onlineClosedMessage(closedConcert.name), combos: [], food: { withFood: false, noFood: true }, closed: true });
+          continue;
+        }
         if (sel.mode === "combo") {
           const unit = memberPricing ? sel.pass.priceMemberCents : sel.pass.priceNonmemberCents;
           lines.push({
@@ -698,6 +746,19 @@ export default function RegisterFlow({
         continue;
       }
       const { type, exact } = m;
+      if (type.onlineClosed) {
+        // Offer only combos that are open for THIS person's food choice.
+        const stillOpen = bandDayPasses(openTypes, band).filter((t) => !picksFood(band) || t.withFood === p.withFood);
+        issues.push({
+          person: p,
+          band,
+          reason: onlineClosedMessage(type.name),
+          combos: availableCombos(stillOpen, event.days, dayCount),
+          food: foodAvail(passes, p.days),
+          closed: true,
+        });
+        continue;
+      }
       const memberPricing = householdMemberPricing || (isMemberPurchase && (p.isKid || discountMode === "whole_family" || p.isMemberFlagged));
       const unit = memberPricing ? type.priceMemberCents : type.priceNonmemberCents;
       const units = exact ? 1 : p.days.length;
@@ -713,7 +774,7 @@ export default function RegisterFlow({
     }
     const subtotal = lines.reduce((s, l) => s + l.price, 0);
     return { lines, subtotal, issues };
-  }, [people, event.ticketTypes, event.days, concertPasses, addonPasses, addonQty, dayCount, isMemberPurchase, discountMode, wantsMembership, selfDeclaredMember]);
+  }, [people, event.ticketTypes, openTypes, event.days, concertPasses, addonPasses, addonQty, dayCount, isMemberPurchase, discountMode, wantsMembership, selfDeclaredMember]);
 
   const firstName = buyerName.trim().split(" ")[0] || "friend";
   const membershipCents = wantsMembership ? membershipPriceCents : 0;
@@ -723,7 +784,7 @@ export default function RegisterFlow({
 
   // Availability guards — a selection must resolve to a real, created pass.
   const eventDayKeys = event.days.map((d) => d.key);
-  const defaultsFor = (band: string) => defaultSelection(bandDayPasses(event.ticketTypes, band), eventDayKeys);
+  const defaultsFor = (band: string) => defaultSelection(bandDayPasses(openTypes, band), eventDayKeys);
   const hasIssues = quote.issues.length > 0;
   const issueByPerson = new Map(quote.issues.map((i) => [i.person.id, i]));
   // Day-combo validity (food-agnostic) — drives the days-step warnings/blocking.
@@ -733,7 +794,7 @@ export default function RegisterFlow({
     const bp = bandDayPasses(event.ticketTypes, personBand(p));
     return bp.some((t) => (Array.isArray(t.dayKeys) && sameDaySet(t.dayKeys as string[], p.days)) || t.dayKeys == null);
   };
-  const combosFor = (p: Person) => availableCombos(bandDayPasses(event.ticketTypes, personBand(p)), event.days, dayCount);
+  const combosFor = (p: Person) => availableCombos(bandDayPasses(openTypes, personBand(p)), event.days, dayCount);
   const daysStepBlocked = people.some((p) => p.days.length === 0 || !bandDayOk(p));
   // Food availability for a person given their current days.
   const foodFor = (p: Person) => foodAvail(bandDayPasses(event.ticketTypes, personBand(p)), p.days);
@@ -751,7 +812,7 @@ export default function RegisterFlow({
     donationLabel: donateLineLabel,
     total,
     cardFee,
-    passes: event.ticketTypes,
+    passes: openTypes,
   };
 
   // Add or refresh "self" (the buyer) — respects the "I'm a student" choice and
@@ -805,6 +866,11 @@ export default function RegisterFlow({
   const togglePersonConcert = (id: string, on: boolean) =>
     setPeople((prev) => prev.map((p) => (p.id === id ? applyConcert(p, on) : p)));
   const setAllConcert = (on: boolean) => setPeople((prev) => prev.map((p) => applyConcert(p, on)));
+  // "Everyone, all N days" means exactly that. The per-band default can land on
+  // a shorter combo (e.g. when the all-days pass is closed online), so force
+  // every day; if that pass is closed, the person sees why instead of being
+  // quietly moved to different days.
+  const setAllDays = () => setPeople((prev) => prev.map((p) => ({ ...applyConcert(p, false), days: event.days.map((d) => d.key) })));
 
   const addDraft = () => {
     if (!draftName.trim() || !draftKind) return;
@@ -894,7 +960,12 @@ export default function RegisterFlow({
 
   const submit = async (paymentMethod: "square" | "zelle" | "offline") => {
     if (hasIssues) {
-      setError("Some passes don't match what's offered for this event — please fix the highlighted people before paying.");
+      const closed = quote.issues.find((i) => i.closed);
+      setError(
+        closed
+          ? `${closed.person.firstName}: ${closed.reason}`
+          : "Some passes don't match what's offered for this event — please fix the highlighted people before paying."
+      );
       go("days", -1);
       return;
     }
@@ -1249,7 +1320,7 @@ export default function RegisterFlow({
                 <button
                   className="choice-chip w-full justify-center !py-4 text-lg"
                   data-selected={people.length > 0 && people.every((p) => !p.concertOnly && p.days.length === dayCount)}
-                  onClick={() => setAllConcert(false)}
+                  onClick={setAllDays}
                 >
                   🎉 Everyone, all {dayCount} days
                 </button>
@@ -1331,6 +1402,13 @@ export default function RegisterFlow({
                           )}
                         </div>
                       )}
+                      {issueByPerson.get(p.id)?.closed && (
+                        <ClosedNotice
+                          reason={issueByPerson.get(p.id)!.reason}
+                          combos={issueByPerson.get(p.id)!.combos}
+                          onPick={(days) => updatePerson(p.id, { days })}
+                        />
+                      )}
                     </PersonRow>
                   );
                 })}
@@ -1389,6 +1467,7 @@ export default function RegisterFlow({
                           )}
                         </div>
                       )}
+                      {issueByPerson.get(p.id)?.closed && <ClosedNotice reason={issueByPerson.get(p.id)!.reason} combos={[]} />}
                     </PersonRow>
                   );
                 })}
@@ -1615,6 +1694,11 @@ export default function RegisterFlow({
                   {promo.note}
                 </p>
               )}
+              {quote.issues
+                .filter((i) => i.closed)
+                .map((i) => (
+                  <ClosedNotice key={i.person.id} reason={`${i.person.firstName}: ${i.reason}`} combos={[]} />
+                ))}
               {hasIssues && (
                 <p className="mt-4 text-sm font-medium" style={{ color: "var(--sindoor)" }}>
                   Some passes don&apos;t match what&apos;s offered — go back and fix the highlighted people first.

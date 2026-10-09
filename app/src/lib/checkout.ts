@@ -7,7 +7,7 @@ import { and, eq, isNull, sql } from "drizzle-orm";
 import { getDb, schema } from "@/db/client";
 import { nextConfirmationNumber, makeQrCode } from "@/lib/confirmation";
 import { priceQuote, attendeeGetsMemberPricing, cardProcessingFeeCents, type AttendeeInput, type TicketTypeInfo, formatCents } from "@/lib/pricing";
-import { matchConcertSelection, sameDaySet, splitEven } from "@/lib/event-days";
+import { matchConcertSelection, onlineClosedMessage, sameDaySet, splitEven } from "@/lib/event-days";
 import { ensureExtraColumns } from "@/lib/schema-ensure";
 import { siteUrl } from "@/lib/site-url";
 import { getConfig } from "@/lib/system-config";
@@ -108,6 +108,7 @@ export function resolveTicketType(
 
 export async function createCheckout(input: CheckoutInput): Promise<CheckoutResult> {
   const db = getDb();
+  await ensureExtraColumns(); // ticket_types.online_closed_at is read below
   const [event] = await db.select().from(schema.events).where(eq(schema.events.id, input.eventId));
   if (!event) throw new Error("Event not found");
   const types = await db
@@ -240,6 +241,17 @@ export async function createCheckout(input: CheckoutInput): Promise<CheckoutResu
         },
         day,
       });
+    }
+  }
+
+  // Closed-online guard. An admin can shut a pass for online sale (Admin →
+  // Events) while the walk-in desk keeps selling it — the desk never comes
+  // through here. Checked on the pass each person actually resolved to, so a
+  // stale browser tab cannot slip a closed pass through.
+  if (input.source !== "admin") {
+    for (const ttId of new Set(expanded.map((e) => e.attendee.ticketTypeId))) {
+      const t = types.find((x) => x.id === ttId);
+      if (t?.onlineClosedAt) throw new Error(onlineClosedMessage(t.name));
     }
   }
 

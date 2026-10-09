@@ -153,6 +153,9 @@ export const ticketTypes = pgTable(
     saleEndsAt: timestamp("sale_ends_at", { withTimezone: true }),
     displayOrder: integer("display_order").notNull().default(0),
     archivedAt: timestamp("archived_at", { withTimezone: true }), // removed-but-sold: hidden everywhere, kept for records
+    // Set = this pass can no longer be bought ONLINE (admin flipped it in Events).
+    // The walk-in desk ignores it on purpose — staff can still sell it at the door.
+    onlineClosedAt: timestamp("online_closed_at", { withTimezone: true }),
     createdAt: createdAt(),
     updatedAt: updatedAt(),
   },
@@ -856,3 +859,14 @@ export const projectionSnapshots = pgTable(
   },
   (t) => [index("projection_snapshots_scenario_idx").on(t.scenarioId, t.takenAt)]
 );
+
+// ── coupon_handouts ────────────────────────────────────────────
+// One row per registration whose food coupons were handed over at the Coupon
+// desk (Admin → Coupon desk). Created lazily by lib/coupons/store.ts. Deleting
+// the row is the "undo".
+export const couponHandouts = pgTable("coupon_handouts", {
+  registrationId: text("registration_id").primaryKey(),
+  givenAt: timestamp("given_at", { withTimezone: true }).notNull().defaultNow(),
+  givenBy: text("given_by"),
+  givenByName: text("given_by_name"),
+});

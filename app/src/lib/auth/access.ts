@@ -34,7 +34,7 @@ export const DEFAULT_ROLE_ACCESS: RoleAccess = {
   // Volunteers run the door: they scan, and they take walk-ins. Every money
   // action inside the desk carries its own role check on top (comps, voids and
   // custody clearing are not theirs) — see lib/desk/guards.ts.
-  volunteer: ["checkin", "desk"],
+  volunteer: ["checkin", "desk", "coupons"],
 };
 
 /** Current matrix (config merged over defaults, locked sections stripped). */

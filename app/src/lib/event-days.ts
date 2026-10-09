@@ -83,3 +83,12 @@ export function matchConcertSelection<T extends DayKeyedPass>(
   }
   return { mode: "perday", items };
 }
+
+/**
+ * What a buyer sees when a pass has been closed for online sale (Admin →
+ * Events). Shared by the server guard in createCheckout and the registration
+ * page, so both say the same thing. Pure — safe in client components.
+ */
+export function onlineClosedMessage(passName: string): string {
+  return `Online registration is closed for "${passName}". You can still register at the walk-in desk at the venue.`;
+}
