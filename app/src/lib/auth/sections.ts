@@ -12,7 +12,7 @@
  */
 export type SectionKey =
   | "dashboard" | "payments" | "reconciliation" | "zelle" | "registrations" | "donations" | "members" | "events"
-  | "checkin" | "scans" | "kitchen" | "coupons" | "desk" | "desk_money" | "media" | "magazines" | "messages" | "emails"
+  | "checkin" | "scans" | "kitchen" | "coupons" | "live" | "announce" | "desk" | "desk_money" | "media" | "magazines" | "messages" | "emails"
   | "email_preview" | "roles" | "audit" | "settings" | "projections" | "pujo_schedule";
 
 /**
@@ -62,6 +62,8 @@ export const SECTIONS: Section[] = [
   { key: "registrations", label: "Registrations", href: "/admin/registrations", icon: "🎟", group: "people" },
   { key: "members", label: "Members", href: "/admin/members", icon: "👪", group: "people" },
 
+  // Pujo days at a glance: who's in, walk-ins, money, coupons, plates.
+  { key: "live", label: "Right now", href: "/admin/live", icon: "📊", group: "eventday" },
   { key: "events", label: "Events", href: "/admin/events", icon: "📅", group: "eventday" },
   { key: "checkin", label: "Scan desk", href: "/admin/checkin", icon: "✅", group: "eventday" },
   { key: "desk", label: "Walk-in desk", href: "/admin/desk", icon: "🧾", group: "eventday" },
@@ -71,6 +73,8 @@ export const SECTIONS: Section[] = [
   { key: "coupons", label: "Coupon desk", href: "/admin/coupons", icon: "🎫", group: "eventday" },
 
   { key: "messages", label: "Messages", href: "/admin/messages", icon: "✉", group: "comms" },
+  // Email everyone coming on a day (parking, timings, changes). Admins only by default.
+  { key: "announce", label: "Email attendees", href: "/admin/announce", icon: "📣", group: "comms" },
   { key: "emails", label: "Email log", href: "/admin/emails", icon: "📧", group: "comms" },
   { key: "email_preview", label: "Email previews", href: "/admin/emails/preview", icon: "🔍", group: "comms" },
 

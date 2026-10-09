@@ -111,6 +111,15 @@ async function enqueue(mail: Mail, reason?: string) {
 }
 
 // Replies go to a real inbox (Admin → Settings), since From is a no-reply@ domain address.
+/**
+ * Put a mail straight into the outbox without sending it now. For bulk mail
+ * (Admin → Email attendees): the 15-minute drain sends it in batches within the
+ * daily budget, so a blast can never starve tickets / receipts.
+ */
+export async function queueMail(mail: Mail): Promise<void> {
+  await enqueue({ ...mail, priority: mail.priority === 1 ? 2 : (mail.priority ?? 2) });
+}
+
 async function replyToAddress(): Promise<string | undefined> {
   const { getConfig } = await import("@/lib/system-config");
   const v = await getConfig<string | undefined>("system_email_reply_to");

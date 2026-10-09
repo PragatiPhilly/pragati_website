@@ -28,11 +28,14 @@ export async function GET(req: Request) {
   // drain the email outbox: send queued/deferred mail, combine alert digests
   const { drainOutbox } = await import("@/lib/email");
   const outbox = await drainOutbox();
+  // Event nights only: the day's summary to the EC, once, after 11 PM New York.
+  const { maybeSendNightlySummary } = await import("@/lib/reports/day-summary");
+  const nightly = await maybeSendNightlySummary();
   // prune old logs ~hourly to keep the free-tier database lean (cheap no-op otherwise)
   let pruned: Record<string, number> | undefined;
   if (new Date().getUTCMinutes() < 5) {
     const { pruneOldLogs } = await import("@/lib/log-retention");
     pruned = await pruneOldLogs();
   }
-  return NextResponse.json({ ok: true, migrations, membershipsLapsed, outbox, pruned });
+  return NextResponse.json({ ok: true, migrations, membershipsLapsed, outbox, nightly, pruned });
 }

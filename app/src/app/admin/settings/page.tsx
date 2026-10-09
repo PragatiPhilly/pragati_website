@@ -72,6 +72,8 @@ const GROUPS: { title: string; note?: string; keys: { key: string; label: string
       { key: "zelle_alert_minutes", label: "Zelle alert frequency (minutes between alert emails; several claims batch into one digest)", type: "number" },
       { key: "email_daily_budget", label: "Daily email budget (protects the free-tier limit; tickets always send)", type: "number" },
       { key: "backup_email", label: "Nightly backup CSVs go to" },
+      { key: "ec_summary_emails", label: "Nightly Pujo-day summary goes to (comma-separated; blank = backup address)" },
+      { key: "ec_summary_enabled", label: "Send the nightly Pujo-day summary", type: "toggle" },
     ],
   },
   {

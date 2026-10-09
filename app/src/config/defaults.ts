@@ -62,6 +62,10 @@ export const systemConfigDefaults: Record<string, unknown> = {
 
   // ── daily registration backup (CSV email — see src/lib/backup.ts)
   backup_email: "pragati.management@gmail.com",
+  // ── nightly Pujo-day summary to the EC (lib/reports/day-summary.ts):
+  //    comma-separated; blank = the backup address above. "no" turns it off.
+  ec_summary_emails: "",
+  ec_summary_enabled: "yes",
   backup_enabled: "yes", // yes | no
 
 
