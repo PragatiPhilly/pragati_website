@@ -41,6 +41,7 @@ export default function OrderControls({
   buyerName,
   isAdmin,
   hasEmail,
+  online = false,
 }: {
   registrationId: string;
   balanceCents: number;
@@ -52,6 +53,9 @@ export default function OrderControls({
   buyerName: string;
   isAdmin: boolean;
   hasEmail: boolean;
+  /** A booking made on the website: none of the walk-in money / finish / comp /
+   *  cancel controls apply (its payment is the web checkout). */
+  online?: boolean;
 }) {
   const router = useRouter();
   const [busy, start] = useTransition();
@@ -91,7 +95,7 @@ export default function OrderControls({
   return (
     <div className="flex flex-col gap-3">
       <div className="flex flex-wrap gap-2">
-        {!voided && !closed && balanceCents > 0 && (
+        {!online && !voided && !closed && balanceCents > 0 && (
           <button
             className="btn-secondary"
             disabled={busy}
@@ -105,7 +109,7 @@ export default function OrderControls({
             booking can still be finished — the card follow-up and the nightly
             reconciliation both stay on it — but the button has to say what it
             is doing. */}
-        {!voided && !closed && balanceCents <= 0 && (
+        {!online && !voided && !closed && balanceCents <= 0 && (
           <button
             className={pendingCents > 0 ? "btn-secondary" : "btn-primary"}
             disabled={busy}
@@ -135,7 +139,7 @@ export default function OrderControls({
       {/* Everything that is rarely right, and never urgent, lives behind one
           click — so the six things a volunteer might do never sit at the same
           weight as the one thing they came here for. */}
-      {!voided && (
+      {!online && !voided && (
         <details className="more-actions">
           <summary>Something unusual? Free passes, corrections, cancelling…</summary>
           <div className="action-row">

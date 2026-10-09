@@ -11,6 +11,7 @@ import { getSession } from "@/lib/auth/session";
 import { ensureScanTables } from "@/lib/scans/ensure";
 import { getConfig } from "@/lib/system-config";
 import { dayLabel, fmtClock, foodLabel } from "@/lib/ticket-labels";
+import { dailyState, daysLabel, type EventDayLite } from "@/lib/checkin/daily";
 import ScanCheckInButton from "./ScanCheckInButton";
 import ServeMealButtons from "./ServeMealButtons";
 
@@ -29,7 +30,15 @@ export default async function TicketPage({ params }: { params: Promise<{ code: s
   const session = await getSession();
   const isAdmin = session && ["admin", "super_admin", "volunteer"].includes(session.role);
   const paid = reg.status === "paid";
-  const checkedIn = !!ticket.checkedInAt;
+  // Per day (lib/checkin/daily.ts): on an event day, "checked in" means
+  // checked in TODAY, and a pass for another day says so.
+  const evDays = (event?.days as EventDayLite[] | null) ?? [];
+  const day = await dailyState(ticket, type?.dayKeys, evDays);
+  const checkedIn = !!day.inAt;
+  const wrongDay = paid && day.wrongDay;
+  const inAtText = day.inAt
+    ? day.inAt.toLocaleTimeString("en-US", { timeZone: "America/New_York", hour: "numeric", minute: "2-digit" })
+    : "";
 
   // Open food windows for this event (staff serve straight from this page —
   // the fallback path for phones without an in-page scanner).
@@ -75,9 +84,11 @@ export default async function TicketPage({ params }: { params: Promise<{ code: s
 
   const status = !paid
     ? { label: "NOT VALID — payment pending", bg: "rgba(200,16,46,0.12)", fg: "var(--sindoor)", icon: "⛔" }
-    : checkedIn
-      ? { label: `Already checked in · ${ticket.checkedInAt!.toLocaleTimeString("en-US", { timeZone: "America/New_York", hour: "numeric", minute: "2-digit" })}`, bg: "rgba(232,169,60,0.2)", fg: "var(--terracotta-deep)", icon: "🔁" }
-      : { label: "VALID — ready to check in", bg: "rgba(92,138,58,0.15)", fg: "var(--leaf-deep)", icon: "✅" };
+    : wrongDay
+      ? { label: `NOT FOR TODAY — valid ${daysLabel(day.covered, evDays)}`, bg: "rgba(200,16,46,0.12)", fg: "var(--sindoor)", icon: "📅" }
+      : checkedIn
+        ? { label: `Already checked in${day.today ? " today" : ""} · ${inAtText}`, bg: "rgba(232,169,60,0.2)", fg: "var(--terracotta-deep)", icon: "🔁" }
+        : { label: "VALID — ready to check in", bg: "rgba(92,138,58,0.15)", fg: "var(--leaf-deep)", icon: "✅" };
 
   return (
     <div className="mx-auto max-w-md px-5 py-10">
@@ -151,7 +162,11 @@ export default async function TicketPage({ params }: { params: Promise<{ code: s
                 style={{ boxShadow: "var(--shadow)", opacity: checkedIn ? 0.45 : 1 }}
               />
               <p className="mt-3 text-sm font-semibold" style={{ color: checkedIn ? "var(--ink-soft)" : "var(--leaf-deep)" }}>
-                {checkedIn ? "This pass has already been used" : "Show this QR at the gate — admits one person"}
+                {checkedIn
+                  ? day.today
+                    ? "Already used today"
+                    : "This pass has already been used"
+                  : "Show this QR at the gate — admits one person"}
               </p>
               <p className="mt-1 font-mono text-[11px] break-all" style={{ color: "var(--ink-soft)" }}>
                 {code}
@@ -159,7 +174,13 @@ export default async function TicketPage({ params }: { params: Promise<{ code: s
             </div>
           )}
 
-          {isAdmin && paid && !checkedIn && <ScanCheckInButton ticketId={ticket.id} />}
+          {isAdmin && paid && !checkedIn && !wrongDay && <ScanCheckInButton ticketId={ticket.id} />}
+
+          {isAdmin && wrongDay && (
+            <p className="mt-6 text-sm rounded-xl px-4 py-3" style={{ background: "var(--accent-soft)" }}>
+              This pass is for {daysLabel(day.covered, evDays)}, not today. Send them to the walk-in desk to change the day.
+            </p>
+          )}
 
           {isAdmin && paid && openMealSessions.length > 0 && (
             <ServeMealButtons ticketId={ticket.id} sessions={openMealSessions} colors={foodColors} />
@@ -167,7 +188,7 @@ export default async function TicketPage({ params }: { params: Promise<{ code: s
 
           {isAdmin && checkedIn && (
             <p className="mt-6 text-sm rounded-xl px-4 py-3" style={{ background: "var(--accent-soft)" }}>
-              This pass was already used{ticket.checkedInAt && ` at ${ticket.checkedInAt.toLocaleTimeString("en-US", { timeZone: "America/New_York", hour: "numeric", minute: "2-digit" })}`}. If the person in front of you hasn&apos;t entered yet, someone else scanned their ticket — check a photo ID against the booking name.
+              This pass was already used{day.today ? " today" : ""}{inAtText && ` at ${inAtText}`}. If the person in front of you hasn&apos;t entered yet, someone else scanned their ticket — check a photo ID against the booking name.
             </p>
           )}
 

@@ -14,6 +14,7 @@ import {
   date,
   uniqueIndex,
   index,
+  primaryKey,
 } from "drizzle-orm/pg-core";
 
 const uuid = () => crypto.randomUUID();
@@ -870,3 +871,19 @@ export const couponHandouts = pgTable("coupon_handouts", {
   givenBy: text("given_by"),
   givenByName: text("given_by_name"),
 });
+
+// ── ticket_day_checkins ────────────────────────────────────────
+// One row per ticket per event DAY it was let in. A 3-day pass checks in once
+// on each day it covers. tickets.checked_in_at still records the latest
+// check-in, so everything that only asks "has this pass ever been used?" keeps
+// working unchanged. Created lazily by lib/checkin/daily.ts.
+export const ticketDayCheckins = pgTable(
+  "ticket_day_checkins",
+  {
+    ticketId: text("ticket_id").notNull(),
+    dayKey: text("day_key").notNull(),
+    checkedInAt: timestamp("checked_in_at", { withTimezone: true }).notNull().defaultNow(),
+    checkedInBy: text("checked_in_by"),
+  },
+  (t) => [primaryKey({ columns: [t.ticketId, t.dayKey] })]
+);

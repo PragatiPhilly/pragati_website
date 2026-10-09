@@ -24,12 +24,12 @@
  * exactly the tender it was given. There is a test that asserts this file never
  * imports it.
  */
-import { and, eq, inArray, isNotNull, sql } from "drizzle-orm";
+import { and, eq, inArray, isNotNull, or, sql } from "drizzle-orm";
 import { getDb, schema } from "@/db/client";
 import { cardProcessingFeeCents } from "@/lib/pricing";
 import { siteUrl } from "@/lib/site-url";
 import { ensureDeskSchema } from "@/lib/desk/ensure";
-import { DeskError, canVoidTender, type DeskActor } from "@/lib/desk/guards";
+import { DeskError, canVoidTender, isDeskOrder, type DeskActor } from "@/lib/desk/guards";
 import {
   CUSTODY_LABEL,
   defaultCustody,
@@ -90,6 +90,11 @@ export async function addTender(input: AddTenderInput, actor: DeskActor): Promis
 
   const s = await deskOrderSummary(input.registrationId);
   if (!s) throw new DeskError("That booking no longer exists.");
+  // An ONLINE booking's money lives on its own web checkout — a desk tender on
+  // it would never mark it paid, and on a paid one would charge the family
+  // twice. Unpaid online bookings are settled with lib/desk/online.ts.
+  if (!isDeskOrder(s.reg))
+    throw new DeskError("This family booked online — use “Take payment for this online booking” on their page instead.");
   if (s.reg.deskState === "voided") throw new DeskError("This booking was cancelled — you can't take money on it.");
   if (s.reg.deskState === "closed" && !actor.isAdmin)
     throw new DeskError("This booking is finished. An admin can reopen it if something changed.");
@@ -557,7 +562,9 @@ export async function custodyGroups(): Promise<CustodyGroup[]> {
       .from(schema.payments)
       .where(
         and(
-          eq(schema.payments.source, "desk"),
+          // desk tenders, plus online bookings paid AT the desk (lib/desk/online.ts
+          // stamps collected_by + custody on those web ledger rows)
+          or(eq(schema.payments.source, "desk"), isNotNull(schema.payments.collectedBy)),
           eq(schema.payments.status, "paid"),
           isNotNull(schema.payments.custody),
           inArray(schema.payments.custody, OPEN_CUSTODY as unknown as string[])

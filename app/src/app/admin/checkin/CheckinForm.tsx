@@ -190,7 +190,9 @@ export default function CheckinForm({
     else refreshEntry(query.trim());
   };
 
-  const notIn = (tickets ?? []).filter((t) => !t.checkedInAt);
+  // Only tickets valid TODAY go into "check in all" — a family's Sunday tickets
+  // must not be burned on Saturday.
+  const notIn = (tickets ?? []).filter((t) => !t.checkedInAt && !t.notToday);
 
   return (
     <div>
@@ -335,6 +337,11 @@ export default function CheckinForm({
                 <p className="text-xs" style={{ color: "var(--ink-soft)" }}>
                   {t.conf} · booked by {t.buyer} · {t.day === "all" ? "all days" : t.day} · food: {t.food ?? "—"}
                 </p>
+                {t.notToday ? (
+                  <p className="text-xs font-bold mt-1" style={{ color: "#8a5a00" }}>
+                    Not for today — this pass is for {t.notToday}
+                  </p>
+                ) : null}
                 {t.owesCents ? (
                   <p className="text-xs font-bold mt-1" style={{ color: "var(--sindoor)" }}>
                     Owes ${(t.owesCents / 100).toFixed(2)} — send them to the walk-in desk
@@ -361,7 +368,7 @@ export default function CheckinForm({
                 </div>
               ) : (
                 <button
-                  className="btn-primary !py-2 !px-5 text-sm"
+                  className={`${t.notToday ? "btn-secondary" : "btn-primary"} !py-2 !px-5 text-sm`}
                   disabled={pending}
                   onClick={() =>
                     startTransition(async () => {
@@ -370,7 +377,7 @@ export default function CheckinForm({
                     })
                   }
                 >
-                  Check in →
+                  {t.notToday ? "Check in anyway →" : "Check in →"}
                 </button>
               )}
             </div>

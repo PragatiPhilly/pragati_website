@@ -16,6 +16,10 @@ import TenderPanel from "./TenderPanel";
 import TenderList, { type TenderView } from "./TenderList";
 import OrderControls from "./OrderControls";
 import HelpPanel from "../../HelpPanel";
+import OnlineSettlePanel from "./OnlineSettlePanel";
+import TicketChange from "./TicketChange";
+import { canChangeFood, dayOptions } from "@/lib/desk/changes";
+import { onlineBookingState } from "@/lib/desk/online";
 
 export const dynamic = "force-dynamic";
 
@@ -74,6 +78,7 @@ export default async function DeskOrderPage({ params }: { params: Promise<{ id: 
     .select()
     .from(schema.ticketTypes)
     .where(eq(schema.ticketTypes.eventId, s.reg.eventId));
+  const [eventRow] = await db.select().from(schema.events).where(eq(schema.events.id, s.reg.eventId));
   // Ticket type names are written for the website and already carry the whole
   // story: "Adult · All 3 days · with food". Printing that AND the day AND the
   // meal gave lines like "Adult · All 3 days · with food · all days · non-veg".
@@ -139,6 +144,11 @@ export default async function DeskOrderPage({ params }: { params: Promise<{ id: 
 
   const voided = s.reg.deskState === "voided";
   const isDesk = s.reg.source === "desk" || !!s.reg.deskState;
+  // Online bookings: their money is the web checkout, not desk tenders. The
+  // desk balance below only counts desk tenders, so for an online booking it
+  // would read "still to pay" even when the family has paid — never show it.
+  const online = !isDesk ? await onlineBookingState(s.reg.id) : null;
+  const onlinePaid = !isDesk && s.reg.status === "paid";
 
   return (
     <div className="desk-shell max-w-4xl">
@@ -160,12 +170,29 @@ export default async function DeskOrderPage({ params }: { params: Promise<{ id: 
         )}
       </div>
 
-      {!isDesk && (
+      {onlinePaid && (
         <p className="desk-note">
-          This family booked online, so their payment is already handled by the website. You can still{" "}
+          This family booked online and <strong>has paid</strong> ({money(s.reg.totalCents)}). Nothing to collect. You can still{" "}
           <Link href={`/admin/desk/new?parent=${s.reg.id}`}>add more people</Link> — that becomes its own booking,
           linked to this one.
         </p>
+      )}
+      {!isDesk && !onlinePaid && !online && (
+        <p className="desk-error">
+          This online booking was cancelled by an admin, so its passes don&apos;t work. If the family still wants to come, start a
+          new walk-in booking for them.
+        </p>
+      )}
+      {online && (
+        <OnlineSettlePanel
+          registrationId={s.reg.id}
+          owesCents={online.owesCents}
+          cardCents={online.cardCents}
+          status={online.status}
+          paidSiblings={online.paidSiblings}
+          staff={staff.map((u) => ({ userId: u.id, label: u.email }))}
+          noCashBox={!shift}
+        />
       )}
 
       {/* Where this booking sits in the family. It used to be a small note at
@@ -208,6 +235,7 @@ export default async function DeskOrderPage({ params }: { params: Promise<{ id: 
           payment that had not gone through. A volunteer reads the big green
           tick and waves the family in; if the card then declines, the money is
           simply gone. Waiting is its own state and it is amber, not green. */}
+      {isDesk && (
       <div
         className={`desk-balance ${
           s.balanceCents > 0 ? "desk-balance--owed" : s.pendingCents > 0 ? "desk-balance--waiting" : ""
@@ -241,6 +269,7 @@ export default async function DeskOrderPage({ params }: { params: Promise<{ id: 
           {s.pendingCents > 0 ? " · the card has not gone through yet — check it before they walk off" : ""}
         </span>
       </div>
+      )}
 
       <HelpPanel variant="order" />
 
@@ -262,7 +291,7 @@ export default async function DeskOrderPage({ params }: { params: Promise<{ id: 
       {/* ── take a payment ─────────────────────────────────────────────── */}
       {/* Once nothing is owed this collapses. Leaving a live "Take $145.00"
           button on a fully-paid booking is how a family gets charged twice. */}
-      {!voided && s.balanceCents > 0 && (
+      {isDesk && !voided && s.balanceCents > 0 && (
         <div>
           <h2 className="font-[family-name:var(--font-display)] text-lg font-bold mb-2">Take a payment</h2>
           <TenderPanel
@@ -277,7 +306,7 @@ export default async function DeskOrderPage({ params }: { params: Promise<{ id: 
         </div>
       )}
 
-      {!voided && s.balanceCents <= 0 && (
+      {isDesk && !voided && s.balanceCents <= 0 && (
         <details className="more-actions">
           <summary>
             {s.pendingCents > 0
@@ -308,6 +337,7 @@ export default async function DeskOrderPage({ params }: { params: Promise<{ id: 
         buyerName={s.reg.buyerName}
         isAdmin={isAdmin}
         hasEmail={!!s.reg.buyerEmail}
+        online={!isDesk}
       />
 
       {/* ── people ─────────────────────────────────────────────────────── */}
@@ -318,8 +348,19 @@ export default async function DeskOrderPage({ params }: { params: Promise<{ id: 
         <div className="festive-card overflow-hidden">
           {s.tickets.map((t) => {
             const g = guardians.find((x) => x.id === t.guardianTicketId);
+            const tt = ticketTypes.find((x) => x.id === t.ticketTypeId);
+            const evDays = (eventRow?.days as { key: string; label?: string }[] | null) ?? [];
             return (
-              <div key={t.id} className="desk-row">
+              <TicketChange
+                key={t.id}
+                ticketId={t.id}
+                firstName={t.attendeeFirstName}
+                lastName={t.attendeeLastName ?? ""}
+                food={t.foodPref}
+                canFood={!voided && !!tt && canChangeFood(tt, t)}
+                days={!voided && tt ? dayOptions(t, tt, ticketTypes, evDays).map((o) => ({ ticketTypeId: o.ticketTypeId, label: o.label })) : []}
+                locked={!!t.checkedInAt}
+              >
                 <span className="grow">
                   <strong>
                     {t.attendeeFirstName} {t.attendeeLastName ?? ""}
@@ -348,7 +389,7 @@ export default async function DeskOrderPage({ params }: { params: Promise<{ id: 
                 <a className="text-xs underline underline-offset-4" href={`/t/${t.qrCode}`} target="_blank" rel="noreferrer">
                   pass
                 </a>
-              </div>
+              </TicketChange>
             );
           })}
         </div>
@@ -356,6 +397,10 @@ export default async function DeskOrderPage({ params }: { params: Promise<{ id: 
 
 
       {/* ── payments taken ─────────────────────────────────────────────── */}
+      {/* Desk tenders only — an online booking's money is its web checkout
+          (shown in the panel above), so this list would always read "nothing
+          taken" there. */}
+      {isDesk && (
       <div>
         <h2 className="font-[family-name:var(--font-display)] text-lg font-bold mb-2">Money taken</h2>
         <div className="festive-card overflow-hidden">
@@ -367,6 +412,7 @@ export default async function DeskOrderPage({ params }: { params: Promise<{ id: 
           />
         </div>
       </div>
+      )}
 
       {s.adjustments.length > 0 && (
         <div>

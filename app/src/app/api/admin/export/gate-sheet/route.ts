@@ -15,6 +15,7 @@ import { getDb, schema } from "@/db/client";
 import { getSession } from "@/lib/auth/session";
 import { getActiveEvent } from "@/lib/queries/events";
 import { getConfig } from "@/lib/system-config";
+import { coveredDays, daysLabel, inTodayMap, regAdmits, todayOf, type EventDayLite } from "@/lib/checkin/daily";
 
 export const dynamic = "force-dynamic";
 
@@ -26,9 +27,20 @@ export async function GET() {
 
   const db = getDb();
   const event = await getActiveEvent();
-  const regs = await db.select().from(schema.registrations).where(eq(schema.registrations.status, "paid"));
+  // Everyone the gate would admit: paid, plus walk-ins a staff member let in
+  // before they had fully paid. Scoped to the active event when there is one.
+  const regs = (
+    event
+      ? await db.select().from(schema.registrations).where(eq(schema.registrations.eventId, event.id))
+      : await db.select().from(schema.registrations).where(eq(schema.registrations.status, "paid"))
+  ).filter(regAdmits);
   const regById = new Map(regs.map((r) => [r.id, r]));
   const tickets = (await db.select().from(schema.tickets)).filter((t) => regById.has(t.registrationId));
+  // Per day: which days each ticket admits on, and whether it was let in TODAY.
+  const days = (event?.days as EventDayLite[] | null) ?? [];
+  const today = todayOf(days);
+  const typeDays = new Map((await db.select().from(schema.ticketTypes)).map((tt) => [tt.id, { dayKeys: tt.dayKeys, band: tt.ageBand }]));
+  const inToday = today ? await inTodayMap(tickets, today) : new Map<string, Date>();
 
   const colors = {
     veg: await getConfig<string>("food_color_veg"),
@@ -37,7 +49,10 @@ export async function GET() {
   };
 
   const rows = tickets
+    .filter((t) => typeDays.get(t.ticketTypeId)?.band !== "addon")
     .map((t) => {
+      const cov = coveredDays(t.dayKey, typeDays.get(t.ticketTypeId)?.dayKeys, days);
+      const inAt = today ? inToday.get(t.id) : t.checkedInAt;
       const r = regById.get(t.registrationId)!;
       return {
         n: `${t.attendeeFirstName} ${t.attendeeLastName ?? ""}`.trim(), // name
@@ -47,14 +62,23 @@ export async function GET() {
         d: t.dayKey ?? "all", // day
         f: t.foodPref ?? "none", // food
         q: t.qrCode.slice(-8), // QR tail for spot-matching against a shown pass
-        in: t.checkedInAt ? t.checkedInAt.toLocaleTimeString("en-US", { timeZone: "America/New_York", hour: "numeric", minute: "2-digit" }) : "",
+        in: inAt ? inAt.toLocaleTimeString("en-US", { timeZone: "America/New_York", hour: "numeric", minute: "2-digit" }) : "",
+        v: days.length ? daysLabel(cov, days) : "", // the days this ticket admits on
+        t: !today || cov.includes(today.key) ? 1 : 0, // valid today
+        o: r.status !== "paid" ? 1 : 0, // walk-in let in owing money
       };
     })
     .sort((a, b) => a.n.localeCompare(b.n));
 
   const generated = new Date().toLocaleString("en-US", { timeZone: "America/New_York" });
   // </script>-safe JSON embedding
-  const data = JSON.stringify({ event: event?.name ?? "Pragati event", generated, colors, rows }).replaceAll("<", "\\u003c");
+  const data = JSON.stringify({
+    event: event?.name ?? "Pragati event",
+    generated,
+    colors,
+    rows,
+    today: today ? (today.label ?? today.key).split(",")[0] : "",
+  }).replaceAll("<", "\\u003c");
 
   const html = `<!doctype html>
 <html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
@@ -75,7 +99,7 @@ export async function GET() {
 </style></head><body>
 <header><h1>🎟 Offline gate sheet</h1><p id=sub></p><input id=q placeholder="Search name, phone, or PRG-…" autofocus></header>
 <div class=warn>⚠ Emergency backup — use only if the online scan desk is down. Marks are saved on THIS device only. Snapshot taken: <b id=gen></b>; anyone who registered after that is not on this list (check their confirmation email).</div>
-<div class=counts><span id=cin></span><span id=ctot></span></div>
+<div class=counts><span id=cin></span><span id=ctot></span><label id=allwrap style="margin-left:auto"><input type=checkbox id=all style="width:auto;padding:0"> show other days too</label></div>
 <ul id=list></ul>
 <script>
 const D=${data};
@@ -89,20 +113,24 @@ const list=document.getElementById("list");
 function render(f){
   f=(f||"").toLowerCase();const dg=f.replace(/\\D/g,"");
   list.innerHTML="";let inN=0;
+  const showAll=!D.today||document.getElementById("all").checked;let shownN=0;
   D.rows.forEach((r,i)=>{
+    if(!showAll&&r.t===0)return;shownN++;
     const pre=r.in?1:0;const marked=marks[i]||pre;if(marked)inN++;
     if(f&&!(r.n.toLowerCase().includes(f)||r.b.toLowerCase().includes(f)||r.c.toLowerCase().includes(f)||(dg.length>3&&r.p.replace(/\\D/g,"").includes(dg))))return;
     const li=document.createElement("li");if(marked)li.className="done";
     li.innerHTML='<span class=dot style="background:'+(D.colors[r.f]||"#999")+'"></span><span><span class=nm></span><br><span class=meta></span></span><span class=tick>'+(marked?"✓":"")+"</span>";
     li.querySelector(".nm").textContent=r.n;
-    li.querySelector(".meta").textContent=r.c+" · "+r.b+(r.p?" · "+r.p:"")+" · "+(r.d==="all"?"all days":r.d)+" · "+(FOOD[r.f]||r.f)+" · QR…"+r.q+(r.in?" · was in at "+r.in:"");
+    li.querySelector(".meta").textContent=r.c+" · "+r.b+(r.p?" · "+r.p:"")+" · "+(r.v||(r.d==="all"?"all days":r.d))+(r.t===0?" (NOT TODAY)":"")+(r.o?" · OWES — desk":"")+" · "+(FOOD[r.f]||r.f)+" · QR…"+r.q+(r.in?" · was in at "+r.in:"");
     li.onclick=()=>{marks[i]=!(marks[i]||pre)?1:0;if(pre&&!marks[i])marks[i]=0;save();render(document.getElementById("q").value)};
     list.appendChild(li);
   });
   document.getElementById("cin").textContent="✓ in: "+inN;
-  document.getElementById("ctot").textContent="total: "+D.rows.length;
+  document.getElementById("ctot").textContent=(D.today&&!showAll?"for "+D.today+": ":"total: ")+shownN;
 }
 document.getElementById("q").oninput=e=>render(e.target.value);
+document.getElementById("all").onchange=()=>render(document.getElementById("q").value);
+if(!D.today)document.getElementById("allwrap").style.display="none";
 render("");
 </script></body></html>`;
 

@@ -4,6 +4,8 @@ import { getSession } from "@/lib/auth/session";
 import { getScanState } from "../scans/actions";
 import CheckinForm from "./CheckinForm";
 import { requireSectionAccess } from "@/lib/auth/access";
+import { getActiveEvent } from "@/lib/queries/events";
+import { todayCounts, type EventDayLite } from "@/lib/checkin/daily";
 
 export const dynamic = "force-dynamic";
 
@@ -15,6 +17,10 @@ export default async function CheckinPage() {
     .select({ n: sql<number>`count(*)` })
     .from(schema.tickets)
     .where(isNotNull(schema.tickets.checkedInAt));
+
+  // On an event day the counter is about TODAY: inside now vs expected today.
+  const active = await getActiveEvent();
+  const today = active ? await todayCounts(active.id, (active.days as EventDayLite[] | null) ?? []) : null;
 
   const session = await getSession();
   const isAdmin = !!session && ["admin", "super_admin"].includes(session.role);
@@ -37,14 +43,16 @@ export default async function CheckinPage() {
       <div className="festive-card p-5 mb-6 flex items-center gap-6 flex-wrap">
         <div>
           <p className="font-[family-name:var(--font-display)] text-4xl font-black" style={{ color: "var(--sindoor)" }}>
-            {String(checked.n)}
+            {String(today ? today.inside : checked.n)}
           </p>
-          <p className="text-xs uppercase tracking-wider" style={{ color: "var(--ink-soft)" }}>checked in</p>
+          <p className="text-xs uppercase tracking-wider" style={{ color: "var(--ink-soft)" }}>
+            {today ? `in today · ${today.today.label?.split(",")[0] ?? today.today.key}` : "checked in"}
+          </p>
         </div>
         <div className="text-2xl font-light" style={{ color: "var(--ink-soft)" }}>/</div>
         <div>
-          <p className="font-[family-name:var(--font-display)] text-4xl font-black">{String(total.n)}</p>
-          <p className="text-xs uppercase tracking-wider" style={{ color: "var(--ink-soft)" }}>tickets issued</p>
+          <p className="font-[family-name:var(--font-display)] text-4xl font-black">{String(today ? today.expected : total.n)}</p>
+          <p className="text-xs uppercase tracking-wider" style={{ color: "var(--ink-soft)" }}>{today ? "expected today" : "tickets issued"}</p>
         </div>
         <a
           href="/api/admin/export/gate-sheet"
@@ -52,6 +60,13 @@ export default async function CheckinPage() {
           title="Self-contained attendee list that works with no internet — download fresh each event morning"
         >
           🛟 Download offline gate sheet
+        </a>
+        <a
+          href="/print/door-list"
+          className="text-xs underline underline-offset-4 opacity-70 hover:opacity-100"
+          title="Alphabetical paper list of everyone with a pass for a day — print each morning"
+        >
+          🖨 Printable door list
         </a>
       </div>
       <CheckinForm openSessions={openSessions} colors={colors} isAdmin={isAdmin} />

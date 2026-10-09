@@ -1,9 +1,28 @@
 "use server";
 
-import { eq, ilike, or } from "drizzle-orm";
+import { eq, ilike, inArray, or } from "drizzle-orm";
 import { getDb, schema } from "@/db/client";
 import { getSession } from "@/lib/auth/session";
 import { ensureExtraColumns } from "@/lib/schema-ensure";
+import {
+  coveredDays,
+  dailyState,
+  daysLabel,
+  inTodayMap,
+  recordCheckin,
+  todayCounts,
+  todayOf,
+  undoCheckinToday,
+  type EventDayLite,
+} from "@/lib/checkin/daily";
+
+const clock = (d: Date) => d.toLocaleTimeString("en-US", { timeZone: "America/New_York", hour: "numeric", minute: "2-digit" });
+
+/** The event days for a registration's event (for per-day check-in). */
+async function eventDaysFor(db: ReturnType<typeof getDb>, eventId: string): Promise<EventDayLite[]> {
+  const [event] = await db.select().from(schema.events).where(eq(schema.events.id, eventId));
+  return (event?.days as EventDayLite[] | null) ?? [];
+}
 
 /** Check-in staff = admins + volunteers (volunteers can ONLY do check-in). */
 async function requireCheckinStaff() {
@@ -21,6 +40,8 @@ export type CheckinTicket = {
   day: string;
   food: string | null;
   checkedInAt: string | null;
+  /** On an event day: set when this ticket is NOT for today (e.g. "Sunday"). */
+  notToday?: string;
   /** Walk-in desk: this family was let in owing money. The gate should say so. */
   owesCents?: number;
 };
@@ -128,12 +149,38 @@ export async function lookupTicketsAction(rawQuery: string): Promise<CheckinTick
     return r.status === "paid" || (isDesk && !!r.admittedUnsettledAt);
   };
 
-  return tickets
-    .filter((t) => admits(regById.get(t.registrationId)))
-    .slice(0, 30)
+  const shown = tickets.filter((t) => admits(regById.get(t.registrationId))).slice(0, 30);
+  // Per-day view: on an event day, "in" means in TODAY, and a ticket for
+  // another day says so (so "check in all" never burns tomorrow's pass).
+  const types = new Map(
+    (
+      shown.length
+        ? await db.select().from(schema.ticketTypes).where(inArray(schema.ticketTypes.id, [...new Set(shown.map((t) => t.ticketTypeId))]))
+        : []
+    ).map((tt) => [tt.id, tt])
+  );
+  const daysByEvent = new Map<string, EventDayLite[]>();
+  for (const t of shown) {
+    const evId = regById.get(t.registrationId)!.eventId;
+    if (!daysByEvent.has(evId)) daysByEvent.set(evId, await eventDaysFor(db, evId));
+  }
+  const inToday = new Map<string, Date>();
+  for (const [evId, days] of daysByEvent) {
+    const today = todayOf(days);
+    if (!today) continue;
+    const evTickets = shown.filter((t) => regById.get(t.registrationId)!.eventId === evId);
+    for (const [k, v] of await inTodayMap(evTickets, today)) inToday.set(k, v);
+  }
+
+  return shown
     .map((t) => {
       const reg = regById.get(t.registrationId)!;
+      const days = daysByEvent.get(reg.eventId) ?? [];
+      const today = todayOf(days);
+      const covered = coveredDays(t.dayKey, types.get(t.ticketTypeId)?.dayKeys, days);
+      const inAt = today ? (inToday.get(t.id) ?? null) : t.checkedInAt;
       return {
+        notToday: today && !covered.includes(today.key) ? daysLabel(covered, days) : undefined,
         owesCents: reg.status !== "paid" && reg.admittedUnsettledAt ? reg.totalCents : undefined,
         id: t.id,
         attendee: `${t.attendeeFirstName} ${t.attendeeLastName ?? ""}`.trim(),
@@ -142,9 +189,7 @@ export async function lookupTicketsAction(rawQuery: string): Promise<CheckinTick
         buyer: reg.buyerName,
         day: t.dayKey ?? "all",
         food: t.foodPref,
-        checkedInAt: t.checkedInAt
-          ? t.checkedInAt.toLocaleTimeString("en-US", { timeZone: "America/New_York", hour: "numeric", minute: "2-digit" })
-          : null,
+        checkedInAt: inAt ? clock(inAt) : null,
       };
     });
 }
@@ -211,19 +256,22 @@ export async function entryScanAction(rawQuery: string): Promise<EntryScanResult
 
   const attendee = `${ticket.attendeeFirstName} ${ticket.attendeeLastName ?? ""}`.trim();
 
-  if (ticket.checkedInAt) {
+  const [tt] = await db.select().from(schema.ticketTypes).where(eq(schema.ticketTypes.id, ticket.ticketTypeId));
+  const days = await eventDaysFor(db, reg.eventId);
+  // Per day: a multi-day pass checks in once on EACH day it covers; a ticket
+  // for another day is refused (lib/checkin/daily.ts).
+  const st = await dailyState(ticket, tt?.dayKeys, days);
+  if (st.wrongDay) {
     return {
-      kind: "duplicate",
-      attendee,
-      conf: reg.confirmationNumber,
-      checkedInAt: ticket.checkedInAt.toLocaleTimeString("en-US", { timeZone: "America/New_York", hour: "numeric", minute: "2-digit" }),
+      kind: "invalid",
+      reason: `Not for today — this pass is for ${daysLabel(st.covered, days)}. Send them to the walk-in desk to change the day.`,
     };
   }
+  if (st.inAt) {
+    return { kind: "duplicate", attendee, conf: reg.confirmationNumber, checkedInAt: clock(st.inAt) };
+  }
 
-  await db
-    .update(schema.tickets)
-    .set({ checkedInAt: new Date(), checkedInBy: staff.userId })
-    .where(eq(schema.tickets.id, ticket.id));
+  await recordCheckin(ticket.id, st.today, staff.userId);
   await db.insert(schema.auditLog).values({
     userId: staff.userId,
     action: "check_in",
@@ -231,17 +279,31 @@ export async function entryScanAction(rawQuery: string): Promise<EntryScanResult
     entityId: ticket.id,
   });
 
-  const all = await db.select().from(schema.tickets);
-  const count = all.filter((t) => t.checkedInAt).length;
-
-  // This booking's own progress — "3 of 5 in this party" is what the gate
-  // actually needs to know (is the rest of the family still coming?).
-  const party = all.filter((t) => t.registrationId === ticket.registrationId);
-  const partyIn = party.filter((t) => t.checkedInAt || t.id === ticket.id).length;
-
-  const [tt] = await db.select().from(schema.ticketTypes).where(eq(schema.ticketTypes.id, ticket.ticketTypeId));
-  const [event] = await db.select().from(schema.events).where(eq(schema.events.id, reg.eventId));
-  const days = (event?.days as { key: string; label?: string }[] | null) ?? [];
+  // Gate counter + this booking's own progress — "3 of 5 in this party" is
+  // what the gate actually needs to know (is the rest of the family coming?).
+  // On an event day both are about TODAY; otherwise the old all-time numbers.
+  let count: number, total: number, partyIn: number, partyTotal: number;
+  const partyRows = await db
+    .select({ t: schema.tickets, dayKeys: schema.ticketTypes.dayKeys, band: schema.ticketTypes.ageBand })
+    .from(schema.tickets)
+    .innerJoin(schema.ticketTypes, eq(schema.ticketTypes.id, schema.tickets.ticketTypeId))
+    .where(eq(schema.tickets.registrationId, ticket.registrationId));
+  if (st.today) {
+    const c = await todayCounts(reg.eventId, days);
+    count = c?.inside ?? 0;
+    total = c?.expected ?? 0;
+    const party = partyRows.filter((x) => x.band !== "addon" && coveredDays(x.t.dayKey, x.dayKeys, days).includes(st.today!.key)).map((x) => x.t);
+    const inMap = await inTodayMap(party, st.today);
+    partyIn = party.filter((t) => inMap.has(t.id) || t.id === ticket.id).length;
+    partyTotal = party.length;
+  } else {
+    const all = await db.select().from(schema.tickets);
+    count = all.filter((t) => t.checkedInAt).length;
+    total = all.length;
+    const party = partyRows.map((x) => x.t);
+    partyIn = party.filter((t) => t.checkedInAt || t.id === ticket.id).length;
+    partyTotal = party.length;
+  }
   const dayLabel =
     ticket.dayKey && ticket.dayKey !== "all"
       ? (days.find((d) => d.key === ticket.dayKey)?.label ?? ticket.dayKey.toUpperCase())
@@ -253,10 +315,10 @@ export async function entryScanAction(rawQuery: string): Promise<EntryScanResult
     conf: reg.confirmationNumber,
     food: ticket.foodPref ?? "none",
     count,
-    total: all.length,
+    total,
     passName: tt?.name ?? "Pass",
     partyIn,
-    partyTotal: party.length,
+    partyTotal,
     isStudent: ticket.studentInfo != null,
     isConcert: tt?.ageBand === "concert",
     day: dayLabel,
@@ -299,13 +361,23 @@ async function gateNotes(
   return notes;
 }
 
+/** Today's event day for the event a ticket belongs to (null = not an event day). */
+async function todayForTicket(db: ReturnType<typeof getDb>, ticketId: string) {
+  const [ticket] = await db.select().from(schema.tickets).where(eq(schema.tickets.id, ticketId));
+  if (!ticket) return { ticket: null, today: null };
+  const [reg] = await db.select().from(schema.registrations).where(eq(schema.registrations.id, ticket.registrationId));
+  const today = reg ? todayOf(await eventDaysFor(db, reg.eventId)) : null;
+  return { ticket, today };
+}
+
+/** Manual check-in from the lookup list. Deliberately allowed on any day — a
+ *  staff override — but recorded against TODAY, so tomorrow's pass stays good. */
 export async function checkInTicketAction(ticketId: string) {
   const staff = await requireCheckinStaff();
   const db = getDb();
-  await db
-    .update(schema.tickets)
-    .set({ checkedInAt: new Date(), checkedInBy: staff.userId })
-    .where(eq(schema.tickets.id, ticketId));
+  const { ticket, today } = await todayForTicket(db, ticketId);
+  if (!ticket) return;
+  await recordCheckin(ticketId, today, staff.userId);
   await db.insert(schema.auditLog).values({
     userId: staff.userId,
     action: "check_in",
@@ -319,10 +391,9 @@ export async function checkInAllAction(ticketIds: string[]) {
   const staff = await requireCheckinStaff();
   const db = getDb();
   for (const id of ticketIds) {
-    await db
-      .update(schema.tickets)
-      .set({ checkedInAt: new Date(), checkedInBy: staff.userId })
-      .where(eq(schema.tickets.id, id));
+    const { ticket, today } = await todayForTicket(db, id);
+    if (!ticket) continue;
+    await recordCheckin(id, today, staff.userId);
     await db.insert(schema.auditLog).values({ userId: staff.userId, action: "check_in", entityType: "tickets", entityId: id });
   }
 }
@@ -331,10 +402,9 @@ export async function checkInAllAction(ticketIds: string[]) {
 export async function undoCheckInAction(ticketId: string) {
   const staff = await requireCheckinStaff();
   const db = getDb();
-  await db
-    .update(schema.tickets)
-    .set({ checkedInAt: null, checkedInBy: null })
-    .where(eq(schema.tickets.id, ticketId));
+  const { ticket, today } = await todayForTicket(db, ticketId);
+  if (!ticket) return;
+  await undoCheckinToday(ticket, today);
   await db.insert(schema.auditLog).values({
     userId: staff.userId,
     action: "undo_check_in",
