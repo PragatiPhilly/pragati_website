@@ -95,6 +95,9 @@ export default async function DeskHome() {
         <Link href="/admin/desk/new" className="big-action">
           + Register a new family
         </Link>
+        <Link href="/admin/desk/membership" className="big-action ghost">
+          🪪 Membership — join, renew or extend
+        </Link>
         <p className="desk-note" style={{ textAlign: "center", margin: 0 }}>
           Always search first — plenty of families booked online back in the summer.
         </p>

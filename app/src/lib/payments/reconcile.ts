@@ -484,6 +484,14 @@ export async function applySquareTruth(
     const { markDonationPaid } = await import("@/lib/donations");
     await markDonationPaid(owner.id, via);
   } else {
+    // Dues taken at the walk-in desk settle their own row (renewals included).
+    const { deskDuesForSquareOrder, settleDeskDuesCard } = await import("@/lib/desk/membership");
+    const deskRow = await deskDuesForSquareOrder(p.orderId);
+    if (deskRow) {
+      const out = await settleDeskDuesCard({ paymentId: deskRow.id, squarePaymentId: p.paymentId, squareAmountCents: p.amountCents });
+      if (!out.settled) throw new Error(`Walk-in desk membership payment could not be settled: ${out.reason ?? "no reason given"}`);
+      return;
+    }
     const { activateMembershipPaid } = await import("@/lib/membership");
     await activateMembershipPaid(owner.id, via);
   }

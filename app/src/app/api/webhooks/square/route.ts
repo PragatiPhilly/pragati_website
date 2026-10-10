@@ -186,6 +186,25 @@ export async function POST(req: NextRequest) {
       return null;
     };
 
+    // ── membership dues taken at the walk-in desk ─────────────────────────
+    // Join, renew or extend. Checked by Square order id BEFORE the usual
+    // routing: the public path (activateMembershipPaid) does nothing for a
+    // member who is already active, so a desk RENEWAL sent there would take the
+    // money and never add the year. The desk settles its own payment row and
+    // adds the year exactly once. Every other payment falls through unchanged.
+    if (orderId) {
+      const { deskDuesForSquareOrder, settleDeskDuesCard } = await import("@/lib/desk/membership");
+      const deskRow = await deskDuesForSquareOrder(orderId);
+      if (deskRow) {
+        const outcome = await settleDeskDuesCard({
+          paymentId: deskRow.id,
+          squarePaymentId: payment.id ?? null,
+          squareAmountCents: squareCents || null,
+        });
+        return await finish({ handled: outcome.settled, desk: true, kind: "membership", ...outcome });
+      }
+    }
+
     const match = (refId ? await locate(refId, "id") : null) ?? (orderId ? await locate(orderId, "orderId") : null);
 
     if (!match) {
