@@ -17,6 +17,7 @@ import type { DeskActor } from "@/lib/desk/guards";
 
 /** Event types that move money and therefore also belong in audit_log. */
 const AUDITED: OrderEventType[] = [
+  "price_set",
   "tender_added",
   "tender_confirmed",
   "tender_failed",

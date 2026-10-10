@@ -133,6 +133,16 @@ export async function createDeskOrder(
   }
   if (priced.passes.length === 0) throw new DeskError("Nothing to issue yet — add someone and pick their days.");
 
+  // ── dynamic pricing: anyone at the desk may set today's price, but letting
+  // someone in for nothing is a comp, and volunteers cannot comp. ───────────
+  const repriced = priced.people.filter((p) => p.overridden);
+  const madeFree = repriced.filter((p) => p.chargedCents === 0 && p.standardCents > 0);
+  if (madeFree.length > 0 && !actor.isAdmin) {
+    throw new DeskError(
+      `Only an admin can let ${madeFree.map((p) => p.firstName).join(", ")} in for free. Type the price they are paying, or ask an admin.`
+    );
+  }
+
   // ── capacity: never oversell without a named decision ────────────────────
   const demand = new Map<string, number>();
   for (const p of priced.passes) demand.set(p.ticketTypeId, (demand.get(p.ticketTypeId) ?? 0) + 1);
@@ -258,11 +268,33 @@ export async function createDeskOrder(
     payload: {
       passes: priced.passes.length,
       dueCents,
+      priceSetAtDesk: repriced.length > 0,
       capacityOverridden: overCapacity.length > 0,
       guardianOverridden: unguarded.length > 0,
       parentRegistrationId: input.parentRegistrationId ?? null,
     },
   });
+
+  if (repriced.length > 0) {
+    await recordOrderEvent({
+      registrationId: reg.id,
+      type: "price_set",
+      summary: `Price set at the desk: ${repriced
+        .map((p) => `${p.firstName} ${fmt(p.chargedCents)} (usual ${fmt(p.standardCents)})`)
+        .join(", ")}`,
+      actor,
+      shiftId: input.shiftId ?? null,
+      payload: {
+        standardListPriceCents: priced.standardListPriceCents,
+        chargedListPriceCents: priced.listPriceCents,
+        people: repriced.map((p) => ({
+          name: p.firstName,
+          standardCents: p.standardCents,
+          chargedCents: p.chargedCents,
+        })),
+      },
+    });
+  }
 
   if (input.parentRegistrationId) {
     await recordOrderEvent({

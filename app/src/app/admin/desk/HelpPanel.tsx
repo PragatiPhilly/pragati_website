@@ -69,6 +69,10 @@ export default function HelpPanel({ variant = "desk" }: { variant?: "desk" | "or
             <b>Nobody found? Register a new family.</b> Tap the big red button, add each person, pick their days.
           </li>
           <li>
+            <b>Price different today?</b> Each person has a Price box. Leave it empty for the usual price, or type
+            what they’re paying today. Only an admin can make it free.
+          </li>
+          <li>
             <b>Only a name is required.</b> No email, no phone, no problem — take it later. Never make one up.
           </li>
           <li>

@@ -332,7 +332,7 @@ export async function quoteAction(input: {
   isMemberPurchase?: boolean;
   eventId?: string;
   donationCents?: number;
-}): Promise<ActionResult<{ listPriceCents: number; dueCents: number; passes: number; problems: { firstName: string; why: string }[]; lines: { name: string; type: string; day: string; priceCents: number }[] }>> {
+}): Promise<ActionResult<{ listPriceCents: number; dueCents: number; passes: number; problems: { firstName: string; why: string }[]; lines: { name: string; type: string; day: string; priceCents: number }[]; standardListPriceCents: number; people: { ref: string; standardCents: number; chargedCents: number; overridden: boolean }[] }>> {
   return run(async () => {
     let eventId = input.eventId;
     if (!eventId) {
@@ -361,6 +361,13 @@ export async function quoteAction(input: {
         listPriceCents: priced.listPriceCents,
         dueCents: priced.listPriceCents + donation,
         passes: priced.passes.length,
+        standardListPriceCents: priced.standardListPriceCents,
+        people: priced.people.map((p) => ({
+          ref: p.personRef,
+          standardCents: p.standardCents,
+          chargedCents: p.chargedCents,
+          overridden: p.overridden,
+        })),
         problems: priced.problems.map((p) => ({ firstName: p.firstName, why: p.why })),
         lines: priced.passes.map((p) => ({
           name: [p.attendeeFirstName, p.attendeeLastName].filter(Boolean).join(" "),

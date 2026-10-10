@@ -156,6 +156,7 @@ export const VOID_REASON_LABEL: Record<VoidReason, string> = {
 /** Timeline event types. Every one of these is written by a named person. */
 export type OrderEventType =
   | "order_opened"
+  | "price_set"
   | "person_added"
   | "person_removed"
   | "details_edited"

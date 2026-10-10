@@ -13,6 +13,10 @@
  * The running total comes from the SERVER (quoteAction), not from a client-side
  * mirror of the pricing rules. A desk that shows a number the server then
  * disagrees with is worse than a desk that is half a second slower.
+ *
+ * Dynamic pricing: each person has a Price box. Blank = the usual price from
+ * the price list (shown as the hint). Typing an amount charges that instead —
+ * the server spreads it over their passes and writes it on the timeline.
  */
 import { useEffect, useMemo, useRef, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
@@ -44,6 +48,8 @@ type Row = {
   guardianLabel: string | null;
   eduEmail: string;
   university: string;
+  /** Typed price for this person, as text. "" = the usual price. */
+  price: string;
 };
 
 const newRow = (kind: PersonKind, allDays: string[]): Row => ({
@@ -60,7 +66,11 @@ const newRow = (kind: PersonKind, allDays: string[]): Row => ({
   guardianLabel: null,
   eduEmail: "",
   university: "",
+  price: "",
 });
+
+/** A price box that has something in it that isn't an amount. */
+const badPrice = (r: Row) => r.price.trim() !== "" && parseAmountToCents(r.price) === null;
 
 const isMinor = (r: Row) => {
   if (r.kind !== "youth" && r.kind !== "under5") return false;
@@ -103,7 +113,15 @@ export default function PartyBuilder({
   const [overrideGuardian, setOverrideGuardian] = useState(false);
   const [overrideCapacity, setOverrideCapacity] = useState(false);
 
-  const [quote, setQuote] = useState<{ dueCents: number; passes: number; problems: { firstName: string; why: string }[] } | null>(null);
+  const [quote, setQuote] = useState<{
+    dueCents: number;
+    listPriceCents: number;
+    standardListPriceCents: number;
+    passes: number;
+    problems: { firstName: string; why: string }[];
+    people: { ref: string; standardCents: number; chargedCents: number; overridden: boolean }[];
+  } | null>(null);
+  const priceOf = (ref: string) => quote?.people?.find((p) => p.ref === ref);
   const [error, setError] = useState("");
   const [pending, start] = useTransition();
   const [saving, setSaving] = useState(false);
@@ -127,6 +145,7 @@ export default function PartyBuilder({
             r.kind === "student"
               ? { eduEmail: r.eduEmail, university: r.university, city: "", gradYear: "" }
               : undefined,
+          priceOverrideCents: r.price.trim() === "" ? undefined : parseAmountToCents(r.price) ?? undefined,
         })),
     [rows]
   );
@@ -166,6 +185,8 @@ export default function PartyBuilder({
       (!r.guardianRef || r.guardianRef === "__pick__") &&
       adults.length !== 1
   );
+
+  const anyBadPrice = rows.some((r) => r.firstName.trim() && badPrice(r));
 
   const submit = () =>
     start(async () => {
@@ -434,6 +455,12 @@ export default function PartyBuilder({
                 </div>
               )}
 
+              <PriceBox
+                row={r}
+                price={priceOf(r.ref)}
+                onChange={(price) => update(r.ref, { price })}
+              />
+
               {minor && adults.length === 1 && !r.guardianTicketId && (
                 <p className="desk-note">
                   Coming with <strong>{adults[0].firstName}</strong>.{" "}
@@ -485,12 +512,15 @@ export default function PartyBuilder({
           ) : (
             <>
               {quote?.passes ?? 0} {(quote?.passes ?? 0) === 1 ? "pass" : "passes"}
+              {quote && quote.listPriceCents !== quote.standardListPriceCents
+                ? ` · usual price ${money(quote.standardListPriceCents)}`
+                : ""}
               {pending ? " · working it out…" : ""}
             </>
           )}
         </span>
         <span className="grow" />
-        <button className="btn-primary" disabled={saving || people.length === 0 || !buyerName.trim()} onClick={submit}>
+        <button className="btn-primary" disabled={saving || people.length === 0 || !buyerName.trim() || anyBadPrice} onClick={submit}>
           {saving ? "Saving…" : "Save and take payment →"}
         </button>
       </div>
@@ -529,6 +559,65 @@ export default function PartyBuilder({
           )}
         </div>
       )}
+    </div>
+  );
+}
+
+/**
+ * Dynamic pricing for one person.
+ *
+ * Blank means "the usual price", and the usual price is shown right there as
+ * the hint, so a volunteer who never touches it gets exactly what they got
+ * before. Typing an amount charges that instead, for all of this person's days
+ * together.
+ */
+function PriceBox({
+  row,
+  price,
+  onChange,
+}: {
+  row: Row;
+  price?: { standardCents: number; chargedCents: number; overridden: boolean };
+  onChange: (price: string) => void;
+}) {
+  const typed = row.price.trim() !== "";
+  const bad = badPrice(row);
+  const who = row.firstName.trim() || "this person";
+  return (
+    <div className="flex flex-wrap items-end gap-3">
+      <label className="desk-field" style={{ width: 170 }}>
+        Price for {who} ($)
+        <input
+          value={row.price}
+          inputMode="decimal"
+          placeholder={price ? (price.standardCents / 100).toFixed(2) : ""}
+          aria-invalid={bad || undefined}
+          onChange={(e) => onChange(e.target.value)}
+        />
+      </label>
+      <span className="desk-note pb-2">
+        {bad ? (
+          <span className="hint-need">Type an amount, like 45 or 45.50</span>
+        ) : !price ? (
+          row.firstName.trim() ? "Working out the usual price…" : "Type a first name to see the usual price"
+        ) : !typed ? (
+          <span>
+            Usual price <strong>{money(price.standardCents)}</strong>
+            {" — type a different amount if today\u2019s price is different."}
+          </span>
+        ) : price.overridden ? (
+          <>
+            <span className="desk-chip chip-warn">
+              {price.chargedCents === 0 ? "free — admin only" : `changed from ${money(price.standardCents)}`}
+            </span>{" "}
+            <button className="underline underline-offset-4" onClick={() => onChange("")}>
+              use usual price
+            </button>
+          </>
+        ) : (
+          <>Same as the usual price.</>
+        )}
+      </span>
     </div>
   );
 }

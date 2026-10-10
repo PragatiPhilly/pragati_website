@@ -336,6 +336,79 @@ describe("TI · the arithmetic", () => {
 });
 
 // ══════════════════════════════════════════════════════════════════════════
+describe("TP · dynamic pricing — the price is typed at the desk", () => {
+  const timeline = async (registrationId: string) =>
+    getDb().select().from(schema.deskOrderEvents).where(eq(schema.deskOrderEvents.registrationId, registrationId));
+
+  it("TP-1 · a typed price replaces the usual one, and the passes carry it", async () => {
+    const actor = await as("volunteer");
+    const { registrationId } = await openOrder([person({ firstName: "Gita", priceOverrideCents: 4500 })], actor);
+
+    let s = (await deskOrderSummary(registrationId))!;
+    expect(s.listPriceCents).toBe(4500);
+    expect(s.balanceCents).toBe(4500);
+    expect(checkInvariant(s).ok).toBe(true);
+    const passes = await getDb().select().from(schema.tickets).where(eq(schema.tickets.registrationId, registrationId));
+    expect(passes.reduce((n, t) => n + (t.priceCents ?? 0), 0)).toBe(4500);
+
+    await addTender({ registrationId, method: "cash", amountCents: 4500, shiftId }, actor);
+    s = (await deskOrderSummary(registrationId))!;
+    expect(s.settled).toBe(true);
+    expect(s.reg.status).toBe("paid");
+  });
+
+  it("TP-2 · a changed price is on the timeline and in the audit log, with the usual price beside it", async () => {
+    const actor = await as("volunteer");
+    const { registrationId } = await openOrder([person({ firstName: "Hari", priceOverrideCents: 7500 })], actor);
+    const ev = (await timeline(registrationId)).find((e) => e.type === "price_set");
+    expect(ev).toBeTruthy();
+    expect(ev!.summary).toContain("$75.00");
+    expect(ev!.summary).toContain("$100.00");
+    expect(ev!.actorEmail).toBe("volunteer@pragati.test");
+    const audit = await getDb()
+      .select()
+      .from(schema.auditLog)
+      .where(and(eq(schema.auditLog.entityId, registrationId), eq(schema.auditLog.action, "desk_price_set")));
+    expect(audit.length).toBe(1);
+  });
+
+  it("TP-3 · blank, or the same as usual, changes nothing and writes nothing", async () => {
+    const actor = await as("volunteer");
+    const a = await openOrder([person({ firstName: "Ila" })], actor);
+    const b = await openOrder([person({ firstName: "Jaya", priceOverrideCents: 10000 })], actor);
+    for (const { registrationId } of [a, b]) {
+      expect((await deskOrderSummary(registrationId))!.listPriceCents).toBe(10000);
+      expect((await timeline(registrationId)).some((e) => e.type === "price_set")).toBe(false);
+    }
+  });
+
+  it("TP-4 · only the person with a typed price changes; the rest of the family pays as usual", async () => {
+    const actor = await as("volunteer");
+    const { registrationId } = await openOrder(
+      [person({ firstName: "Kamal", priceOverrideCents: 6000 }), person({ firstName: "Lina", kind: "youth", age: 9 })],
+      actor
+    );
+    const s = (await deskOrderSummary(registrationId))!;
+    expect(s.listPriceCents).toBe(6000 + 5000);
+    expect(checkInvariant(s).ok).toBe(true);
+  });
+
+  it("TP-5 · a volunteer cannot make it free — that is a comp; an admin can", async () => {
+    const vol = await as("volunteer");
+    await expect(openOrder([person({ firstName: "Mitra", priceOverrideCents: 0 })], vol)).rejects.toThrow(/admin/i);
+    const admin = await as("admin");
+    const { registrationId } = await openOrder([person({ firstName: "Mitra", priceOverrideCents: 0 })], admin);
+    expect((await deskOrderSummary(registrationId))!.dueCents).toBe(0);
+  });
+
+  it("TP-6 · a nonsense or typo-sized price is refused, not charged", async () => {
+    const admin = await as("admin");
+    await expect(openOrder([person({ firstName: "Nila", priceOverrideCents: -100 })], admin)).rejects.toThrow(DeskError);
+    await expect(openOrder([person({ firstName: "Nila", priceOverrideCents: 600000 })], admin)).rejects.toThrow(/typo/);
+  });
+});
+
+// ══════════════════════════════════════════════════════════════════════════
 describe("TX · isolation — the online pipeline is untouched", () => {
   it("TX-1 · a Square webhook settles ONE desk tender, never the cash beside it", async () => {
     const actor = await as("volunteer");

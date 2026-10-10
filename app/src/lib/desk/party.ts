@@ -38,7 +38,18 @@ export type DeskPerson = {
   guardianTicketId?: string | null;
   student?: StudentInfo;
   isMemberFlagged?: boolean;
+  /**
+   * Dynamic pricing: what this person is actually being charged, typed at the
+   * desk, for ALL their passes together. Absent/null = the usual price from the
+   * price list. It is spread evenly across their passes, so the passes carry
+   * the real price and every total downstream (balance, payments, gate, export)
+   * follows it with no special case.
+   */
+  priceOverrideCents?: number | null;
 };
+
+/** A typed desk price above this is almost certainly a slip ("6000" for $60). */
+export const MAX_DESK_PRICE_PER_PERSON_CENTS = 200_000;
 
 export type PricedPass = {
   personRef: string;
@@ -50,14 +61,29 @@ export type PricedPass = {
   foodPref: "veg" | "non_veg" | "kid" | "none";
   dayKey: string;
   priceCents: number;
+  /** What the price list says this pass costs, before any desk price. */
+  standardPriceCents: number;
   memberPricing: boolean;
   studentInfo?: StudentInfo | null;
   needsGuardian: boolean;
 };
 
+/** One person's price — the usual one, and what they are actually charged. */
+export type PersonPrice = {
+  personRef: string;
+  firstName: string;
+  standardCents: number;
+  chargedCents: number;
+  overridden: boolean;
+};
+
 export type PricedParty = {
   passes: PricedPass[];
+  /** What is actually charged — includes any price typed at the desk. */
   listPriceCents: number;
+  /** What the price list alone would have charged. */
+  standardListPriceCents: number;
+  people: PersonPrice[];
   /** People we could not issue a pass for, with the reason — shown, never swallowed. */
   problems: { personRef: string; firstName: string; why: string }[];
 };
@@ -272,15 +298,50 @@ export function priceParty(
       foodPref: e.attendee.foodPref,
       dayKey: e.day,
       priceCents: line.priceCents,
+      standardPriceCents: line.priceCents,
       memberPricing: line.memberPricing,
       studentInfo: e.student ?? null,
       needsGuardian: needsGuardian(person),
     };
   });
 
+  // ── dynamic pricing: a price typed at the desk replaces the usual one ────
+  const prices: PersonPrice[] = [];
+  for (const p of people) {
+    const mine = passes.filter((x) => x.personRef === p.ref);
+    if (mine.length === 0) continue;
+    const standardCents = mine.reduce((s, x) => s + x.standardPriceCents, 0);
+    const o = p.priceOverrideCents;
+    let overridden = false;
+    if (o !== undefined && o !== null) {
+      if (!Number.isInteger(o) || o < 0) {
+        problems.push({ personRef: p.ref, firstName: p.firstName, why: `The price for ${p.firstName} isn't a valid amount.` });
+      } else if (o > MAX_DESK_PRICE_PER_PERSON_CENTS) {
+        problems.push({
+          personRef: p.ref,
+          firstName: p.firstName,
+          why: `$${(o / 100).toFixed(2)} for ${p.firstName} looks like a typo — check the price.`,
+        });
+      } else if (o !== standardCents) {
+        const shares = splitEven(o, mine.length);
+        mine.forEach((x, i) => (x.priceCents = shares[i]));
+        overridden = true;
+      }
+    }
+    prices.push({
+      personRef: p.ref,
+      firstName: p.firstName,
+      standardCents,
+      chargedCents: mine.reduce((s, x) => s + x.priceCents, 0),
+      overridden,
+    });
+  }
+
   return {
     passes,
     listPriceCents: passes.reduce((s, p) => s + p.priceCents, 0),
+    standardListPriceCents: passes.reduce((s, p) => s + p.standardPriceCents, 0),
+    people: prices,
     problems,
   };
 }
