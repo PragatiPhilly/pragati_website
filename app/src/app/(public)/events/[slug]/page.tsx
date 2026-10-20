@@ -7,6 +7,7 @@ import Reveal from '@/components/site/Reveal';
 import MediaImg from '@/components/site/MediaImg';
 import MenuExplorer from '@/components/site/MenuExplorer';
 import { menuMatchesEvent } from '@/lib/pujo-menu';
+import { eventHasEnded } from '@/lib/season-model';
 
 export const dynamic = 'force-dynamic';
 
@@ -321,6 +322,8 @@ export default async function EventDetailPage({
     }
     return [...m.entries()];
   };
+  // Over → no price table, no Register button (spec/16-post-event-mode.md).
+  const ended = eventHasEnded(event);
   const adultGroups = groupByCoverage(adult);
   const studentGroups = groupByCoverage(student);
 
@@ -431,6 +434,47 @@ export default async function EventDetailPage({
         </div>
       )}
 
+      {ended && (
+        <Reveal delay={0.25}>
+          <div
+            id="tickets"
+            className="festive-card mt-14 p-7 md:p-9 text-center scroll-mt-24"
+          >
+            <p className="text-4xl mb-2" aria-hidden>
+              🪔
+            </p>
+            {event.nameBengali && (
+              <p
+                className="font-[family-name:var(--font-bangla)] text-lg"
+                style={{ color: 'var(--sindoor)' }}
+              >
+                {event.nameBengali} সুসম্পন্ন
+              </p>
+            )}
+            <h2 className="font-[family-name:var(--font-display)] text-2xl font-bold">
+              This celebration has ended — thank you for coming!
+            </h2>
+            <p className="mt-2 text-sm" style={{ color: 'var(--ink-soft)' }}>
+              Online registration is closed. Already booked? Your tickets are
+              under{' '}
+              <Link href="/lookup" className="underline underline-offset-4">
+                Find my tickets
+              </Link>
+              .
+            </p>
+            <div className="mt-6 flex flex-wrap justify-center gap-3">
+              <Link href="/events" className="btn-primary !py-2.5 !px-6 text-sm">
+                See upcoming events →
+              </Link>
+              <Link href="/signup" className="btn-secondary !py-2.5 !px-6 text-sm">
+                Become a member
+              </Link>
+            </div>
+          </div>
+        </Reveal>
+      )}
+
+      {!ended && (
       <Reveal delay={0.25}>
         <div id="tickets" className="mt-14 scroll-mt-24">
           <h2 className="font-[family-name:var(--font-display)] text-2xl font-bold mb-3">
@@ -448,7 +492,7 @@ export default async function EventDetailPage({
               price. Pragati members save on every pass, all year.
             </p>
             <div className="flex flex-wrap gap-2">
-              {menuMatchesEvent(event) && (
+      {menuMatchesEvent(event) && (
                 <a
                   href="#menu"
                   className="btn-secondary !py-1.5 !px-4 text-xs whitespace-nowrap"
@@ -530,6 +574,7 @@ export default async function EventDetailPage({
           )}
         </div>
       </Reveal>
+      )}
 
       {menuMatchesEvent(event) && (
         <section id="menu" className="mt-12 scroll-mt-24">
@@ -539,6 +584,7 @@ export default async function EventDetailPage({
         </section>
       )}
 
+      {!ended && (
       <Reveal delay={0.3}>
         <div className="mt-10 flex flex-wrap items-center gap-4">
           <Link
@@ -549,6 +595,7 @@ export default async function EventDetailPage({
           </Link>
         </div>
       </Reveal>
+      )}
     </div>
   );
 }

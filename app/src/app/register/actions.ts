@@ -79,6 +79,22 @@ export async function submitRegistration(input: SubmitRegistrationInput): Promis
       return { ok: false, error: "Zelle is temporarily unavailable — please pay by card." };
     }
 
+    // The event is over — refuse even if a tab was left open since before the
+    // end time (spec/16-post-event-mode.md). Desk and admin orders don't come
+    // through here, so staff can still record anything after the fact.
+    {
+      const { getDb, schema } = await import("@/db/client");
+      const { eq } = await import("drizzle-orm");
+      const { eventHasEnded } = await import("@/lib/season-model");
+      const [ev] = await getDb()
+        .select({ name: schema.events.name, endsAt: schema.events.endsAt })
+        .from(schema.events)
+        .where(eq(schema.events.id, input.eventId));
+      if (ev && eventHasEnded(ev)) {
+        return { ok: false, error: `${ev.name} has ended, so online registration is closed. Thank you!` };
+      }
+    }
+
     const session = await getSession();
     // Honor-system member pricing is only trusted when the site is in "honor"
     // mode — the backdoor. In "verify" mode a self-declared claim is ignored

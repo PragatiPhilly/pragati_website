@@ -34,9 +34,37 @@ const GROUPS: { title: string; note?: string; keys: { key: string; label: string
   },
   {
     title: "Donations",
-    note: "pujo = festival framing (\"Pujo Sponsorship\": donors earmark bhog, dakshina, alpona…). generic = year-round giving with in-honor / in-memory options. Applies to the Donate page, the nav label, and the registration donation step.",
+    note: "Flip to generic after each Pujo. pujo = festival framing (\"Pujo Sponsorship\": donors earmark bhog, dakshina, alpona…). generic = year-round giving with in-honor / in-memory options. Applies to the Donate page, the nav label, and the registration donation step.",
     keys: [
       { key: "donation_mode", label: "Donation mode (pujo | generic)" },
+    ],
+  },
+  {
+    title: "Registration",
+    note: "Pausing stops every new online registration at once and shows the message below instead. Online registration also closes by itself once the active event's end time has passed — remember to un-pause when the next event opens.",
+    keys: [
+      { key: "registration_paused", label: "Pause online registration", type: "toggle" },
+      { key: "registration_pause_message", label: "Message shown while paused" },
+    ],
+  },
+  {
+    title: "After the event — thank-you mode",
+    note: "auto = the homepage switches to a thank-you card by itself once the active event's end time passes (Register buttons step aside, concert Buy buttons hide), and switches back when a new event is made active. on = force it now. off = never. Update the numbers after each event — a blank number hides that box.",
+    keys: [
+      { key: "post_event_mode", label: "Thank-you mode (auto | on | off)" },
+      { key: "recap_title", label: "Title (blank = \"<event name> — thank you!\")" },
+      { key: "recap_title_bn", label: "Bengali line (blank = \"<Bengali event name> সুসম্পন্ন\")" },
+      { key: "recap_message", label: "Thank-you message" },
+      { key: "recap_stat_1_value", label: "Number 1 (e.g. 3 or 650+)" },
+      { key: "recap_stat_1_label", label: "Number 1 — what it counts" },
+      { key: "recap_stat_2_value", label: "Number 2" },
+      { key: "recap_stat_2_label", label: "Number 2 — what it counts" },
+      { key: "recap_stat_3_value", label: "Number 3" },
+      { key: "recap_stat_3_label", label: "Number 3 — what it counts" },
+      { key: "recap_stat_4_value", label: "Number 4" },
+      { key: "recap_stat_4_label", label: "Number 4 — what it counts" },
+      { key: "recap_cta_label", label: "Button label (optional, e.g. See the photos)" },
+      { key: "recap_cta_href", label: "Button link (optional)" },
     ],
   },
   {

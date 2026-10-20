@@ -6,6 +6,8 @@ import { getSession } from "@/lib/auth/session";
 import { getConfig } from "@/lib/system-config";
 import RegisterFlow, { type FlowEvent, type FlowMemberContext } from "./RegisterFlow";
 import Header from "@/components/site/Header";
+import Link from "next/link";
+import { eventHasEnded } from "@/lib/season";
 
 export const dynamic = "force-dynamic";
 export const metadata = { title: "Register" };
@@ -32,6 +34,36 @@ export default async function RegisterPage({
   if (!base) notFound();
   const full = await getEventBySlug(base.slug);
   if (!full || full.status !== "published") notFound();
+
+  // The event is over (its end time has passed) — nothing left to sell. Say so
+  // warmly instead of offering passes for days that have already happened.
+  // submitRegistration enforces the same rule server-side. Spec: 16-post-event-mode.md
+  if (eventHasEnded(full)) {
+    return (
+      <>
+        <Header />
+        <div className="mx-auto max-w-lg px-5 py-24 text-center">
+          <p className="text-5xl mb-4">🪔</p>
+          {full.nameBengali && (
+            <p className="font-[family-name:var(--font-bangla)] text-xl mb-1" style={{ color: "var(--sindoor)" }}>
+              {full.nameBengali} সুসম্পন্ন
+            </p>
+          )}
+          <h1 className="font-[family-name:var(--font-display)] text-3xl font-black mb-3">
+            {full.name} has ended — thank you!
+          </h1>
+          <p className="leading-relaxed" style={{ color: "var(--ink-soft)" }}>
+            Online registration is closed. Registration for our next celebration will open here soon.
+            Already booked? Your tickets are still under <Link href="/lookup" className="underline underline-offset-4">Find my tickets</Link>.
+          </p>
+          <div className="mt-8 flex flex-wrap justify-center gap-3">
+            <Link href="/signup" className="btn-primary">Become a member →</Link>
+            <Link href="/events" className="btn-secondary">See events</Link>
+          </div>
+        </div>
+      </>
+    );
+  }
 
   const session = await getSession();
   let memberCtx: FlowMemberContext | null = null;

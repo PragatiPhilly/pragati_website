@@ -49,6 +49,8 @@ import { publicFlyer, scheduleVisible } from '@/lib/pujo-schedule/model';
 import { siteUrl } from '@/lib/site-url';
 import { formatCents } from '@/lib/pricing';
 import { site } from '@/config/site';
+import EventRecap from '@/components/site/EventRecap';
+import { getPostEventMode, getRecap, isPostEvent } from '@/lib/season';
 
 function toPhoto(m: MediaImage) {
   return {
@@ -161,6 +163,18 @@ export default async function HomePage() {
   // Pujo Nirghonto — read from the config snapshot already fetched above (no extra query)
   const pujoSchedule = await getPujoSchedule();
   const showSchedule = scheduleVisible(pujoSchedule, now);
+  // Thank-you mode (spec/16): once the featured event is over the countdown
+  // becomes a recap card and every Register call-to-action steps aside.
+  const postEvent = isPostEvent(await getPostEventMode(), featured, now);
+  const recap = postEvent && featured ? await getRecap(featured) : null;
+  // A banner still pointing at /register has nothing to sell once the event is
+  // over — hide it. A banner linking anywhere else (an announcement) stays.
+  const bannerOn =
+    showBanner &&
+    !(postEvent && (bannerHref?.trim() || '/register').startsWith('/register'));
+  const recapDates = featured
+    ? `${featured.startsAt.toLocaleDateString('en-US', { timeZone: 'America/New_York', month: 'short', day: 'numeric' })}–${featured.endsAt.toLocaleDateString('en-US', { timeZone: 'America/New_York', day: 'numeric' })} · ${featured.venueName}`
+    : undefined;
 
   return (
     <div className="relative">
@@ -170,10 +184,12 @@ export default async function HomePage() {
       <PetalTrail targetId="hero" />
       <ScrollToTop />
       {/* One CTA at a time: only appears when no real Register button is in view */}
-      <FloatingRegister
-        label={featured ? `Register for ${featured.name}` : 'Register'}
-        note={showBanner && bannerDeadline?.trim() ? 'Early Bird ends soon' : undefined}
-      />
+      {!postEvent && (
+        <FloatingRegister
+          label={featured ? `Register for ${featured.name}` : 'Register'}
+          note={showBanner && bannerDeadline?.trim() ? 'Early Bird ends soon' : undefined}
+        />
+      )}
 
       {/* ══════════ HERO — compact, countdown floats on the seam below ══════════ */}
       <section id="hero" className="relative overflow-hidden">
@@ -237,7 +253,7 @@ export default async function HomePage() {
           </>
         )}
 
-        {showBanner &&
+        {bannerOn &&
           (() => {
             const banner = (
               <HomeBanner
@@ -245,6 +261,13 @@ export default async function HomePage() {
                 ctaLabel={bannerCta?.trim() || undefined}
                 href={bannerHref?.trim() || '/register'}
                 deadline={bannerDeadline?.trim() || undefined}
+                eyebrow={
+                  postEvent
+                    ? 'From Pragati'
+                    : featured
+                      ? `${featured.name} · registration open`
+                      : undefined
+                }
                 style={
                   bannerStyle === 'alpona' || bannerStyle === 'toran'
                     ? bannerStyle
@@ -320,23 +343,39 @@ export default async function HomePage() {
             </Reveal>
             <Reveal delay={0.24}>
               <div className="mt-8 flex flex-col sm:flex-row sm:flex-nowrap gap-4 sm:items-center">
-                <Link
-                  href="/register"
-                  data-register-cta
-                  className="btn-primary sm:whitespace-nowrap !px-7"
-                >
-                  Register for {featured ? featured.name : 'the next event'} →
-                </Link>
+                {postEvent ? (
+                  <Link
+                    href="/signup"
+                    className="btn-primary sm:whitespace-nowrap !px-7"
+                  >
+                    Become a member →
+                  </Link>
+                ) : (
+                  <Link
+                    href="/register"
+                    data-register-cta
+                    className="btn-primary sm:whitespace-nowrap !px-7"
+                  >
+                    Register for {featured ? featured.name : 'the next event'} →
+                  </Link>
+                )}
                 <ScrollLink
                   to="lineup"
                   className="btn-secondary sm:whitespace-nowrap"
                 >
-                  See this year&apos;s lineup
+                  {postEvent
+                    ? 'Look back at the lineup'
+                    : <>See this year&apos;s lineup</>}
                 </ScrollLink>
               </div>
             </Reveal>
             {/* mobile countdown (desktop version floats between sections) */}
-            {featured && (
+            {featured && recap && (
+              <Reveal delay={0.34} className="md:hidden">
+                <EventRecap className="mt-10 block" recap={recap} dates={recapDates} />
+              </Reveal>
+            )}
+            {featured && !recap && (
               <Reveal delay={0.34} className="md:hidden">
                 <PujoCountdown
                   className="mt-10 inline-block"
@@ -364,7 +403,7 @@ export default async function HomePage() {
                   className="text-[11px] uppercase tracking-[0.3em] font-semibold"
                   style={{ color: 'var(--terracotta)' }}
                 >
-                  Next celebration
+                  {postEvent ? 'Just celebrated' : 'Next celebration'}
                 </p>
                 <p
                   className="font-[family-name:var(--font-bangla)] text-xl mt-1"
@@ -382,7 +421,14 @@ export default async function HomePage() {
       </section>
 
       {/* countdown — centered on the seam between hero and lineup */}
-      {featured && (
+      {featured && recap && (
+        <div className="hidden md:flex justify-center relative z-20 -mt-12">
+          <div style={{ boxShadow: 'var(--shadow)', borderRadius: '1.25rem' }}>
+            <EventRecap recap={recap} dates={recapDates} />
+          </div>
+        </div>
+      )}
+      {featured && !recap && (
         <div className="hidden md:flex justify-center relative z-20 -mt-12">
           <div style={{ boxShadow: 'var(--shadow)', borderRadius: '1.25rem' }}>
             <PujoCountdown
@@ -405,7 +451,7 @@ export default async function HomePage() {
           <div className="text-center mb-12">
             <Eyebrow
               bn="উৎসবের মঞ্চ"
-              en="Pujo weekend · live on stage"
+              en={postEvent ? 'Pujo weekend · thank you for coming' : 'Pujo weekend · live on stage'}
               center
             />
             <h2 className="font-[family-name:var(--font-display)] text-3xl md:text-5xl font-black leading-tight">
@@ -423,7 +469,7 @@ export default async function HomePage() {
         {posterPhotos.length > 0 ? (
           <>
             <PosterPanels photos={posterPhotos} />
-            {concertPasses.length > 0 && active && (
+            {concertPasses.length > 0 && active && !postEvent && (
               <div className="mt-7 flex flex-wrap justify-center gap-3">
                 {concertPasses.map((c) => {
                   const day = Array.isArray(c.dayKeys)
@@ -676,53 +722,121 @@ export default async function HomePage() {
               style={{ left: '70%', animationDelay: '5s' }}
               aria-hidden
             />
-            <div className="relative z-[2]">
-              <p
-                className="font-[family-name:var(--font-bangla)] text-2xl md:text-3xl mb-3"
-                style={{ color: 'var(--marigold-bright)' }}
-              >
-                এসো, মায়ের আঙিনায় 🪔
-              </p>
-              <h2
-                className="font-[family-name:var(--font-display)] text-3xl md:text-5xl font-black leading-tight"
-                style={{ color: 'var(--cream)' }}
-              >
-                You&apos;re invited home.
-              </h2>
-              <p
-                className="font-[family-name:var(--font-bangla)] mt-6 text-xl leading-relaxed max-w-lg"
-                style={{ color: 'var(--marigold-pale)' }}
-              >
-                ঢাকের তালে, ভোগের গন্ধে, হাজার চেনা মুখের ভিড়ে — আপনার জন্য
-                জায়গা রাখা আছে। আসছেন তো?
-              </p>
-              <p
-                className="mt-3 text-lg leading-relaxed max-w-lg"
-                style={{ color: 'var(--marigold-pale)' }}
-              >
-                The dhaak, the bhog, a thousand familiar faces — please come and
-                join us.
-              </p>
-              <div className="mt-9 flex flex-wrap gap-4 items-center">
-                <Link
-                  href="/register"
-                  data-register-cta
-                  className="inline-flex items-center gap-2.5 rounded-full px-9 py-4 text-lg font-bold transition-transform hover:-translate-y-0.5"
-                  style={{
-                    background: 'var(--cream)',
-                    color: 'var(--sindoor)',
-                    boxShadow: '0 10px 30px rgba(0,0,0,0.3)',
-                  }}
+            {recap ? (
+              <div className="relative z-[2] lg:col-span-2 text-center max-w-3xl mx-auto">
+                <p
+                  className="font-[family-name:var(--font-bangla)] text-2xl md:text-3xl mb-3"
+                  style={{ color: 'var(--marigold-bright)' }}
                 >
-                  Register →
-                </Link>
+                  ধন্যবাদ, প্রগতি পরিবার 🪔
+                </p>
+                <h2
+                  className="font-[family-name:var(--font-display)] text-3xl md:text-5xl font-black leading-tight"
+                  style={{ color: 'var(--cream)' }}
+                >
+                  Thank you for coming home.
+                </h2>
+                <p
+                  className="font-[family-name:var(--font-bangla)] mt-6 text-xl leading-relaxed"
+                  style={{ color: 'var(--marigold-pale)' }}
+                >
+                  ঢাকের তালে, ভোগের গন্ধে, হাজার চেনা মুখের ভিড়ে — এবারের পুজো
+                  আপনাদের জন্যই সার্থক।
+                </p>
+                {recap.message && (
+                  <p
+                    className="mt-3 text-lg leading-relaxed"
+                    style={{ color: 'var(--marigold-pale)' }}
+                  >
+                    {recap.message}
+                  </p>
+                )}
+                <div className="mt-9 flex flex-wrap gap-4 items-center justify-center">
+                  {recap.ctaLabel && recap.ctaHref && (
+                    <a
+                      href={recap.ctaHref}
+                      className="inline-flex items-center gap-2.5 rounded-full px-9 py-4 text-lg font-bold transition-transform hover:-translate-y-0.5"
+                      style={{
+                        background: 'var(--cream)',
+                        color: 'var(--sindoor)',
+                        boxShadow: '0 10px 30px rgba(0,0,0,0.3)',
+                      }}
+                    >
+                      {recap.ctaLabel} →
+                    </a>
+                  )}
+                  <Link
+                    href="/signup"
+                    className={
+                      recap.ctaLabel && recap.ctaHref
+                        ? 'inline-flex items-center gap-2 rounded-full px-7 py-3.5 font-semibold border transition-transform hover:-translate-y-0.5'
+                        : 'inline-flex items-center gap-2.5 rounded-full px-9 py-4 text-lg font-bold transition-transform hover:-translate-y-0.5'
+                    }
+                    style={
+                      recap.ctaLabel && recap.ctaHref
+                        ? { borderColor: 'var(--marigold-pale)', color: 'var(--cream)' }
+                        : {
+                            background: 'var(--cream)',
+                            color: 'var(--sindoor)',
+                            boxShadow: '0 10px 30px rgba(0,0,0,0.3)',
+                          }
+                    }
+                  >
+                    Become a member →
+                  </Link>
+                </div>
               </div>
-            </div>
+            ) : (
+              <>
+              <div className="relative z-[2]">
+                <p
+                  className="font-[family-name:var(--font-bangla)] text-2xl md:text-3xl mb-3"
+                  style={{ color: 'var(--marigold-bright)' }}
+                >
+                  এসো, মায়ের আঙিনায় 🪔
+                </p>
+                <h2
+                  className="font-[family-name:var(--font-display)] text-3xl md:text-5xl font-black leading-tight"
+                  style={{ color: 'var(--cream)' }}
+                >
+                  You&apos;re invited home.
+                </h2>
+                <p
+                  className="font-[family-name:var(--font-bangla)] mt-6 text-xl leading-relaxed max-w-lg"
+                  style={{ color: 'var(--marigold-pale)' }}
+                >
+                  ঢাকের তালে, ভোগের গন্ধে, হাজার চেনা মুখের ভিড়ে — আপনার জন্য
+                  জায়গা রাখা আছে। আসছেন তো?
+                </p>
+                <p
+                  className="mt-3 text-lg leading-relaxed max-w-lg"
+                  style={{ color: 'var(--marigold-pale)' }}
+                >
+                  The dhaak, the bhog, a thousand familiar faces — please come and
+                  join us.
+                </p>
+                <div className="mt-9 flex flex-wrap gap-4 items-center">
+                  <Link
+                    href="/register"
+                    data-register-cta
+                    className="inline-flex items-center gap-2.5 rounded-full px-9 py-4 text-lg font-bold transition-transform hover:-translate-y-0.5"
+                    style={{
+                      background: 'var(--cream)',
+                      color: 'var(--sindoor)',
+                      boxShadow: '0 10px 30px rgba(0,0,0,0.3)',
+                    }}
+                  >
+                    Register →
+                  </Link>
+                </div>
+              </div>
 
-            {/* looping anonymous preview */}
-            <div className="relative z-[2] hidden lg:block">
-              <RegisterPreview />
-            </div>
+              {/* looping anonymous preview */}
+              <div className="relative z-[2] hidden lg:block">
+                <RegisterPreview />
+              </div>
+              </>
+            )}
           </div>
         </Reveal>
       </section>
@@ -781,7 +895,7 @@ export default async function HomePage() {
                 <div className="overlay" />
                 <div className="arrow-circle">↗</div>
                 <div className="relative z-[2] p-7 w-full">
-                  <span className="chip">★ Featured</span>
+                  <span className="chip">{postEvent ? '✓ Celebrated' : '★ Featured'}</span>
                   <h3
                     className="font-[family-name:var(--font-display)] text-3xl md:text-4xl font-black"
                     style={{

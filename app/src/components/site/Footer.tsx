@@ -1,9 +1,11 @@
 import Link from "next/link";
 import { site } from "@/config/site";
 import { getDonationMode, DONATION_COPY } from "@/lib/donation-mode";
+import { publicRegistrationOpen } from "@/lib/season";
 
 export default async function Footer() {
   const donationLabel = DONATION_COPY[await getDonationMode()].navLabel;
+  const registrationOpen = await publicRegistrationOpen();
   const nav = site.nav.map((n) => (n.href === "/donate" ? { ...n, label: donationLabel } : n));
   return (
     <footer className="mt-24 border-t" style={{ borderColor: "var(--line)" }}>
@@ -28,9 +30,11 @@ export default async function Footer() {
               {n.label}
             </Link>
           ))}
-          <Link href="/register" className="hover:opacity-70 transition-opacity w-fit">
-            Register for the next event
-          </Link>
+          {registrationOpen && (
+            <Link href="/register" className="hover:opacity-70 transition-opacity w-fit">
+              Register for the next event
+            </Link>
+          )}
           {/* Discreet: members with accounts, gate volunteers, and admins. */}
           <Link href="/login" className="hover:opacity-70 transition-opacity w-fit mt-1 text-xs" style={{ color: "var(--ink-soft)" }}>
             Sign in

@@ -10,11 +10,14 @@ export default function MobileNav({
   signedIn,
   isAdmin,
   portalEnabled = true,
+  registrationOpen = true,
 }: {
   nav: readonly { label: string; href: string }[];
   signedIn: boolean;
   isAdmin: boolean;
   portalEnabled?: boolean;
+  /** false between events — hides "Register for the next event" (spec/16). */
+  registrationOpen?: boolean;
 }) {
   const [open, setOpen] = useState(false);
 
@@ -47,9 +50,11 @@ export default function MobileNav({
                   {n.label}
                 </Link>
               ))}
-              <Link href="/register" className="rounded-xl px-4 py-3 font-medium hover:bg-[var(--accent-soft)] transition-colors" onClick={() => setOpen(false)}>
-                Register for the next event
-              </Link>
+              {registrationOpen && (
+                <Link href="/register" className="rounded-xl px-4 py-3 font-medium hover:bg-[var(--accent-soft)] transition-colors" onClick={() => setOpen(false)}>
+                  Register for the next event
+                </Link>
+              )}
               <FacebookLink
                 label="Pragati on Facebook"
                 className="!rounded-xl px-4 py-1.5 font-medium hover:bg-[var(--accent-soft)] transition-colors"

@@ -61,6 +61,10 @@ export default async function AdminDashboard() {
   // ── system health (fail-safe visibility) ──────────────────────
   const { getConfig } = await import("@/lib/system-config");
   const paused = (await getConfig<string>("registration_paused")) === "yes";
+  // Thank-you mode (spec/16) — say so, so nobody wonders where Register went.
+  const { getPostEventMode, isPostEvent } = await import("@/lib/season");
+  const activeForMode = active;
+  const thankYouMode = isPostEvent(await getPostEventMode(), activeForMode);
   const squareOff = (await getConfig<string>("payments_square_enabled")) === "no";
   const zelleOff = (await getConfig<string>("payments_zelle_enabled")) === "no";
   const emailLive =
@@ -96,6 +100,7 @@ export default async function AdminDashboard() {
   const failedMigrations = migrations.filter((m) => m.status === "failed");
   const healthWarnings = [
     paused && "⏸ Registration is PAUSED (re-enable in Settings)",
+    thankYouMode && `🙏 ${activeForMode?.name ?? "The active event"} is over — the homepage is showing the thank-you card instead of Register (Settings → After the event)`,
     squareOff && "💳 Card payments disabled (Settings)",
     zelleOff && "🏦 Zelle disabled (Settings)",
     !emailLive && "📧 Email in console mode — no real emails send (set EMAIL_PROVIDER=live plus a BREVO_API_KEY or RESEND_API_KEY)",

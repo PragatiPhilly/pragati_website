@@ -4,6 +4,7 @@ import { getSession } from "@/lib/auth/session";
 import { logoutAction } from "@/lib/auth/actions";
 import { canUseMemberPortal } from "@/lib/member-mode";
 import { getDonationMode, DONATION_COPY } from "@/lib/donation-mode";
+import { publicRegistrationOpen } from "@/lib/season";
 import MobileNav from "./MobileNav";
 import HeaderScroll from "./HeaderScroll";
 import FacebookLink from "./FacebookLink";
@@ -17,6 +18,7 @@ export default async function Header() {
   const portalEnabled = await canUseMemberPortal(session?.memberId);
   // In Pujo mode the "Donate" nav item reads "Pujo Sponsorship".
   const donationLabel = DONATION_COPY[await getDonationMode()].navLabel;
+  const registrationOpen = await publicRegistrationOpen();
   const nav = site.nav.map((n) => (n.href === "/donate" ? { ...n, label: donationLabel } : n));
 
   return (
@@ -49,7 +51,7 @@ export default async function Header() {
             <span className="hidden sm:inline-flex">
               <FacebookLink />
             </span>
-            <MobileNav nav={nav} signedIn={!!session} isAdmin={!!isAdmin} portalEnabled={portalEnabled} />
+            <MobileNav nav={nav} signedIn={!!session} isAdmin={!!isAdmin} portalEnabled={portalEnabled} registrationOpen={registrationOpen} />
             {session ? (
               <>
                 {isAdmin ? (

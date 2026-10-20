@@ -112,6 +112,29 @@ export const systemConfigDefaults: Record<string, unknown> = {
   caterer_name: "Taste of Bengal",
   caterer_url: "", // optional website — the signboard becomes a link when set
 
+  // ── after the event: thank-you mode (spec/16-post-event-mode.md).
+  //    auto = switches on by itself once the active event's end time passes and
+  //    off again when a new, unfinished event is made active. on | off force it.
+  post_event_mode: "auto",
+  // Blank title = "<event name> — thank you!"; blank Bengali = "<বাংলা নাম> সুসম্পন্ন".
+  recap_title: "",
+  recap_title_bn: "",
+  recap_message:
+    "Three days of dhaak, bhog, anjali and music — thank you to every family, volunteer, sponsor and artist who made Pragati feel like home. See you at the next celebration!",
+  // Starting numbers from the database (2026-10-19): online + comp + desk tickets.
+  // Walk-ins taken on the paper coupon desk are not in the database — replace the
+  // second number with the EC's official attendance if there is one.
+  recap_stat_1_value: "3",
+  recap_stat_1_label: "Days of Pujo",
+  recap_stat_2_value: "650+",
+  recap_stat_2_label: "Passes issued",
+  recap_stat_3_value: "160+",
+  recap_stat_3_label: "Families booked online",
+  recap_stat_4_value: "2",
+  recap_stat_4_label: "Concert nights",
+  recap_cta_label: "", // optional button on the thank-you band (e.g. "See the photos")
+  recap_cta_href: "",
+
   // ── Pujo schedule (Pujo Nirghonto) — the terracotta wall on the homepage.
   //    Admin → Content → Pujo schedule edits it; until then the committee's
   //    2026 flyer timings (and the bundled flyer image) are shown.

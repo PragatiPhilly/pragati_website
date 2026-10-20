@@ -19,6 +19,8 @@ type Props = {
   href?: string;
   deadline?: string; // YYYY-MM-DD (event-local); drives the live countdown chip
   style?: BannerStyle;
+  /** Small line above the message (aurora + toran designs) — e.g. "Kali Pujo 2026 · registration open". */
+  eyebrow?: string;
 };
 
 function useDaysLeft(deadline?: string): number | null {
@@ -98,7 +100,7 @@ function Shell({ children, href, linkify }: { children: React.ReactNode; href: s
 /* ══════════════════ 1 · AURORA ══════════════════
    A rotating marigold "aurora" ring behind a frosted pill, a flickering diya,
    and petals drifting up through the panel. Modern, glowing, minimal. */
-function AuroraBanner({ text, ctaLabel, href = "/register", deadline }: Props) {
+function AuroraBanner({ text, ctaLabel, href = "/register", deadline, eyebrow = "Registration open" }: Props) {
   const daysLeft = useDaysLeft(deadline);
   return (
     <div className="relative rounded-2xl p-[1.6px] overflow-hidden shadow-[0_10px_40px_-12px_rgba(179,64,42,0.45)]">
@@ -141,7 +143,7 @@ function AuroraBanner({ text, ctaLabel, href = "/register", deadline }: Props) {
         </motion.span>
         <div className="min-w-0 flex-1">
           <p className="text-[10px] font-bold uppercase tracking-[0.22em]" style={{ color: "var(--terracotta)" }}>
-            Registration open
+            {eyebrow}
           </p>
           <p className="font-semibold leading-snug text-[15px] md:text-base" style={{ color: "var(--ink)" }}>
             {text}
@@ -284,7 +286,7 @@ function AlponaBanner({ text, ctaLabel, href = "/register", deadline }: Props) {
 /* ══════════════════ 3 · TORAN ══════════════════
    A deep sindoor panel hung with marigold-and-leaf toran strings that swing on
    a pendulum, with dhunuchi smoke curling up behind. Theatrical, festive. */
-function ToranBanner({ text, ctaLabel, href = "/register", deadline }: Props) {
+function ToranBanner({ text, ctaLabel, href = "/register", deadline, eyebrow = "Registration open" }: Props) {
   const daysLeft = useDaysLeft(deadline);
   return (
     <div
@@ -343,7 +345,7 @@ function ToranBanner({ text, ctaLabel, href = "/register", deadline }: Props) {
         </motion.span>
         <div className="min-w-0 flex-1">
           <p className="text-[10px] font-bold uppercase tracking-[0.22em]" style={{ color: "#ffd88a" }}>
-            Durga Pujo 2026 · registration open
+            {eyebrow}
           </p>
           <p className="font-semibold leading-snug text-[15px] md:text-base text-white">{text}</p>
         </div>
