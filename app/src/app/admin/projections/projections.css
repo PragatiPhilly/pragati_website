@@ -56,7 +56,7 @@
    re-validated against the dark card surface. */
 /* This app's dark theme is `kali` (see styles/globals.css — the three festival
    themes are durga / kali / saraswati on <html data-theme>). */
-[data-theme="kali"] .proj {
+[data-theme="kali"]:not(:has([data-force-light])) .proj {
   --c-gain: #1f9d8c;
   --c-gain-soft: rgba(31, 157, 140, 0.18);
   --c-loss: #e0435c;

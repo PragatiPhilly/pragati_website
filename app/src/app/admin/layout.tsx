@@ -73,7 +73,7 @@ export default async function AdminLayout({ children }: { children: React.ReactN
   }));
 
   return (
-    <div className="admin-shell" data-admin>
+    <div className="admin-shell" data-admin data-force-light>
       <AdminNav
         pinned={pinned}
         groups={groups}

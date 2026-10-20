@@ -15,7 +15,63 @@ const MOTIFS = [
   { top: "86%", right: "9%", size: 150, speed: 0.05, rotate: -8, kind: "lotus", color: "var(--terracotta)" },
 ] as const;
 
-function Motif({ kind, color }: { kind: "lotus" | "paisley"; color: string }) {
+// Kali Pujo: hibiscus (জবা, Maa Kali's flower), a diya, the trishul and the
+// downward-triangle yantra — drawn in lamp-gold so they glow on the night sky.
+const KALI_MOTIFS = [
+  { top: "12%", left: "3%", size: 130, speed: 0.1, rotate: -12, kind: "hibiscus", color: "var(--sindoor)" },
+  { top: "38%", right: "4%", size: 150, speed: -0.06, rotate: 8, kind: "yantra", color: "var(--marigold)" },
+  { top: "64%", left: "5%", size: 110, speed: 0.14, rotate: 0, kind: "diya", color: "var(--marigold-bright)" },
+  { top: "84%", right: "8%", size: 140, speed: 0.05, rotate: -6, kind: "trishul", color: "var(--marigold)" },
+] as const;
+
+type Kind = "lotus" | "paisley" | "hibiscus" | "yantra" | "diya" | "trishul";
+
+function Motif({ kind, color }: { kind: Kind; color: string }) {
+  if (kind === "hibiscus") {
+    return (
+      <svg viewBox="0 0 100 100" fill="none" stroke={color} strokeWidth="2.2" style={{ width: "100%", height: "100%" }}>
+        {[0, 72, 144, 216, 288].map((r) => (
+          <path key={r} transform={`rotate(${r} 50 50)`} d="M50 50 C40 38 34 22 42 12 C47 6 53 6 58 12 C66 22 60 38 50 50 Z" />
+        ))}
+        <path d="M50 50 L66 30" strokeWidth="1.6" />
+        <circle cx="67" cy="28" r="2.6" fill={color} stroke="none" />
+      </svg>
+    );
+  }
+  if (kind === "yantra") {
+    return (
+      <svg viewBox="0 0 100 100" fill="none" stroke={color} strokeWidth="1.8" style={{ width: "100%", height: "100%" }}>
+        <circle cx="50" cy="50" r="44" />
+        <circle cx="50" cy="50" r="38" />
+        <polygon points="50,86 14,26 86,26" />
+        <polygon points="50,74 24,32 76,32" />
+        <polygon points="50,62 34,38 66,38" />
+        <circle cx="50" cy="44" r="3" fill={color} stroke="none" />
+      </svg>
+    );
+  }
+  if (kind === "diya") {
+    return (
+      <svg viewBox="0 0 100 100" fill="none" stroke={color} strokeWidth="2.2" style={{ width: "100%", height: "100%" }}>
+        <path d="M14 58 C22 80 78 80 86 58 Z" />
+        <path d="M86 58 L94 52" />
+        <path d="M50 52 C42 40 46 26 50 16 C54 26 58 40 50 52 Z" />
+        <path d="M50 46 C47 40 48 33 50 28 C52 33 53 40 50 46 Z" fill={color} stroke="none" opacity="0.6" />
+      </svg>
+    );
+  }
+  if (kind === "trishul") {
+    return (
+      <svg viewBox="0 0 100 100" fill="none" stroke={color} strokeWidth="2.2" style={{ width: "100%", height: "100%" }}>
+        <path d="M50 94 L50 18" />
+        <path d="M50 14 C46 22 46 30 50 36 C54 30 54 22 50 14 Z" />
+        <path d="M26 20 C26 38 36 44 50 44 C64 44 74 38 74 20" />
+        <path d="M22 16 L26 24 L30 16" />
+        <path d="M70 16 L74 24 L78 16" />
+        <circle cx="50" cy="56" r="4" />
+      </svg>
+    );
+  }
   if (kind === "lotus") {
     return (
       <svg viewBox="0 0 100 100" fill="none" stroke={color} strokeWidth="2.2" style={{ width: "100%", height: "100%" }}>
@@ -35,7 +91,8 @@ function Motif({ kind, color }: { kind: "lotus" | "paisley"; color: string }) {
   );
 }
 
-export default function ScrollParallax() {
+export default function ScrollParallax({ theme }: { theme?: string }) {
+  const motifs = theme === "kali" ? KALI_MOTIFS : MOTIFS;
   const ref = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -66,7 +123,7 @@ export default function ScrollParallax() {
 
   return (
     <div ref={ref} className="pointer-events-none fixed inset-0 -z-10 overflow-hidden" aria-hidden>
-      {MOTIFS.map((m, i) => (
+      {motifs.map((m, i) => (
         <div
           key={i}
           data-speed={m.speed}
@@ -78,7 +135,7 @@ export default function ScrollParallax() {
             right: "right" in m ? (m as { right?: string }).right : undefined,
             width: m.size,
             height: m.size,
-            opacity: 0.14,
+            opacity: theme === "kali" ? 0.18 : 0.14,
             filter: "blur(0.4px)",
             transform: `rotate(${m.rotate}deg)`,
             willChange: "transform",

@@ -24,6 +24,10 @@ export const systemConfigDefaults: Record<string, unknown> = {
 
   active_event_slug: "durga-pujo-2026",
 
+  // ── website look (spec/17-kali-theme.md): auto = follow the active event's
+  //    theme; durga | kali | saraswati = force it. Staff screens stay light.
+  site_theme: "auto",
+
   // ── donations framing: generic | pujo (Pujo Sponsorship). Flip to "generic"
   //    after the festival to restore year-round giving + in-honor/in-memory.
   donation_mode: "pujo",

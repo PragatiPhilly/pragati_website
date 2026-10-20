@@ -18,6 +18,7 @@ import DhunuchiVignette from '@/components/scenes/DhunuchiVignette';
 import DhakiVignette from '@/components/scenes/DhakiVignette';
 import DoshomiVignette from '@/components/scenes/DoshomiVignette';
 import KolaBou from '@/components/scenes/KolaBou';
+import KalashVignette from '@/components/scenes/KalashVignette';
 import RegisterPreview from '@/components/site/RegisterPreview';
 import ScrollLink from '@/components/site/ScrollLink';
 import Daypart from '@/components/site/Daypart';
@@ -31,6 +32,7 @@ import { getDonationMode, DONATION_COPY } from '@/lib/donation-mode';
 import PhotoCarousel from '@/components/site/PhotoCarousel';
 import PhotoSlideshow from '@/components/site/PhotoSlideshow';
 import PosterPanels from '@/components/site/PosterPanels';
+import PastLineup from '@/components/site/PastLineup';
 import ThaliMenu from '@/components/site/ThaliMenu';
 import { menuOnHomepage, photoCredits } from '@/lib/pujo-menu';
 import {
@@ -49,6 +51,7 @@ import { publicFlyer, scheduleVisible } from '@/lib/pujo-schedule/model';
 import { siteUrl } from '@/lib/site-url';
 import { formatCents } from '@/lib/pricing';
 import { site } from '@/config/site';
+import { getSiteTheme } from '@/lib/theme';
 import EventRecap from '@/components/site/EventRecap';
 import { getPostEventMode, getRecap, isPostEvent } from '@/lib/season';
 
@@ -158,7 +161,9 @@ export default async function HomePage() {
   const featured =
     active && active.status === 'published' ? active : upcoming[0];
   const others = upcoming.filter((e) => e.id !== featured?.id).slice(0, 4);
-  const theme = active?.theme ?? 'durga';
+  // The site's look (Settings → Website theme; auto = the active event's).
+  const theme = await getSiteTheme();
+  const isKali = theme === 'kali';
   const caterer = featured && menuOnHomepage(featured) ? await getCaterer() : null;
   // Pujo Nirghonto — read from the config snapshot already fetched above (no extra query)
   const pujoSchedule = await getPujoSchedule();
@@ -167,6 +172,11 @@ export default async function HomePage() {
   // becomes a recap card and every Register call-to-action steps aside.
   const postEvent = isPostEvent(await getPostEventMode(), featured, now);
   const recap = postEvent && featured ? await getRecap(featured) : null;
+  // The bundled lineup posters (/public/lineup) are Durga Pujo 2026's
+  // concerts. Any other event shows a lineup only once its own posters are in
+  // Admin → Photos ("Event posters") — never last festival's artists (spec/17).
+  const showLineup =
+    posterPhotos.length > 0 || featured?.slug === 'durga-pujo-2026';
   // A banner still pointing at /register has nothing to sell once the event is
   // over — hide it. A banner linking anywhere else (an announcement) stays.
   const bannerOn =
@@ -178,7 +188,7 @@ export default async function HomePage() {
 
   return (
     <div className="relative">
-      <ScrollParallax />
+      <ScrollParallax theme={theme} />
       <AlponaSpine />
       <Daypart />
       <PetalTrail targetId="hero" />
@@ -196,7 +206,7 @@ export default async function HomePage() {
         <div className="daypart-overlay" aria-hidden />
         <div className="daypart-stars" aria-hidden />
         <div
-          className="absolute inset-0 -z-10"
+          className="hero-wash absolute inset-0 -z-10"
           style={{
             background:
               'radial-gradient(1200px 500px at 70% -10%, var(--marigold-pale) 0%, transparent 60%), radial-gradient(800px 400px at 10% 110%, var(--accent-soft) 0%, transparent 60%)',
@@ -316,19 +326,39 @@ export default async function HomePage() {
                   className="font-[family-name:var(--font-bangla)] block text-xl md:text-2xl font-normal mb-3"
                   style={{ color: 'var(--terracotta)' }}
                 >
-                  আলো জ্বেলে যাও, ঐতিহ্যে ভাসো
+                  {isKali
+                    ? 'অমাবস্যার আঁধারে, হাজার প্রদীপের আলো'
+                    : 'আলো জ্বেলে যাও, ঐতিহ্যে ভাসো'}
                 </span>
-                Where the <span style={{ color: 'var(--sindoor)' }}>dhaak</span>{' '}
-                beats,
-                <br />
-                and home{' '}
-                <em
-                  className="not-italic"
-                  style={{ color: 'var(--terracotta)' }}
-                >
-                  comes alive
-                </em>
-                .
+                {isKali ? (
+                  <>
+                    On the{' '}
+                    <span className="kali-glow-word" style={{ color: 'var(--marigold-bright)' }}>
+                      darkest
+                    </span>{' '}
+                    night,
+                    <br />
+                    we light a{' '}
+                    <em className="not-italic" style={{ color: 'var(--sindoor)' }}>
+                      thousand lamps
+                    </em>
+                    .
+                  </>
+                ) : (
+                  <>
+                    Where the <span style={{ color: 'var(--sindoor)' }}>dhaak</span>{' '}
+                    beats,
+                    <br />
+                    and home{' '}
+                    <em
+                      className="not-italic"
+                      style={{ color: 'var(--terracotta)' }}
+                    >
+                      comes alive
+                    </em>
+                    .
+                  </>
+                )}
               </h1>
             </Reveal>
             <Reveal delay={0.16}>
@@ -336,9 +366,19 @@ export default async function HomePage() {
                 className="mt-6 text-lg max-w-xl leading-relaxed"
                 style={{ color: 'var(--ink-soft)' }}
               >
-                Three days of light. A thousand familiar faces. Bengali
-                Philadelphia, lit up like a village courtyard at Pujo — Pragati
-                has been bringing this home since {site.foundedYear}.
+                {isKali ? (
+                  <>
+                    Maa Kali&apos;s night of diyas, devotion and togetherness —
+                    Bengali Philadelphia gathered under one roof, the way Pragati
+                    has done it since {site.foundedYear}.
+                  </>
+                ) : (
+                  <>
+                    Three days of light. A thousand familiar faces. Bengali
+                    Philadelphia, lit up like a village courtyard at Pujo — Pragati
+                    has been bringing this home since {site.foundedYear}.
+                  </>
+                )}
               </p>
             </Reveal>
             <Reveal delay={0.24}>
@@ -359,14 +399,16 @@ export default async function HomePage() {
                     Register for {featured ? featured.name : 'the next event'} →
                   </Link>
                 )}
-                <ScrollLink
-                  to="lineup"
-                  className="btn-secondary sm:whitespace-nowrap"
-                >
-                  {postEvent
-                    ? 'Look back at the lineup'
-                    : <>See this year&apos;s lineup</>}
-                </ScrollLink>
+                {showLineup && (
+                  <ScrollLink
+                    to="lineup"
+                    className="btn-secondary sm:whitespace-nowrap"
+                  >
+                    {postEvent
+                      ? 'Look back at the lineup'
+                      : <>See this year&apos;s lineup</>}
+                  </ScrollLink>
+                )}
               </div>
             </Reveal>
             {/* mobile countdown (desktop version floats between sections) */}
@@ -391,7 +433,22 @@ export default async function HomePage() {
 
           <Reveal delay={0.2}>
             {theme === 'kali' ? (
-              <KaliScene className="vignette max-w-md mx-auto" />
+              <div className="relative">
+                <KaliScene className="vignette kali-hero-scene max-w-md mx-auto" />
+                {[
+                  { top: '8%', left: '6%', d: '0s' },
+                  { top: '22%', left: '88%', d: '1.6s' },
+                  { top: '62%', left: '2%', d: '3.1s' },
+                  { top: '74%', left: '92%', d: '2.3s' },
+                ].map((p, i) => (
+                  <span
+                    key={i}
+                    className="kali-spark"
+                    style={{ top: p.top, left: p.left, animationDelay: p.d }}
+                    aria-hidden
+                  />
+                ))}
+              </div>
             ) : theme === 'saraswati' ? (
               <SaraswatiScene className="vignette max-w-md mx-auto" />
             ) : (
@@ -443,30 +500,64 @@ export default async function HomePage() {
       )}
 
       {/* ══════════ THIS YEAR'S LINEUP — star nights ══════════ */}
+      {showLineup && (
       <section
         id="lineup"
         className="mx-auto max-w-6xl px-5 pt-16 pb-12 scroll-mt-20"
       >
         <Reveal>
-          <div className="text-center mb-12">
+          <div className={`text-center ${postEvent ? 'mb-7' : 'mb-12'}`}>
             <Eyebrow
               bn="উৎসবের মঞ্চ"
-              en={postEvent ? 'Pujo weekend · thank you for coming' : 'Pujo weekend · live on stage'}
+              en={`${isKali ? 'Pujo night' : 'Pujo weekend'} · ${postEvent ? 'thank you for coming' : 'live on stage'}`}
               center
             />
-            <h2 className="font-[family-name:var(--font-display)] text-3xl md:text-5xl font-black leading-tight">
+            <h2
+              className={`font-[family-name:var(--font-display)] font-black leading-tight ${postEvent ? 'text-2xl md:text-3xl' : 'text-3xl md:text-5xl'}`}
+            >
               <span
                 className="font-[family-name:var(--font-bangla)] block text-xl font-normal mb-2"
                 style={{ color: 'var(--terracotta)' }}
               >
                 এই বছরের চমক
               </span>
-              Two nights. Two{' '}
-              <em style={{ color: 'var(--sindoor)' }}>legends</em>.
+              {featured?.slug === 'durga-pujo-2026' ? (
+                <>
+                  Two nights. Two{' '}
+                  <em style={{ color: 'var(--sindoor)' }}>legends</em>.
+                </>
+              ) : (
+                <>
+                  On stage this <em style={{ color: 'var(--sindoor)' }}>year</em>.
+                </>
+              )}
             </h2>
           </div>
         </Reveal>
-        {posterPhotos.length > 0 ? (
+        {postEvent ? (
+          // The concerts are over — a compact "who played" strip instead of
+          // two full-height posters (spec/17).
+          <Reveal>
+            <PastLineup
+              acts={
+                posterPhotos.length > 0
+                  ? posterPhotos.slice(0, 4).map((photo) => ({ photo }))
+                  : [
+                      {
+                        src: '/lineup/anjan-dutt.jpg',
+                        artist: 'Anjan Dutt & The Electric Band',
+                        when: 'Sat, Oct 10 · Greater Philadelphia Expo Center',
+                      },
+                      {
+                        src: '/lineup/bhoomi.jpg',
+                        artist: 'Bhoomi',
+                        when: 'Sun, Oct 11 · Greater Philadelphia Expo Center',
+                      },
+                    ]
+              }
+            />
+          </Reveal>
+        ) : posterPhotos.length > 0 ? (
           <>
             <PosterPanels photos={posterPhotos} />
             {concertPasses.length > 0 && active && !postEvent && (
@@ -563,6 +654,7 @@ export default async function HomePage() {
           </div>
         )}
       </section>
+      )}
 
       {/* ══════════ PUJO NIRGHONTO — the terracotta temple wall (Admin → Pujo schedule) ══════════ */}
       {showSchedule && (
@@ -629,8 +721,9 @@ export default async function HomePage() {
             <div
               className="relative rounded-[28px] overflow-hidden aspect-[4/5] grid place-items-center p-8"
               style={{
-                background:
-                  'linear-gradient(165deg, var(--bg-soft) 0%, var(--marigold-pale) 100%)',
+                background: isKali
+                  ? 'radial-gradient(circle at 50% 42%, rgba(246,201,94,0.22) 0%, transparent 55%), linear-gradient(165deg, #1b1240 0%, #2a0f22 100%)'
+                  : 'linear-gradient(165deg, var(--bg-soft) 0%, var(--marigold-pale) 100%)',
                 boxShadow: 'var(--shadow)',
               }}
             >
@@ -677,16 +770,19 @@ export default async function HomePage() {
           >
             <p
               className="font-[family-name:var(--font-bangla)] text-lg"
-              style={{ color: 'var(--sindoor)' }}
+              style={{ color: isKali ? 'var(--marigold-bright)' : 'var(--sindoor)' }}
             >
-              &ldquo;যেখানে দশভুজার আশীর্বাদ, সেখানেই আমাদের বাড়ি।&rdquo;
+              {isKali
+                ? '“যেখানে মা শ্যামার আশীর্বাদ, সেখানেই আমাদের বাড়ি।”'
+                : '“যেখানে দশভুজার আশীর্বাদ, সেখানেই আমাদের বাড়ি।”'}
             </p>
             <p
               className="font-[family-name:var(--font-serif)] italic mt-1"
               style={{ color: 'var(--ink-soft)' }}
             >
-              &ldquo;Where Maa Durga&apos;s blessing dwells, there we make our
-              home.&rdquo;
+              {isKali
+                ? '“Where Maa Shyama’s blessing dwells, there we make our home.”'
+                : "“Where Maa Durga's blessing dwells, there we make our home.”"}
             </p>
           </blockquote>
           <p className="leading-relaxed" style={{ color: 'var(--ink-soft)' }}>
@@ -1166,7 +1262,11 @@ export default async function HomePage() {
         ))}
         <div className="mx-auto max-w-6xl px-5 grid md:grid-cols-[1.1fr_0.9fr] gap-14 items-center relative z-[2]">
           <Reveal>
-            <DoshomiVignette className="vignette w-40 mb-5" />
+            {isKali ? (
+              <KalashVignette className="vignette w-32 mb-5" />
+            ) : (
+              <DoshomiVignette className="vignette w-40 mb-5" />
+            )}
 
             <h2 className="font-[family-name:var(--font-display)] text-3xl md:text-[44px] font-black leading-tight">
               <span
@@ -1241,7 +1341,7 @@ export default async function HomePage() {
             className="rounded-3xl p-10 md:p-14 text-center relative overflow-hidden"
             style={{
               background:
-                'linear-gradient(135deg, var(--terracotta) 0%, var(--sindoor) 100%)',
+                'linear-gradient(135deg, var(--terracotta-fill) 0%, var(--sindoor) 100%)',
               boxShadow: 'var(--shadow)',
             }}
           >

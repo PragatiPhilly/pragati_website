@@ -6,6 +6,7 @@ import { canUseMemberPortal } from "@/lib/member-mode";
 import { getDonationMode, DONATION_COPY } from "@/lib/donation-mode";
 import { publicRegistrationOpen } from "@/lib/season";
 import MobileNav from "./MobileNav";
+import { getSiteTheme } from "@/lib/theme";
 import HeaderScroll from "./HeaderScroll";
 import FacebookLink from "./FacebookLink";
 
@@ -19,6 +20,8 @@ export default async function Header() {
   // In Pujo mode the "Donate" nav item reads "Pujo Sponsorship".
   const donationLabel = DONATION_COPY[await getDonationMode()].navLabel;
   const registrationOpen = await publicRegistrationOpen();
+  // Kali night: same logo, with the tagline line lit cream so it reads on the dark sky.
+  const logoSrc = (await getSiteTheme()) === "kali" ? "/brand/header-logo-night.png" : "/brand/header-logo-full.png";
   const nav = site.nav.map((n) => (n.href === "/donate" ? { ...n, label: donationLabel } : n));
 
   return (
@@ -29,7 +32,7 @@ export default async function Header() {
           <Link href="/" className="group flex items-center min-w-0" aria-label="Pragati — home">
             {/* eslint-disable-next-line @next/next/no-img-element */}
             <img
-              src="/brand/header-logo-full.png"
+              src={logoSrc}
               alt="Pragati — The Bengali Association of Greater Philadelphia, since 1972"
               className="hdr-logo shrink-0 w-auto group-hover:scale-[1.02]"
             />

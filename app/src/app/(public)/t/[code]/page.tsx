@@ -96,7 +96,7 @@ export default async function TicketPage({ params }: { params: Promise<{ code: s
         : { label: "VALID — ready to check in", bg: "rgba(92,138,58,0.15)", fg: "var(--leaf-deep)", icon: "✅" };
 
   return (
-    <div className="mx-auto max-w-md px-5 py-10">
+    <div className="mx-auto max-w-md px-5 py-10" data-force-light>
       {/* status banner — the first thing the gate volunteer sees */}
       <div className="rounded-2xl px-5 py-4 mb-6 flex items-center gap-3 text-lg font-bold" style={{ background: status.bg, color: status.fg }}>
         <span className="text-2xl">{status.icon}</span> {status.label}

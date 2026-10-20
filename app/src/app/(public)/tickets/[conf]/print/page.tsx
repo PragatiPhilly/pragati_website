@@ -35,7 +35,7 @@ export default async function PrintTicketsPage({
   const days = (event?.days as { key: string; label?: string }[] | null) ?? [];
 
   return (
-    <div className="mx-auto max-w-3xl px-6 py-10 print:p-0" style={{ background: "#fff", color: "#1a1a1a", minHeight: "100vh" }}>
+    <div data-force-light className="mx-auto max-w-3xl px-6 py-10 print:p-0" style={{ background: "#fff", color: "#1a1a1a", minHeight: "100vh" }}>
       <div className="flex items-center justify-between mb-8 print:hidden">
         <p className="text-sm text-neutral-500">Print this page or save as PDF — one pass per attendee.</p>
         <button className="rounded-full bg-black text-white text-sm font-semibold px-5 py-2" onClick={undefined} id="printBtn">

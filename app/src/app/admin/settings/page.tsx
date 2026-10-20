@@ -40,6 +40,11 @@ const GROUPS: { title: string; note?: string; keys: { key: string; label: string
     ],
   },
   {
+    title: "Website theme",
+    note: "auto = the public site wears the active event's look (set on the event in Admin → Events). durga | kali | saraswati = switch the whole public site to that look right now — e.g. kali before the Kali Pujo event is created. Admin, the gate page and printouts always stay light.",
+    keys: [{ key: "site_theme", label: "Theme (auto | durga | kali | saraswati)" }],
+  },
+  {
     title: "Registration",
     note: "Pausing stops every new online registration at once and shows the message below instead. Online registration also closes by itself once the active event's end time has passed — remember to un-pause when the next event opens.",
     keys: [

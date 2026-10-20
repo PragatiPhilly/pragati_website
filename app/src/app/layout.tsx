@@ -3,6 +3,7 @@ import { Analytics } from "@vercel/analytics/next";
 import { SpeedInsights } from "@vercel/speed-insights/next";
 import { site } from "@/config/site";
 import "@/styles/globals.css";
+import { getSiteTheme } from "@/lib/theme";
 
 export const metadata: Metadata = {
   title: { default: site.fullName, template: `%s · ${site.name}` },
@@ -14,7 +15,7 @@ export default async function RootLayout({
 }: {
   children: React.ReactNode;
 }) {
-  const theme = await getActiveTheme();
+  const theme = await getSiteTheme();
   return (
     <html lang="en" data-theme={theme}>
       <head>
@@ -35,15 +36,4 @@ export default async function RootLayout({
       </body>
     </html>
   );
-}
-
-async function getActiveTheme(): Promise<string> {
-  try {
-    const { getActiveEvent } = await import("@/lib/queries/events");
-    const event = await getActiveEvent();
-    if (event?.theme && event.theme !== "none") return event.theme;
-    return site.defaultTheme;
-  } catch {
-    return site.defaultTheme;
-  }
 }

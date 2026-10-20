@@ -1,0 +1,267 @@
+/* ══════════════════════════════════════════════════════════════════
+   Kali Pujo theme — the Amavasya night (spec/17-kali-theme.md)
+   Colour tokens live in globals.css ([data-theme="kali"]). Everything
+   decorative here is scoped to .kali-world, the wrapper the public layout
+   and the register page put around the page when the site theme is kali,
+   so Durga and Saraswati are untouched and staff screens never see it.
+   ══════════════════════════════════════════════════════════════════ */
+
+.kali-world {
+  --ease-silk: cubic-bezier(0.22, 1, 0.36, 1);
+  position: relative;
+  isolation: isolate;
+}
+
+/* ── the sky (KaliSky.tsx) ─────────────────────────────────────── */
+.kali-sky {
+  position: fixed;
+  inset: 0;
+  z-index: -1;
+  pointer-events: none;
+  overflow: hidden;
+  background: #0a1230;
+}
+.kali-sky-layer {
+  position: absolute;
+  inset: 0;
+  will-change: opacity;
+}
+
+/* three star fields, three twinkle rhythms — reads as a real sky */
+.kali-stars { position: absolute; inset: 0; transition: opacity 1.2s ease; }
+.kali-stars > div { position: absolute; inset: -10% 0 0 0; background-repeat: repeat; }
+.kali-stars-a {
+  background-image:
+    radial-gradient(1.2px 1.2px at 23px 41px, rgba(255, 244, 214, 0.95) 50%, transparent 52%),
+    radial-gradient(1px 1px at 141px 87px, rgba(255, 255, 255, 0.8) 50%, transparent 52%),
+    radial-gradient(1.4px 1.4px at 211px 173px, rgba(255, 236, 190, 0.9) 50%, transparent 52%),
+    radial-gradient(1px 1px at 77px 219px, rgba(255, 255, 255, 0.7) 50%, transparent 52%),
+    radial-gradient(0.9px 0.9px at 183px 11px, rgba(255, 255, 255, 0.75) 50%, transparent 52%);
+  background-size: 260px 260px;
+  animation: kali-twinkle 5.5s ease-in-out infinite;
+}
+.kali-stars-b {
+  background-image:
+    radial-gradient(1px 1px at 61px 23px, rgba(255, 255, 255, 0.85) 50%, transparent 52%),
+    radial-gradient(1.6px 1.6px at 289px 141px, rgba(246, 201, 94, 0.9) 50%, transparent 52%),
+    radial-gradient(1px 1px at 157px 301px, rgba(255, 255, 255, 0.7) 50%, transparent 52%),
+    radial-gradient(1.2px 1.2px at 331px 263px, rgba(255, 244, 214, 0.85) 50%, transparent 52%);
+  background-size: 370px 370px;
+  animation: kali-twinkle 8s ease-in-out -3s infinite;
+}
+.kali-stars-c {
+  background-image:
+    radial-gradient(2px 2px at 97px 131px, rgba(255, 248, 225, 1) 45%, rgba(246, 201, 94, 0.25) 60%, transparent 70%),
+    radial-gradient(1.8px 1.8px at 433px 59px, rgba(255, 248, 225, 0.95) 45%, rgba(246, 201, 94, 0.2) 60%, transparent 70%);
+  background-size: 520px 520px;
+  animation: kali-twinkle 11s ease-in-out -6s infinite;
+}
+@keyframes kali-twinkle {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.35; }
+}
+
+/* a shooting star now and then (most of each cycle it is invisible) */
+.kali-shooting {
+  position: absolute;
+  width: 140px;
+  height: 1.5px;
+  border-radius: 999px;
+  background: linear-gradient(90deg, rgba(255, 244, 214, 0) 0%, rgba(255, 244, 214, 0.95) 100%);
+  filter: drop-shadow(0 0 6px rgba(246, 201, 94, 0.8));
+  opacity: 0;
+  transform: rotate(-24deg);
+}
+.kali-shooting.s1 { top: 14%; left: 58%; animation: kali-shoot 13s ease-out 4s infinite; }
+.kali-shooting.s2 { top: 34%; left: 18%; animation: kali-shoot 19s ease-out 11s infinite; }
+@keyframes kali-shoot {
+  0% { opacity: 0; transform: rotate(-24deg) translateX(0) scaleX(0.3); }
+  2% { opacity: 1; }
+  7% { opacity: 0; transform: rotate(-24deg) translateX(-260px) scaleX(1); }
+  100% { opacity: 0; transform: rotate(-24deg) translateX(-260px) scaleX(1); }
+}
+
+/* sky lanterns (ফানুস) */
+.kali-lantern {
+  position: absolute;
+  bottom: -40px;
+  width: calc(14px * var(--s, 1));
+  height: calc(18px * var(--s, 1));
+  border-radius: 40% 40% 30% 30% / 50% 50% 40% 40%;
+  background: radial-gradient(ellipse at 50% 70%, #fff3c4 0%, #f6c95e 35%, #e8833a 75%, rgba(200, 16, 46, 0.6) 100%);
+  box-shadow: 0 0 calc(18px * var(--s, 1)) rgba(246, 201, 94, 0.75), 0 0 calc(44px * var(--s, 1)) rgba(232, 131, 58, 0.35);
+  opacity: 0;
+  animation-name: kali-lantern-rise;
+  animation-timing-function: linear;
+  animation-iteration-count: infinite;
+}
+@keyframes kali-lantern-rise {
+  0% { transform: translate(0, 0); opacity: 0; }
+  8% { opacity: 0.85; }
+  50% { transform: translate(28px, -55vh); }
+  85% { opacity: 0.6; }
+  100% { transform: translate(-12px, -112vh); opacity: 0; }
+}
+
+/* ── surfaces: dark glass so the sky's colour shift shows through ── */
+.kali-world .festive-card {
+  background: var(--card);
+  backdrop-filter: blur(10px) saturate(1.2);
+  -webkit-backdrop-filter: blur(10px) saturate(1.2);
+  border-color: rgba(246, 201, 94, 0.18);
+  box-shadow: 0 10px 40px rgba(0, 0, 0, 0.35), inset 0 1px 0 rgba(255, 244, 214, 0.06);
+  transition: border-color 0.5s var(--ease-silk), box-shadow 0.5s var(--ease-silk), transform 0.5s var(--ease-silk);
+}
+.kali-world a.festive-card:hover,
+.kali-world .festive-card:has(> a:hover) {
+  border-color: rgba(246, 201, 94, 0.42);
+  box-shadow: 0 16px 50px rgba(0, 0, 0, 0.45), 0 0 0 1px rgba(246, 201, 94, 0.12), 0 0 40px rgba(246, 201, 94, 0.08);
+}
+.kali-world .site-header {
+  background: rgba(7, 10, 32, 0.55);
+  backdrop-filter: blur(14px) saturate(1.3);
+  -webkit-backdrop-filter: blur(14px) saturate(1.3);
+  border-color: rgba(246, 201, 94, 0.12);
+}
+.kali-world[data-scrolled="1"] .site-header,
+[data-scrolled="1"] .kali-world .site-header {
+  background: rgba(5, 8, 24, 0.82);
+  box-shadow: 0 10px 34px rgba(0, 0, 0, 0.45);
+}
+.kali-world .input,
+.kali-world .choice-chip {
+  background: rgba(10, 14, 40, 0.7);
+}
+.kali-world .input:focus { box-shadow: 0 0 0 4px rgba(246, 201, 94, 0.18); }
+.kali-world .choice-chip:hover { box-shadow: 0 10px 26px rgba(0, 0, 0, 0.35), 0 0 0 1px rgba(246, 201, 94, 0.15); }
+.kali-world ::selection { background: rgba(246, 201, 94, 0.35); color: #fff; }
+
+/* buttons: a lamp-glow instead of a drop shadow */
+.kali-world .btn-primary {
+  box-shadow: 0 8px 24px rgba(224, 40, 74, 0.35), 0 0 0 1px rgba(255, 255, 255, 0.05) inset;
+  transition: transform 0.35s var(--ease-silk), box-shadow 0.35s var(--ease-silk), background 0.35s ease;
+}
+.kali-world .btn-primary:hover {
+  background: #c41a3a;
+  box-shadow: 0 12px 34px rgba(224, 40, 74, 0.45), 0 0 26px rgba(246, 201, 94, 0.25);
+}
+.kali-world .btn-secondary {
+  border-color: rgba(246, 201, 94, 0.32);
+  transition: border-color 0.35s var(--ease-silk), background 0.35s var(--ease-silk), transform 0.35s var(--ease-silk);
+}
+.kali-world .btn-secondary:hover { background: rgba(246, 201, 94, 0.1); border-color: var(--marigold-bright); }
+
+/* ── homepage hero ─────────────────────────────────────────────── */
+.kali-world .hero-wash {
+  background:
+    radial-gradient(900px 480px at 72% 30%, rgba(200, 16, 46, 0.22) 0%, transparent 60%),
+    radial-gradient(700px 380px at 12% 100%, rgba(246, 201, 94, 0.12) 0%, transparent 60%) !important;
+}
+/* Amavasya: no sun, no clouds, no time-of-day tint — it is always night */
+.kali-world .hero-sun,
+.kali-world .hero-cloud,
+.kali-world .daypart-overlay,
+.kali-world .daypart-stars { display: none !important; }
+/* diya dots burn warmer at night */
+.kali-world .diya-dot {
+  box-shadow: 0 0 22px var(--marigold-bright), 0 0 50px rgba(232, 131, 58, 0.55);
+}
+/* hibiscus (জবা) petals instead of marigold */
+.kali-world .petal-drop,
+.kali-world .trail-petal {
+  background: radial-gradient(ellipse at 40% 30%, #ff5a6e 0%, #d4102e 55%, #8e0a20 100%);
+  border-radius: 60% 60% 50% 50% / 70% 70% 40% 40%;
+}
+.kali-world .petal-drop.pale { background: radial-gradient(ellipse at 40% 30%, #ffd98a 0%, #e8a93c 70%); }
+
+/* the Kali scene glows like a lamp-lit shrine */
+.kali-world .kali-hero-scene {
+  position: relative;
+  filter: drop-shadow(0 30px 60px rgba(0, 0, 0, 0.55));
+}
+.kali-world .kali-hero-scene::before {
+  content: "";
+  position: absolute;
+  inset: 8% 10% 18%;
+  border-radius: 50%;
+  background: radial-gradient(circle, rgba(224, 40, 74, 0.45) 0%, rgba(246, 201, 94, 0.12) 45%, transparent 70%);
+  filter: blur(18px);
+  z-index: -1;
+  animation: kali-breathe 7s ease-in-out infinite;
+}
+@keyframes kali-breathe {
+  0%, 100% { opacity: 0.75; transform: scale(1); }
+  50% { opacity: 1; transform: scale(1.06); }
+}
+
+/* phuljhuri sparkles around the hero (Kali Pujo night is Deepavali night) */
+.kali-spark {
+  position: absolute;
+  width: 4px;
+  height: 4px;
+  border-radius: 50%;
+  background: #fff3c4;
+  box-shadow:
+    0 -18px 0 -1px #f6c95e, 13px -13px 0 -1px #ffd98a, 18px 0 0 -1px #f6c95e, 13px 13px 0 -1px #ffb35c,
+    0 18px 0 -1px #f6c95e, -13px 13px 0 -1px #ffd98a, -18px 0 0 -1px #f6c95e, -13px -13px 0 -1px #ffb35c;
+  opacity: 0;
+  pointer-events: none;
+  z-index: 1;
+  animation: kali-spark 4.8s var(--ease-silk) infinite;
+}
+@keyframes kali-spark {
+  0%, 62% { opacity: 0; transform: scale(0.2); }
+  68% { opacity: 1; }
+  100% { opacity: 0; transform: scale(1.6); }
+}
+
+/* ── section furniture ─────────────────────────────────────────── */
+.kali-world .section-eyebrow .bar { background: linear-gradient(90deg, transparent, var(--marigold-bright)); }
+.kali-world .alpona-divider path,
+.kali-world .alpona-divider circle,
+.kali-world .alpona-divider ellipse { stroke: var(--marigold); }
+.kali-world .alpona-spine path,
+.kali-world .alpona-spine circle { stroke: var(--marigold-bright); }
+.kali-world .shloka .bn-quote {
+  color: var(--marigold-bright);
+  text-shadow: 0 0 30px rgba(246, 201, 94, 0.35);
+}
+.kali-world .speck { background: var(--marigold-bright); box-shadow: 0 0 8px rgba(246, 201, 94, 0.8); }
+.kali-world .event-card { box-shadow: 0 14px 40px rgba(0, 0, 0, 0.45); }
+.kali-world .event-card:hover { box-shadow: 0 26px 60px rgba(0, 0, 0, 0.55), 0 0 36px rgba(246, 201, 94, 0.12); }
+.kali-world .mag-cover { box-shadow: -6px 12px 30px rgba(0, 0, 0, 0.55); }
+.kali-world .garland { opacity: 0.9; filter: drop-shadow(0 0 4px rgba(246, 201, 94, 0.6)); }
+.kali-world .pond { background: linear-gradient(180deg, transparent 0%, rgba(10, 18, 48, 0.55) 45%, #050818 100%); }
+.kali-world footer { border-color: rgba(246, 201, 94, 0.12) !important; }
+
+/* Kali page-in: a slower, silkier fade than the default */
+.kali-world .page-in { animation: pageIn 0.8s var(--ease-silk); }
+
+/* ── motion preferences ────────────────────────────────────────── */
+@media (prefers-reduced-motion: reduce) {
+  .kali-stars > div,
+  .kali-shooting,
+  .kali-lantern,
+  .kali-spark,
+  .kali-world .kali-hero-scene::before { animation: none !important; }
+  .kali-lantern, .kali-shooting, .kali-spark { display: none; }
+}
+/* printing never needs the night */
+@media print {
+  .kali-sky { display: none; }
+}
+
+/* "darkest" in the Kali headline: a slow lamp-glow breath */
+.kali-glow-word {
+  text-shadow: 0 0 24px rgba(246, 201, 94, 0.45), 0 0 2px rgba(246, 201, 94, 0.6);
+  animation: kali-word-glow 5s ease-in-out infinite;
+}
+@keyframes kali-word-glow {
+  0%, 100% { text-shadow: 0 0 18px rgba(246, 201, 94, 0.3), 0 0 2px rgba(246, 201, 94, 0.5); }
+  50% { text-shadow: 0 0 34px rgba(246, 201, 94, 0.6), 0 0 4px rgba(246, 201, 94, 0.7); }
+}
+@media (prefers-reduced-motion: reduce) { .kali-glow-word { animation: none; } }
+
+/* Tailwind's divide-y/border defaults to currentColor — cream on the night
+   sky would be a hard white rule. Soften to the theme hairline. */
+.kali-world .divide-y > :not(:last-child) { border-color: var(--line); }

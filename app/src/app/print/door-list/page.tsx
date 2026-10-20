@@ -71,7 +71,7 @@ export default async function DoorListPage({ searchParams }: { searchParams: Pro
   const printed = new Date().toLocaleString("en-US", { timeZone: "America/New_York", weekday: "short", hour: "numeric", minute: "2-digit" });
 
   return (
-    <div className="mx-auto max-w-5xl px-5 py-6 door-list">
+    <div className="mx-auto max-w-5xl px-5 py-6 door-list" data-force-light>
       <style>{`
         @media print {
           .no-print { display: none !important; }

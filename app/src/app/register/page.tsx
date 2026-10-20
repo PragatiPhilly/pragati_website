@@ -6,6 +6,7 @@ import { getSession } from "@/lib/auth/session";
 import { getConfig } from "@/lib/system-config";
 import RegisterFlow, { type FlowEvent, type FlowMemberContext } from "./RegisterFlow";
 import Header from "@/components/site/Header";
+import ThemeWorld from "@/components/site/ThemeWorld";
 import Link from "next/link";
 import { eventHasEnded } from "@/lib/season";
 
@@ -40,7 +41,7 @@ export default async function RegisterPage({
   // submitRegistration enforces the same rule server-side. Spec: 16-post-event-mode.md
   if (eventHasEnded(full)) {
     return (
-      <>
+      <ThemeWorld>
         <Header />
         <div className="mx-auto max-w-lg px-5 py-24 text-center">
           <p className="text-5xl mb-4">🪔</p>
@@ -61,7 +62,7 @@ export default async function RegisterPage({
             <Link href="/events" className="btn-secondary">See events</Link>
           </div>
         </div>
-      </>
+      </ThemeWorld>
     );
   }
 
@@ -106,7 +107,7 @@ export default async function RegisterPage({
   if (paused) {
     const pauseMessage = await getConfig<string>("registration_pause_message");
     return (
-      <>
+      <ThemeWorld>
         <Header />
         <div className="mx-auto max-w-lg px-5 py-24 text-center">
           <p className="text-5xl mb-4">🪔</p>
@@ -115,7 +116,7 @@ export default async function RegisterPage({
           </h1>
           <p className="leading-relaxed" style={{ color: "var(--ink-soft)" }}>{pauseMessage}</p>
         </div>
-      </>
+      </ThemeWorld>
     );
   }
 
@@ -139,7 +140,7 @@ export default async function RegisterPage({
   };
 
   return (
-    <>
+    <ThemeWorld>
       <Header />
       <RegisterFlow
         event={flowEvent}
@@ -160,6 +161,6 @@ export default async function RegisterPage({
         donateLineLabel={donateCopy.lineLabel}
         donateLineLabelLong={donateCopy.lineLabelLong}
       />
-    </>
+    </ThemeWorld>
   );
 }

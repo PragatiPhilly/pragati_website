@@ -58,6 +58,8 @@ export default function PujoCountdown({
   className?: string;
 }) {
   const isPujo = PUJO_THEMES.has(theme ?? '');
+  // Kali Pujo is a night of lamps, not a dhaak-led morning — its own words.
+  const isKali = theme === 'kali';
   const started = startsAt.getTime() <= now.getTime();
   const begins = dayLabel(startsAt);
   const ends = dayLabel(endsAt);
@@ -88,11 +90,15 @@ export default function PujoCountdown({
               style={{ color: 'var(--accent)' }}
               lang="bn"
             >
-              ঢাকে কাঠি পড়েছে!
+              {isKali ? 'প্রদীপ জ্বলেছে!' : 'ঢাকে কাঠি পড়েছে!'}
             </p>
           )}
           <p className="font-[family-name:var(--font-serif)] text-xl md:text-2xl font-semibold mt-1">
-            {isPujo ? 'The dhaak is playing — come join us' : `${name} is on — come join us`}
+            {isPujo
+              ? isKali
+                ? 'The lamps are lit — come join us'
+                : 'The dhaak is playing — come join us'
+              : `${name} is on — come join us`}
           </p>
           <p className="pc-foot mt-2 text-[12px]" style={{ color: 'var(--ink-soft)' }}>
             through {ends}
@@ -106,7 +112,7 @@ export default function PujoCountdown({
               style={{ color: 'var(--accent)' }}
               lang="bn"
             >
-              ঢাকে কাঠি পড়তে আর মাত্র
+              {isKali ? 'প্রদীপ জ্বলতে আর মাত্র' : 'ঢাকে কাঠি পড়তে আর মাত্র'}
             </p>
           )}
           <div className="flex justify-center">
@@ -115,7 +121,8 @@ export default function PujoCountdown({
           <p className="pc-foot mt-2.5 text-[12px] leading-relaxed" style={{ color: 'var(--ink-soft)' }}>
             {isPujo ? (
               <>
-                till the first beat of the dhaak <span aria-hidden>·</span>{' '}
+                {isKali ? 'till the first lamp is lit' : 'till the first beat of the dhaak'}{' '}
+                <span aria-hidden>·</span>{' '}
                 <span className="font-semibold" style={{ color: 'var(--ink)' }}>
                   Pujo begins {begins}
                 </span>

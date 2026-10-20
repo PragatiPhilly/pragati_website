@@ -113,7 +113,7 @@ export default function AboutPage() {
         <Reveal delay={0.06}>
           <div
             className="mt-12 rounded-3xl p-8 text-center"
-            style={{ background: "linear-gradient(135deg, var(--terracotta) 0%, var(--sindoor) 100%)" }}
+            style={{ background: "linear-gradient(135deg, var(--terracotta-fill) 0%, var(--sindoor) 100%)" }}
           >
             <h2 className="font-[family-name:var(--font-display)] text-2xl md:text-3xl font-black" style={{ color: "var(--cream)" }}>
               Join Us

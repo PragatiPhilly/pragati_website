@@ -50,7 +50,7 @@ export default async function MemberDashboard() {
       {active && (
         <div
           className="rounded-3xl p-8 mb-8"
-          style={{ background: "linear-gradient(135deg, var(--sindoor) 0%, var(--terracotta) 100%)", color: "var(--cream)" }}
+          style={{ background: "linear-gradient(135deg, var(--sindoor) 0%, var(--terracotta-fill) 100%)", color: "var(--cream)" }}
         >
           <p className="text-xs uppercase tracking-[0.2em] mb-1 opacity-85">Coming up</p>
           <p className="font-[family-name:var(--font-display)] text-2xl font-black">{active.name}</p>

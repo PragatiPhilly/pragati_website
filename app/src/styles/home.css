@@ -310,7 +310,7 @@
 .mag-cover:nth-child(2) { z-index: 2; }
 .mag-cover:nth-child(3) { z-index: 1; }
 .mag-cover:nth-child(2) { background: linear-gradient(160deg, #2A2438 0%, #14101f 100%); margin-left: -120px; transform: rotate(4deg) translateY(14px); }
-.mag-cover:nth-child(3) { background: linear-gradient(160deg, var(--terracotta) 0%, var(--terracotta-deep) 100%); margin-left: -120px; transform: rotate(9deg) translateY(34px); }
+.mag-cover:nth-child(3) { background: linear-gradient(160deg, var(--terracotta-fill) 0%, var(--terracotta-deep) 100%); margin-left: -120px; transform: rotate(9deg) translateY(34px); }
 .mag-stack:hover .mag-cover:nth-child(1) { transform: rotate(-4deg) translateY(-8px); }
 .mag-stack:hover .mag-cover:nth-child(2) { transform: rotate(2deg) translateY(4px); }
 .mag-stack:hover .mag-cover:nth-child(3) { transform: rotate(12deg) translateY(26px); }

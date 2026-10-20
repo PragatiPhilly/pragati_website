@@ -3,13 +3,17 @@
 @import "./home.css";
 @import "./thali.css";
 @import "./pujo-schedule.css";
+@import "./kali.css";
 
 /* ── Pragati theme system ─────────────────────────────────────────
    Three festival themes driven by data-theme on <html>.
    Palette lifted from the approved prototype (pragati.html). */
 
 :root,
-[data-theme="durga"] {
+[data-theme="durga"],
+/* Staff screens (admin, printouts, the gate page) always stay light: their
+   wrapper carries data-force-light, and this beats any theme (0,1,1). */
+html:has([data-force-light]) {
   --bg: #fbf3dd;
   --bg-soft: #fef6d9;
   --ink: #2a2438;
@@ -30,29 +34,36 @@
   --shadow: 0 30px 60px rgba(200, 150, 26, 0.25);
   --accent: var(--sindoor);
   --accent-soft: rgba(200, 16, 46, 0.08);
+  --terracotta-fill: var(--terracotta);
+  color-scheme: light;
 }
 
+/* Kali — Amavasya night (spec/17-kali-theme.md). Every text colour here was
+   checked against the darkest and lightest sky stops (≥4:1 for body text,
+   ≥3:1 for display type); fills that carry cream text use the *-fill tokens. */
 [data-theme="kali"] {
   --bg: #0a1230;
-  --bg-soft: #1a0e3a;
+  --bg-soft: rgba(30, 24, 70, 0.6);
   --ink: #fbf6ec;
-  --ink-soft: rgba(251, 246, 236, 0.7);
-  --line: rgba(232, 169, 60, 0.18);
+  --ink-soft: rgba(251, 246, 236, 0.76);
+  --line: rgba(246, 201, 94, 0.2);
   --marigold: #e8a93c;
   --marigold-bright: #f6c95e;
   --marigold-pale: #f9dc8e;
-  --sindoor: #c8102e;
-  --sindoor-deep: #4a0510;
-  --terracotta: #8e0a20;
-  --terracotta-deep: #4a0510;
-  --leaf-green: #1b5e3a;
-  --leaf-deep: #0d3220;
+  --sindoor: #e0284a;
+  --sindoor-deep: #8e0a20;
+  --terracotta: #f0955a;
+  --terracotta-deep: #c2542b;
+  --terracotta-fill: #b3401f;
+  --leaf-green: #6fbf8a;
+  --leaf-deep: #7fd39a;
   --cream: #fbf6ec;
-  --card: #141c40;
-  --halo: rgba(232, 169, 60, 0.55);
+  --card: rgba(18, 22, 56, 0.82);
+  --halo: rgba(246, 201, 94, 0.6);
   --shadow: 0 30px 60px rgba(0, 0, 0, 0.55);
-  --accent: var(--marigold);
-  --accent-soft: rgba(232, 169, 60, 0.12);
+  --accent: #f6c95e;
+  --accent-soft: rgba(246, 201, 94, 0.12);
+  color-scheme: dark;
 }
 
 [data-theme="saraswati"] {
@@ -76,6 +87,7 @@
   --shadow: 0 30px 60px rgba(168, 117, 74, 0.25);
   --accent: #3b5876;
   --accent-soft: rgba(59, 88, 118, 0.1);
+  --terracotta-fill: var(--terracotta);
 }
 
 @theme inline {
@@ -328,7 +340,7 @@ body.home-bg {
   border-color: color-mix(in srgb, var(--marigold) 45%, transparent);
 }
 .pujo-countdown .pc-tab {
-  background: linear-gradient(90deg, var(--sindoor), var(--terracotta));
+  background: linear-gradient(90deg, var(--sindoor), var(--terracotta-fill));
   color: var(--cream);
   box-shadow: 0 6px 16px -6px rgba(200, 16, 46, 0.55);
 }
