@@ -12,7 +12,6 @@ import AlponaSpine from '@/components/site/AlponaSpine';
 import ScrollParallax from '@/components/site/ScrollParallax';
 import CountUp from '@/components/site/CountUp';
 import HeroParallax from '@/components/site/HeroParallax';
-import KaliScene from '@/components/scenes/KaliScene';
 import SaraswatiScene from '@/components/scenes/SaraswatiScene';
 import DhunuchiVignette from '@/components/scenes/DhunuchiVignette';
 import DhakiVignette from '@/components/scenes/DhakiVignette';
@@ -433,8 +432,12 @@ export default async function HomePage() {
 
           <Reveal delay={0.2}>
             {theme === 'kali' ? (
-              <div className="relative">
-                <KaliScene className="vignette kali-hero-scene max-w-md mx-auto" />
+              // Kali uses the pandal photo for now (Sayantan, 2026-10-19) until a
+              // Kali Pujo photo is ready. To go back to the illustrated scene,
+              // swap <HeroParallax /> for:
+              //   <KaliScene className="vignette max-w-md mx-auto" />
+              <div className="relative kali-hero-scene">
+                <HeroParallax />
                 {[
                   { top: '8%', left: '6%', d: '0s' },
                   { top: '22%', left: '88%', d: '1.6s' },
