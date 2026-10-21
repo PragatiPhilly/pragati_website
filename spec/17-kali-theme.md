@@ -18,6 +18,7 @@ Admin, the gate page (`/t/…`), ticket printouts and the door list always stay 
 | Colours | `[data-theme="kali"]` tokens re-picked for contrast on dark (crimson `#e0284a`, ember `#f0955a` for text, `--terracotta-fill` for fills under cream text, light green for member prices) |
 | Background | `KaliSky`: 5 dark sky stops (dusk → night → diya glow → midnight → Amavasya) cross-faded by eased scroll — exact blends, opacity-only, loop sleeps when idle |
 | Ambient | 3 twinkling star fields, occasional shooting stars, rising sky lanterns (ফানুস), phuljhuri sparkles round the hero, hibiscus (জবা) petals instead of marigold |
+| Deepavali | `KaliFireworks` canvas behind every page (peony, ring, golden willow, glitter, double bursts; quieter on form pages; tap the hero to light one; paused when the tab is hidden; off for reduced motion). Hero: festoon string lights, two swaying akash kandils, a row of flickering diyas, a slow-turning rangoli behind the photo |
 | Surfaces | Cards, header, inputs become dark glass so the sky's colour shows through; silkier easing on hovers and page-in |
 | Hero | No sun/clouds/time-of-day tint (it is always night); Kali scene with a breathing glow; Kali headline + Bengali line |
 | Copy | Mission quote (Maa Shyama), countdown ("till the first lamp is lit"), lineup eyebrow ("Pujo night") |

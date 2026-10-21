@@ -17,6 +17,7 @@
  * Every stop is deliberately dark so text contrast holds anywhere on the page.
  */
 import { useEffect, useRef } from "react";
+import KaliFireworks from "./KaliFireworks";
 
 // সন্ধ্যা dusk → রাত deep night → প্রদীপ diya glow → নিশি পুজো midnight → অমাবস্যা
 const STOPS = [
@@ -90,6 +91,7 @@ export default function KaliSky() {
         <div className="kali-stars-b" />
         <div className="kali-stars-c" />
       </div>
+      <KaliFireworks />
       <span className="kali-shooting s1" />
       <span className="kali-shooting s2" />
       {/* sky lanterns (ফানুস) drifting up, very slowly */}

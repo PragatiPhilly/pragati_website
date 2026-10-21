@@ -265,3 +265,129 @@
 /* Tailwind's divide-y/border defaults to currentColor — cream on the night
    sky would be a hard white rule. Soften to the theme hairline. */
 .kali-world .divide-y > :not(:last-child) { border-color: var(--line); }
+
+/* ══ Deepavali layer (KaliFireworks.tsx + DiwaliDecor.tsx) ═════════ */
+.kali-fireworks {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  opacity: 0.92;
+}
+
+/* festoon lights swagging across the top of the hero */
+.diwali-lights {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 60px;
+  z-index: 2;
+  pointer-events: none;
+  overflow: visible;
+}
+.diwali-bulb {
+  filter: drop-shadow(0 0 4px currentColor) drop-shadow(0 0 9px currentColor);
+  animation: diwali-chase 2.2s ease-in-out infinite;
+}
+@keyframes diwali-chase {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.35; }
+}
+
+/* akash kandil lanterns */
+.diwali-kandil {
+  position: absolute;
+  top: 18px;
+  z-index: 2;
+  pointer-events: none;
+  transform-origin: 30px 0;
+  animation: kandil-sway 6s ease-in-out infinite;
+  filter: drop-shadow(0 0 18px rgba(255, 170, 90, 0.55));
+}
+.diwali-kandil.left { left: 1.5%; }
+.diwali-kandil.right { right: 1.5%; animation-delay: -2.4s; animation-duration: 7s; }
+.kandil-glow { animation: kandil-glow 3.2s ease-in-out infinite; }
+@keyframes kandil-sway {
+  0%, 100% { transform: rotate(-4deg); }
+  50% { transform: rotate(4deg); }
+}
+@keyframes kandil-glow {
+  0%, 100% { opacity: 0.88; }
+  50% { opacity: 1; }
+}
+@media (max-width: 1100px) { .diwali-kandil { display: none; } }
+
+/* diya row along the bottom of the hero */
+.diwali-diyas {
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 6px;
+  z-index: 2;
+  display: flex;
+  justify-content: space-around;
+  padding: 0 4%;
+  pointer-events: none;
+}
+.diwali-diya { display: block; filter: drop-shadow(0 0 10px rgba(255, 170, 80, 0.45)); }
+.diya-flame-k {
+  transform-box: fill-box;
+  transform-origin: 50% 100%;
+  animation: diya-flicker 1.6s ease-in-out infinite;
+}
+@keyframes diya-flicker {
+  0%, 100% { transform: scale(1, 1) rotate(0deg); opacity: 1; }
+  25% { transform: scale(0.94, 1.08) rotate(-3deg); opacity: 0.92; }
+  50% { transform: scale(1.04, 0.95) rotate(2deg); opacity: 1; }
+  75% { transform: scale(0.97, 1.05) rotate(-1deg); opacity: 0.95; }
+}
+@media (max-width: 640px) {
+  .diwali-diya:nth-child(n + 6) { display: none; }
+  .diwali-diya svg { width: 36px; height: 27px; }
+}
+
+/* rangoli turning slowly behind the hero photo */
+.diwali-rangoli {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  width: 116%;
+  aspect-ratio: 1;
+  height: auto;
+  transform: translate(-50%, -50%);
+  z-index: -1;
+  pointer-events: none;
+  animation: rangoli-turn 140s linear infinite;
+  opacity: 0.5;
+}
+@keyframes rangoli-turn {
+  from { transform: translate(-50%, -50%) rotate(0deg); }
+  to { transform: translate(-50%, -50%) rotate(360deg); }
+}
+
+/* hero content must sit above the diya row on short screens */
+.kali-world #hero { padding-bottom: 28px; }
+
+@media (prefers-reduced-motion: reduce) {
+  .kali-fireworks { display: none; }
+  .diwali-bulb, .diwali-kandil, .kandil-glow, .diya-flame-k, .diwali-rangoli { animation: none !important; }
+}
+
+/* phones: solid night cards instead of live blur (backdrop-filter is the
+   most expensive effect on low-end Android while fireworks run behind) */
+@media (max-width: 640px) {
+  .kali-world .festive-card {
+    backdrop-filter: none;
+    -webkit-backdrop-filter: none;
+    background: rgba(16, 20, 52, 0.94);
+  }
+}
+
+/* keep the hero words crisp when a firework blooms right behind them */
+.kali-world #hero h1,
+.kali-world #hero h1 + *,
+.kali-world #hero p {
+  text-shadow: 0 2px 18px rgba(5, 8, 24, 0.7), 0 0 2px rgba(5, 8, 24, 0.5);
+}
+.kali-world #hero h1 .kali-glow-word { text-shadow: 0 0 24px rgba(246, 201, 94, 0.45), 0 2px 18px rgba(5, 8, 24, 0.6); }

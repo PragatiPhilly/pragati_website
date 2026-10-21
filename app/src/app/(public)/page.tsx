@@ -51,6 +51,7 @@ import { siteUrl } from '@/lib/site-url';
 import { formatCents } from '@/lib/pricing';
 import { site } from '@/config/site';
 import { getSiteTheme } from '@/lib/theme';
+import { StringLights, Kandils, DiyaRow, Rangoli } from '@/components/site/DiwaliDecor';
 import EventRecap from '@/components/site/EventRecap';
 import { getPostEventMode, getRecap, isPostEvent } from '@/lib/season';
 
@@ -204,6 +205,14 @@ export default async function HomePage() {
       <section id="hero" className="relative overflow-hidden">
         <div className="daypart-overlay" aria-hidden />
         <div className="daypart-stars" aria-hidden />
+        {/* Kali Pujo is Deepavali night: festoon lights, kandils, a row of diyas */}
+        {isKali && (
+          <>
+            <StringLights />
+            <Kandils />
+            <DiyaRow />
+          </>
+        )}
         <div
           className="hero-wash absolute inset-0 -z-10"
           style={{
@@ -437,6 +446,7 @@ export default async function HomePage() {
               // swap <HeroParallax /> for:
               //   <KaliScene className="vignette max-w-md mx-auto" />
               <div className="relative kali-hero-scene">
+                <Rangoli />
                 <HeroParallax />
                 {[
                   { top: '8%', left: '6%', d: '0s' },
