@@ -4,6 +4,7 @@ import { getDb, schema } from "@/db/client";
 import EventForm from "../../EventForm";
 import { requireSectionAccess } from "@/lib/auth/access";
 import { dateToEasternWall, easternYmd } from "@/lib/tz";
+import { getHomeBox, suggestHomeBoxFor } from "@/lib/home-box-server";
 
 export const dynamic = "force-dynamic";
 export const metadata = { title: "Edit event" };
@@ -25,13 +26,17 @@ export default async function EditEventPage({ params }: { params: Promise<{ id: 
   // The event's authoritative day-keys, derived from its current date range.
   // We filter each ticket's stored dayKeys to this set so a stale key from an
   // earlier date range (e.g. a dropped "thu") can't linger in the form / UI.
+  const [homeBox, suggestedBox] = await Promise.all([getHomeBox(ev.id), suggestHomeBoxFor(ev)]);
+
   const eventDayKeys = new Set(Array.isArray(ev.days) ? (ev.days as { key: string }[]).map((d) => d.key) : []);
 
   return (
     <div>
       <h1 className="font-[family-name:var(--font-display)] text-3xl font-black mb-8">Edit: {ev.name}</h1>
       <EventForm
+        suggestedBox={suggestedBox}
         initial={{
+          homeBox,
           id: ev.id,
           name: ev.name,
           nameBengali: ev.nameBengali ?? "",

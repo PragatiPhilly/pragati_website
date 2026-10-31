@@ -28,7 +28,7 @@ export default function EventRecap({
     <div
       className={`festive-card pujo-countdown relative px-6 md:px-9 pt-7 pb-4 text-center ${className}`}
       role="group"
-      aria-label={recap.title}
+      aria-label={recap.title || recap.kicker}
     >
       <div className="pc-tab absolute -top-3.5 left-1/2 -translate-x-1/2 inline-flex items-center gap-2 whitespace-nowrap rounded-full px-4 py-1.5 text-[10.5px] md:text-[11px] font-semibold uppercase tracking-[0.22em]">
         <span aria-hidden>🪔</span>

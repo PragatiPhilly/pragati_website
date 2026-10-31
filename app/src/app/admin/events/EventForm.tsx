@@ -4,6 +4,7 @@ import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { saveEventAction, type EventInput, type TicketTypeInput, type PromoInput } from "./save-actions";
 import { buildEventDays } from "@/lib/event-days";
+import { HOME_BOX_STATS, emptyHomeBox, type HomeBox } from "@/lib/home-box";
 
 const emptyTicket = (dayKeys: string[] = []): TicketTypeInput => ({
   name: "",
@@ -24,9 +25,9 @@ const emptyPromo = (): PromoInput => ({
   validUntil: null,
 });
 
-export default function EventForm({ initial }: { initial: EventInput }) {
+export default function EventForm({ initial, suggestedBox }: { initial: EventInput; suggestedBox?: HomeBox }) {
   const router = useRouter();
-  const [ev, setEv] = useState<EventInput>(initial);
+  const [ev, setEv] = useState<EventInput>({ ...initial, homeBox: initial.homeBox ?? emptyHomeBox() });
   const [error, setError] = useState("");
   const [busy, setBusy] = useState(false);
   const set = (patch: Partial<EventInput>) => setEv((e) => ({ ...e, ...patch }));
@@ -34,6 +35,16 @@ export default function EventForm({ initial }: { initial: EventInput }) {
 
   const setTicket = (i: number, patch: Partial<TicketTypeInput>) =>
     set({ ticketTypes: ev.ticketTypes.map((t, j) => (j === i ? { ...t, ...patch } : t)) });
+  const box = ev.homeBox ?? emptyHomeBox();
+  const setBox = (patch: Partial<HomeBox>) => set({ homeBox: { ...box, ...patch } });
+  const boxStats = Array.from({ length: HOME_BOX_STATS }, (_, i) => box.stats[i] ?? { value: "", label: "" });
+  const setStat = (i: number, patch: Partial<{ value: string; label: string }>) =>
+    setBox({ stats: boxStats.map((s, j) => (j === i ? { ...s, ...patch } : s)) });
+  const pickNumbers = () => {
+    // first time: start from the last festival's numbers so it's never blank
+    const blank = !box.title && box.stats.every((s) => !s.value);
+    setBox(blank && suggestedBox ? { ...suggestedBox, mode: "numbers" } : { mode: "numbers" });
+  };
   const setPromo = (i: number, patch: Partial<PromoInput>) =>
     set({ promoCodes: ev.promoCodes.map((p, j) => (j === i ? { ...p, ...patch } : p)) });
 
@@ -101,6 +112,88 @@ export default function EventForm({ initial }: { initial: EventInput }) {
           <input className="input" placeholder="Venue address" value={ev.venueAddress} onChange={(e) => set({ venueAddress: e.target.value })} />
           <input className="input" placeholder="Google Maps link" value={ev.venueMapUrl} onChange={(e) => set({ venueMapUrl: e.target.value })} />
         </div>
+      </div>
+
+      {/* homepage box (spec/20) */}
+      <div className="festive-card p-6 grid gap-4">
+        <div>
+          <h2 className="font-[family-name:var(--font-display)] text-lg font-bold">Homepage box</h2>
+          <p className="text-xs mt-1" style={{ color: "var(--ink-soft)" }}>
+            The card under the homepage picture while this is the current event. After the event ends it becomes the
+            thank-you card (Settings) either way.
+          </p>
+        </div>
+        <div className="grid sm:grid-cols-2 gap-3">
+          {(
+            [
+              ["countdown", "⏳ Countdown", "Days and hours to this event — for big festivals people wait for."],
+              ["numbers", "📊 Numbers", "Big numbers from a past celebration — shows how many people come to Pragati."],
+            ] as const
+          ).map(([mode, label, note]) => {
+            const on = box.mode === mode;
+            return (
+              <button
+                key={mode}
+                type="button"
+                aria-pressed={on}
+                onClick={() => (mode === "numbers" ? pickNumbers() : setBox({ mode }))}
+                className="text-left rounded-2xl border-2 px-4 py-3 transition-colors"
+                style={{ borderColor: on ? "var(--sindoor)" : "var(--line)", background: on ? "var(--accent-soft)" : "transparent" }}
+              >
+                <span className="block font-bold" style={{ color: on ? "var(--sindoor)" : "var(--ink)" }}>
+                  {on ? "● " : "○ "}
+                  {label}
+                </span>
+                <span className="block text-xs mt-1" style={{ color: "var(--ink-soft)" }}>
+                  {note}
+                </span>
+              </button>
+            );
+          })}
+        </div>
+        {box.mode === "numbers" && (
+          <div className="grid gap-3">
+            <div className="grid sm:grid-cols-2 gap-3">
+              <label className="text-xs font-semibold grid gap-1" style={{ color: "var(--ink-soft)" }}>
+                Heading
+                <input className="input" placeholder="Durga Pujo 2026 — by the numbers" value={box.title} onChange={(e) => setBox({ title: e.target.value })} />
+              </label>
+              <label className="text-xs font-semibold grid gap-1" style={{ color: "var(--ink-soft)" }}>
+                Bengali line (optional)
+                <input className="input font-[family-name:var(--font-bangla)]" value={box.titleBn} onChange={(e) => setBox({ titleBn: e.target.value })} />
+              </label>
+            </div>
+            <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+              {boxStats.map((s, i) => (
+                <div key={i} className="grid gap-1.5 rounded-xl p-2.5" style={{ background: "var(--accent-soft)" }}>
+                  <input className="input !py-1.5 text-center font-bold" placeholder={i === 0 ? "1000+" : "number"} value={s.value} onChange={(e) => setStat(i, { value: e.target.value })} aria-label={`Number ${i + 1}`} />
+                  <input className="input !py-1.5 text-center text-xs" placeholder={i === 0 ? "Attendees" : "what it counts"} value={s.label} onChange={(e) => setStat(i, { label: e.target.value })} aria-label={`Number ${i + 1} label`} />
+                </div>
+              ))}
+            </div>
+            <div className="grid sm:grid-cols-2 gap-3">
+              <label className="text-xs font-semibold grid gap-1" style={{ color: "var(--ink-soft)" }}>
+                Small tab on top
+                <input className="input" placeholder="Last celebration" value={box.kicker} onChange={(e) => setBox({ kicker: e.target.value })} />
+              </label>
+              <label className="text-xs font-semibold grid gap-1" style={{ color: "var(--ink-soft)" }}>
+                Line under the numbers (optional)
+                <input className="input" placeholder="Oct 9–11 · Greater Philadelphia Expo Center" value={box.foot} onChange={(e) => setBox({ foot: e.target.value })} />
+              </label>
+            </div>
+            <p className="text-xs" style={{ color: "var(--ink-soft)" }}>
+              Leave a number blank to hide it. With no numbers at all, the countdown shows instead.
+              {suggestedBox && (
+                <>
+                  {" "}
+                  <button type="button" className="underline underline-offset-4 font-semibold" onClick={() => setBox({ ...suggestedBox, mode: "numbers" })}>
+                    Reset to the last festival&apos;s numbers
+                  </button>
+                </>
+              )}
+            </p>
+          </div>
+        )}
       </div>
 
       {/* ticket types */}

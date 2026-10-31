@@ -7,6 +7,8 @@ import { requireAdmin } from "@/lib/auth/session";
 import { buildEventDays } from "@/lib/event-days";
 import { ensureExtraColumns } from "@/lib/schema-ensure";
 import { easternWallToDate, endOfEasternDay } from "@/lib/tz";
+import type { HomeBox } from "@/lib/home-box";
+import { saveHomeBox } from "@/lib/home-box-server";
 
 export type TicketTypeInput = {
   id?: string;
@@ -44,6 +46,8 @@ export type EventInput = {
   status: "draft" | "published" | "archived";
   ticketTypes: TicketTypeInput[];
   promoCodes: PromoInput[];
+  /** Homepage box under the hero — countdown or a past event's numbers (spec/20). */
+  homeBox?: HomeBox;
 };
 
 export async function saveEventAction(input: EventInput): Promise<{ ok: boolean; error?: string; id?: string }> {
@@ -170,6 +174,8 @@ export async function saveEventAction(input: EventInput): Promise<{ ok: boolean;
       await db.delete(schema.promoCodes).where(eq(schema.promoCodes.id, e.id));
     }
   }
+
+  if (input.homeBox) await saveHomeBox(eventId, input.homeBox, admin.userId);
 
   await db.insert(schema.auditLog).values({
     userId: admin.userId,

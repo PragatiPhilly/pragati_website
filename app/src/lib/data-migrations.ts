@@ -27,6 +27,8 @@ import { ensureExtraColumns } from "@/lib/schema-ensure";
 import { ensureMembershipColumn } from "@/lib/membership-ensure";
 import { ensurePaymentsTable } from "@/lib/ledger-ensure";
 import { getConfig } from "@/lib/system-config";
+import { homeBoxKey } from "@/lib/home-box";
+import { saveHomeBox, suggestHomeBoxFor } from "@/lib/home-box-server";
 import { nextConfirmationNumber } from "@/lib/confirmation";
 
 const STALE_MINUTES = 15;
@@ -448,6 +450,11 @@ const JOBS: Job[] = [
     describe: "Kali Pujo 2026: restore 7:00–11:30 PM Eastern on Sat Nov 14 (the old form saved it as UTC and added Sunday)",
     run: fixKaliPujo2026Times,
   },
+  {
+    key: "2026-11-kali-home-box-numbers",
+    describe: "Kali Pujo 2026 homepage: show Durga Pujo 2026's numbers instead of a countdown (EC request)",
+    run: setKaliHomeBoxNumbers,
+  },
 ];
 
 
@@ -538,6 +545,26 @@ export async function fixKaliPujo2026Times(): Promise<string> {
     })
     .where(eq(schema.events.id, ev.id));
   return `fixed: ${wrongStart ? "start 7:00 PM Eastern; " : ""}${hasSunday ? "Sunday removed" : ""}`;
+}
+
+/**
+ * The EC asked (Oct 30) for Kali Pujo's homepage box to show off Durga Pujo
+ * 2026's turnout rather than count down. Start it that way, using the numbers
+ * the thank-you card showed (Settings) and Durga's dates / venue. Only if
+ * nobody has chosen a box for Kali yet — Admin → Events → Edit can switch it
+ * back to the countdown at any time (spec/20).
+ */
+export async function setKaliHomeBoxNumbers(): Promise<string> {
+  const db = getDb();
+  const [ev] = await db.select().from(schema.events).where(eq(schema.events.slug, "kali-pujo-2026"));
+  if (!ev) return "no Kali Pujo 2026 event — nothing to set";
+  const key = homeBoxKey(ev.id);
+  const existing = await db.select().from(schema.systemConfig).where(eq(schema.systemConfig.key, key));
+  if (existing.length > 0) return "a homepage box is already chosen for Kali Pujo 2026 — left as it is";
+  const box = await suggestHomeBoxFor(ev);
+  if (box.stats.length === 0) return "no numbers in the thank-you card settings — Kali keeps the countdown";
+  await saveHomeBox(ev.id, box, "data-migration");
+  return `Kali Pujo 2026 homepage box set to numbers: ${box.title} (${box.stats.map((s) => `${s.value} ${s.label}`).join(", ")})`;
 }
 
 // ── the runner ──────────────────────────────────────────────────

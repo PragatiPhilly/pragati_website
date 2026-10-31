@@ -54,6 +54,8 @@ import { getSiteTheme } from '@/lib/theme';
 import { StringLights, Kandils, DiyaRow, Rangoli } from '@/components/site/DiwaliDecor';
 import EventRecap from '@/components/site/EventRecap';
 import { getPostEventMode, getRecap, isPostEvent } from '@/lib/season';
+import { homeBoxCard } from '@/lib/home-box';
+import { getHomeBox } from '@/lib/home-box-server';
 
 function toPhoto(m: MediaImage) {
   return {
@@ -184,6 +186,10 @@ export default async function HomePage() {
   // becomes a recap card and every Register call-to-action steps aside.
   const postEvent = isPostEvent(await getPostEventMode(), featured, now);
   const recap = postEvent && featured ? await getRecap(featured) : null;
+  // Before the event: a countdown, or a past festival's numbers — picked per
+  // event in Admin → Events → Edit → "Homepage box" (spec/20).
+  const homeBox = featured && !recap ? await getHomeBox(featured.id) : null;
+  const numbersCard = homeBox ? homeBoxCard(homeBox) : null;
   // The bundled lineup posters (/public/lineup) are Durga Pujo 2026's
   // concerts. Any other event shows a lineup only once its own posters are in
   // Admin → Photos ("Event posters") — never last festival's artists (spec/17).
@@ -195,7 +201,7 @@ export default async function HomePage() {
     showBanner &&
     !(postEvent && (bannerHref?.trim() || '/register').startsWith('/register'));
   const recapDates = featured
-    ? `${featured.startsAt.toLocaleDateString('en-US', { timeZone: 'America/New_York', month: 'short', day: 'numeric' })}–${featured.endsAt.toLocaleDateString('en-US', { timeZone: 'America/New_York', day: 'numeric' })} · ${featured.venueName}`
+    ? [dateRange(featured), featured.venueName].filter(Boolean).join(' · ')
     : undefined;
 
   return (
@@ -437,7 +443,12 @@ export default async function HomePage() {
                 <EventRecap className="mt-10 block" recap={recap} dates={recapDates} />
               </Reveal>
             )}
-            {featured && !recap && (
+            {featured && !recap && numbersCard && (
+              <Reveal delay={0.34} className="md:hidden">
+                <EventRecap className="mt-10 block" recap={numbersCard} dates={homeBox?.foot || undefined} />
+              </Reveal>
+            )}
+            {featured && !recap && !numbersCard && (
               <Reveal delay={0.34} className="md:hidden">
                 <PujoCountdown
                   className="mt-10 inline-block"
@@ -510,7 +521,14 @@ export default async function HomePage() {
           </div>
         </div>
       )}
-      {featured && !recap && (
+      {featured && !recap && numbersCard && (
+        <div className="hidden md:flex justify-center relative z-20 -mt-12">
+          <div style={{ boxShadow: 'var(--shadow)', borderRadius: '1.25rem' }}>
+            <EventRecap recap={numbersCard} dates={homeBox?.foot || undefined} />
+          </div>
+        </div>
+      )}
+      {featured && !recap && !numbersCard && (
         <div className="hidden md:flex justify-center relative z-20 -mt-12">
           <div style={{ boxShadow: 'var(--shadow)', borderRadius: '1.25rem' }}>
             <PujoCountdown

@@ -199,3 +199,19 @@ describe("Kali Pujo 2026 time fix (self-applying)", () => {
     expect(await fixKaliPujo2026Times()).toMatch(/already correct/);
   });
 });
+
+describe("Kali Pujo 2026 homepage box (self-applying)", () => {
+  it("starts Kali on Durga's numbers, once, and never overrides an admin's choice", async () => {
+    const { setKaliHomeBoxNumbers } = await import("../src/lib/data-migrations");
+    const { getHomeBox, saveHomeBox } = await import("../src/lib/home-box-server");
+    await setConfig("recap_stat_1_value", "1000+");
+    await setConfig("recap_stat_1_label", "Attendees");
+    expect(await setKaliHomeBoxNumbers()).toMatch(/set to numbers: Durga Pujo 2026/);
+    const box = await getHomeBox(kali);
+    expect(box.mode).toBe("numbers");
+    expect(box.stats[0]).toEqual({ value: "1000+", label: "Attendees" });
+    await saveHomeBox(kali, { ...box, mode: "countdown" });
+    expect(await setKaliHomeBoxNumbers()).toMatch(/already chosen/);
+    expect((await getHomeBox(kali)).mode).toBe("countdown");
+  });
+});

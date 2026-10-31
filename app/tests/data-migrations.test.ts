@@ -26,6 +26,7 @@ const REPAIR_JOB = "2026-08-repair-swept-then-paid";
 const DON_JOB = "2026-08-backfill-in-checkout-donations";
 const KALI_JOB = "2026-11-setup-kali-pujo-2026";
 const KALI_FIX_JOB = "2026-11-fix-kali-pujo-2026-times";
+const KALI_BOX_JOB = "2026-11-kali-home-box-numbers";
 
 beforeAll(async () => {
   const db = getDb();
@@ -82,7 +83,7 @@ beforeAll(async () => {
 describe("self-applying data migrations", () => {
   it("applies every pending job on the first run", async () => {
     const ran = await runPendingDataMigrations();
-    expect(ran.map((r) => r.key).sort()).toEqual([LEDGER_JOB, PHONE_JOB, REPAIR_JOB, DON_JOB, KALI_JOB, KALI_FIX_JOB].sort());
+    expect(ran.map((r) => r.key).sort()).toEqual([LEDGER_JOB, PHONE_JOB, REPAIR_JOB, DON_JOB, KALI_JOB, KALI_FIX_JOB, KALI_BOX_JOB].sort());
     // the recorded detail is what shows up in the admin health panel, so it has
     // to reflect what actually happened
     expect(ran.find((r) => r.key === PHONE_JOB)!.result).toContain("filled 2 blank phone field(s)");
@@ -118,7 +119,7 @@ describe("self-applying data migrations", () => {
   it("records each job as done so the state is inspectable", async () => {
     const status = await dataMigrationStatus();
     expect(status.every((s) => s.status === "done")).toBe(true);
-    expect(status.map((s) => s.key).sort()).toEqual([LEDGER_JOB, PHONE_JOB, REPAIR_JOB, DON_JOB, KALI_JOB, KALI_FIX_JOB].sort());
+    expect(status.map((s) => s.key).sort()).toEqual([LEDGER_JOB, PHONE_JOB, REPAIR_JOB, DON_JOB, KALI_JOB, KALI_FIX_JOB, KALI_BOX_JOB].sort());
   });
 
   it("is safe when several instances boot at once — only one wins the claim", async () => {
