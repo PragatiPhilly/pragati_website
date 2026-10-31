@@ -152,7 +152,9 @@ export default function EventForm({ initial }: { initial: EventInput }) {
                     Who it&apos;s for
                     <select className="input" value={t.ageBand} onChange={(e) => setTicket(i, { ageBand: e.target.value })}>
                       <option value="adult">Adult (18+)</option>
-                      <option value="child_5_18">Youth (5–18)</option>
+                      <option value="child_5_18">Youth (5–18) — one price for every child</option>
+                      <option value="child_5_11">Child (5–11) — when 5–11 and 12–17 are priced apart</option>
+                      <option value="child_12_17">Youth (12–17) — when 5–11 and 12–17 are priced apart</option>
                       <option value="child_under_5">Under 5</option>
                       <option value="student">Student (edu ID required)</option>
                       <option value="concert">Concert</option>

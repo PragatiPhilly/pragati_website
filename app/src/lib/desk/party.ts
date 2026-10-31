@@ -20,6 +20,7 @@ import { DeskError } from "@/lib/desk/guards";
 import { GUARDIAN_REQUIRED_UNDER, type PersonKind } from "@/lib/desk/constants";
 import type { schema } from "@/db/client";
 import { coerceFoodPref, DEFAULT_ADULT_MEAL_MIN_AGE, type FoodPref } from "@/lib/food";
+import { hasSplitYouth, isYouthBand } from "@/lib/bands";
 
 export type TicketType = typeof schema.ticketTypes.$inferSelect;
 
@@ -129,7 +130,9 @@ function toCheckoutAttendee(p: DeskPerson, adultMealMinAge = DEFAULT_ADULT_MEAL_
     lastName: p.lastName || undefined,
     isKid,
     // An under-5 with no age typed still has to price as an under-5.
-    age: p.age ?? (kind === "under5" ? 3 : kind === "youth" ? 10 : undefined),
+    // A youth with no age typed stays unknown: when the event prices 5–11 and
+    // 12–17 apart, priceParty asks for the age rather than guessing the price.
+    age: p.age ?? (kind === "under5" ? 3 : undefined),
     isMemberFlagged: !!p.isMemberFlagged,
     days: p.days,
     withFood: kind === "concert" ? false : p.withFood,
@@ -190,6 +193,8 @@ export function priceParty(
 
     try {
       if (p.days.length === 0) throw new DeskError(`Pick at least one day for ${p.firstName}.`);
+      if (kind === "youth" && p.age === undefined && hasSplitYouth(live) && !live.some((t) => t.ageBand === "child_5_18" || t.ageBand === "child_5_12"))
+        throw new DeskError(`Type ${p.firstName || "the child"}'s age — children 5–11 and 12–17 are priced differently.`);
 
       // ── concert-only: one QR per night, never food ──────────────────────
       if (kind === "concert") {
@@ -227,7 +232,7 @@ export function priceParty(
       // can see why it is free.
       if (kind === "under5" && !live.some((t) => t.ageBand === "child_under_5" || t.ageBand === "all")) {
         const carrier =
-          live.find((t) => t.ageBand === "child_5_18" || t.ageBand === "child_5_12") ??
+          live.find((t) => isYouthBand(t.ageBand)) ??
           live.find((t) => t.ageBand === "adult");
         if (!carrier) throw new DeskError(`No pass exists that could carry ${p.firstName}.`);
         // Issue the same SHAPE the carrier would: one "all days" pass when the

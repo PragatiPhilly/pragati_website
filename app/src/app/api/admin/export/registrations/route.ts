@@ -3,13 +3,20 @@ import { desc, eq } from "drizzle-orm";
 import { getDb, schema } from "@/db/client";
 import { getSession } from "@/lib/auth/session";
 
-export async function GET() {
+export async function GET(req: Request) {
   const session = await getSession();
   if (!session || (session.role !== "admin" && session.role !== "super_admin")) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
   const db = getDb();
-  const regs = await db.select().from(schema.registrations).orderBy(desc(schema.registrations.createdAt));
+  // ?event=<id> = one event's registrations (Admin → Registrations / Events archive)
+  const eventId = new URL(req.url).searchParams.get("event");
+  const [ev] = eventId ? await db.select().from(schema.events).where(eq(schema.events.id, eventId)) : [];
+  const regs = await db
+    .select()
+    .from(schema.registrations)
+    .where(ev ? eq(schema.registrations.eventId, ev.id) : undefined)
+    .orderBy(desc(schema.registrations.createdAt));
   const tickets = await db.select().from(schema.tickets);
 
   const esc = (v: unknown) => `"${String(v ?? "").replaceAll('"', '""')}"`;
@@ -38,7 +45,7 @@ export async function GET() {
   return new NextResponse([header, ...rows].join("\n"), {
     headers: {
       "Content-Type": "text/csv",
-      "Content-Disposition": `attachment; filename="pragati-registrations-${new Date().toISOString().slice(0, 10)}.csv"`,
+      "Content-Disposition": `attachment; filename="pragati-registrations-${ev ? `${ev.slug}-` : ""}${new Date().toISOString().slice(0, 10)}.csv"`,
     },
   });
 }

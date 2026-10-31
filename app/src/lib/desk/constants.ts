@@ -184,7 +184,7 @@ export type PersonKind = "adult" | "youth" | "under5" | "student" | "concert";
 
 export const PERSON_KIND_LABEL: Record<PersonKind, string> = {
   adult: "Adult",
-  youth: "Child 5–18",
+  youth: "Child 5–17",
   under5: "Under 5",
   student: "Student",
   concert: "Concert only",

@@ -46,7 +46,7 @@ export async function buildSampleEmails(): Promise<SampleEmail[]> {
   const adultType = types.find((t) => t.ageBand === "adult") ?? types[0];
   const concertType = types.find((t) => t.ageBand === "concert");
   const studentType = types.find((t) => t.ageBand === "student");
-  const youthType = types.find((t) => t.ageBand === "child_5_18" || t.ageBand === "child_5_12");
+  const youthType = types.find((t) => t.ageBand === "child_5_18" || t.ageBand === "child_5_12" || t.ageBand === "child_5_11" || t.ageBand === "child_12_17");
 
   const conf = "PRG-2026-0042";
   const lookupUrl = siteUrl(`/lookup?email=sample%40example.com&conf=${conf}`);

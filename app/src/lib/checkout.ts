@@ -18,6 +18,7 @@ import { openPayments, settlePayments, voidPayments, attachSquareOrder, toLedger
 import { sendMail } from "@/lib/email";
 import * as T from "@/lib/email/templates";
 import { coerceFoodPref, foodPrefLabel, type FoodPref } from "@/lib/food";
+import { isYouthBand, passesForBand, youthBandFor } from "@/lib/bands";
 
 export type StudentInfo = { eduEmail: string; university: string; city: string; gradYear: string };
 
@@ -76,8 +77,10 @@ export function resolveTicketType(
   types: (typeof schema.ticketTypes.$inferSelect)[],
   eventDayCount: number
 ): TicketMatch {
-  // Age bands: adult (18+) · child_5_18 (youth 5–18) · child_under_5 · concert (universal, timed).
-  // "all" and legacy "child_5_12" are still honored for older data.
+  // Age bands (lib/bands.ts): adult (18+) · child_under_5 · a child picks the
+  // most specific band the event sells — child_5_11 / child_12_17 when the
+  // event prices them apart, else the single child_5_18 (legacy child_5_12
+  // too) · concert (universal, timed) · "all" matches everyone.
   // A "kid" aged 18+ is an adult — enforced here too, so a crafted request
   // can't smuggle an adult in on youth pricing.
   const kid = a.isKid && (a.age === undefined || a.age < 18);
@@ -86,21 +89,14 @@ export function resolveTicketType(
     : kid
       ? a.age !== undefined && a.age < 5
         ? "child_under_5"
-        : "child_5_18"
+        : youthBandFor(a.age)
       : "adult";
-  const candidates = types.filter((t) => {
-    // Concert + add-on passes are sold via their own flows — never auto-matched
-    // here (that would mis-assign a day-pass buyer to a concert/lunch pass).
-    if (t.ageBand === "concert" || t.ageBand === "addon") return false;
-    const bandOk =
-      t.ageBand === band ||
-      t.ageBand === "all" ||
-      (band === "child_5_18" && t.ageBand === "child_5_12"); // legacy youth value
-    if (!bandOk) return false;
+  // Concert + add-on passes are sold via their own flows — never auto-matched
+  // here (that would mis-assign a day-pass buyer to a concert/lunch pass).
+  const candidates = passesForBand(types, band).filter(
     // adults & students choose with / without food
-    if ((band === "adult" || band === "student") && t.withFood !== a.withFood) return false;
-    return true;
-  });
+    (t) => !((band === "adult" || band === "student") && t.withFood !== a.withFood)
+  );
   // 1) exact day-combo match — a full pass is simply the combo covering every day
   const exact = candidates.find((t) => Array.isArray(t.dayKeys) && sameDaySet(t.dayKeys as string[], a.days));
   if (exact) {
@@ -208,9 +204,9 @@ export async function createCheckout(input: CheckoutInput): Promise<CheckoutResu
     // them. Same approach as the walk-in desk: a $0 pass on the nearest youth
     // (or adult) pass, in the same day shape; the age on the ticket says why.
     const attKid = a.isKid && (a.age === undefined || a.age < 18);
-    const attBand = a.isStudent ? "student" : attKid ? (a.age !== undefined && a.age < 5 ? "child_under_5" : "child_5_18") : "adult";
+    const attBand = a.isStudent ? "student" : attKid ? (a.age !== undefined && a.age < 5 ? "child_under_5" : youthBandFor(a.age)) : "adult";
     if (attBand === "child_under_5" && !types.some((t) => t.ageBand === "child_under_5" || t.ageBand === "all")) {
-      const kidLike = (t: (typeof types)[number]) => t.ageBand === "child_5_18" || t.ageBand === "child_5_12";
+      const kidLike = (t: (typeof types)[number]) => isYouthBand(t.ageBand);
       const carrier =
         types.find((t) => kidLike(t) && !t.onlineClosedAt) ??
         types.find(kidLike) ??

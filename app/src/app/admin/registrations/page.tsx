@@ -1,4 +1,4 @@
-import { desc, eq } from "drizzle-orm";
+import { and, desc, eq } from "drizzle-orm";
 import { getDb, schema } from "@/db/client";
 import { getSession } from "@/lib/auth/session";
 import { getConfig } from "@/lib/system-config";
@@ -7,6 +7,8 @@ import StatusBadge from "@/components/admin/StatusBadge";
 import RowActions from "./RowActions";
 import BackupControls from "./BackupControls";
 import { requireSectionAccess } from "@/lib/auth/access";
+import EventLens from "@/components/admin/EventLens";
+import { getLens } from "@/lib/seasons";
 
 export const dynamic = "force-dynamic";
 
@@ -20,10 +22,17 @@ export default async function AdminRegistrationsPage({
   const session = await getSession();
   const backupEmail = await getConfig<string>("backup_email");
   const db = getDb();
+  // One event at a time (spec/19) — the switcher at the top loads a past one.
+  const lens = await getLens();
   let regs = await db
     .select()
     .from(schema.registrations)
-    .where(status ? eq(schema.registrations.status, status) : undefined)
+    .where(
+      and(
+        status ? eq(schema.registrations.status, status) : undefined,
+        lens ? eq(schema.registrations.eventId, lens.event.id) : undefined
+      )
+    )
     .orderBy(desc(schema.registrations.createdAt))
     .limit(500);
   if (q?.trim()) {
@@ -45,10 +54,11 @@ export default async function AdminRegistrationsPage({
     <div>
       <div className="flex items-center justify-between mb-6 flex-wrap gap-3">
         <h1 className="font-[family-name:var(--font-display)] text-3xl font-black">Registrations</h1>
-        <a href="/api/admin/export/registrations" className="btn-secondary !py-2 !px-5 text-sm">
-          ⬇ Export CSV
+        <a href={`/api/admin/export/registrations${lens ? `?event=${lens.event.id}` : ""}`} className="btn-secondary !py-2 !px-5 text-sm">
+          ⬇ Export CSV{lens ? ` — ${lens.event.name}` : ""}
         </a>
       </div>
+      <EventLens />
       <BackupControls isSuper={session?.role === "super_admin"} backupEmail={backupEmail} />
       <form className="flex gap-2 mb-4" method="get">
         {status && <input type="hidden" name="status" value={status} />}

@@ -4,20 +4,20 @@ import { revalidatePath } from "next/cache";
 import { and, eq, isNull, ne } from "drizzle-orm";
 import { getDb, schema } from "@/db/client";
 import { requireAdmin } from "@/lib/auth/session";
-import { setConfig } from "@/lib/system-config";
 import { ensureExtraColumns } from "@/lib/schema-ensure";
 
 export async function setActiveEventAction(slug: string) {
+  // Switching the current event always goes through the close-out (spec/19):
+  // otherwise the outgoing event's stray donations and dues would silently show
+  // up under the new event. Publishing is left as it is.
   const admin = await requireAdmin();
-  await setConfig("active_event_slug", slug, admin.userId);
   const db = getDb();
-  await db.insert(schema.auditLog).values({
-    userId: admin.userId,
-    action: "update",
-    entityType: "system_config",
-    changes: { active_event_slug: slug },
-  });
+  const [next] = await db.select().from(schema.events).where(eq(schema.events.slug, slug));
+  if (!next) return;
+  const { closeOutAndSwitch } = await import("@/lib/seasons");
+  await closeOutAndSwitch(next.id, { publish: false, actor: { userId: admin.userId, name: admin.name ?? admin.email } });
   revalidatePath("/");
+  revalidatePath("/admin", "layout");
   revalidatePath("/admin/events");
 }
 
@@ -91,4 +91,29 @@ export async function setEventPassesOnlineAction(
   });
   revalidatePassPages();
   return { ok: true, changed: rows.length };
+}
+
+/**
+ * The one button (spec/19): close the current event — file its stray money
+ * under it and freeze its final numbers — and make `nextEventId` current,
+ * optionally publishing it so online registration opens.
+ */
+export async function closeOutAndSwitchAction(
+  nextEventId: string,
+  publish: boolean
+): Promise<{ ok: true; result: import("@/lib/seasons").CloseOutResult } | { ok: false; error: string }> {
+  const admin = await requireAdmin();
+  try {
+    const { closeOutAndSwitch, LENS_COOKIE } = await import("@/lib/seasons");
+    const result = await closeOutAndSwitch(nextEventId, { publish, actor: { userId: admin.userId, name: admin.name ?? admin.email } });
+    // every admin tab starts on the new current event
+    const { cookies } = await import("next/headers");
+    (await cookies()).delete({ name: LENS_COOKIE, path: "/admin" });
+    revalidatePath("/", "layout");
+    revalidatePath("/admin", "layout");
+    revalidatePassPages();
+    return { ok: true, result };
+  } catch (e) {
+    return { ok: false, error: e instanceof Error ? e.message : "Something went wrong." };
+  }
 }

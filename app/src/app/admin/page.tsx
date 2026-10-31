@@ -1,10 +1,12 @@
 import Link from "next/link";
-import { desc, eq, sql } from "drizzle-orm";
+import { and, desc, eq, sql } from "drizzle-orm";
 import { getDb, schema } from "@/db/client";
 import { formatCents } from "@/lib/pricing";
 import { getActiveEvent } from "@/lib/queries/events";
 import StatusBadge from "@/components/admin/StatusBadge";
 import { requireSectionAccess } from "@/lib/auth/access";
+import EventLens from "@/components/admin/EventLens";
+import { getLens, inLens, loadAttribution, paymentEventId, donationEventId } from "@/lib/seasons";
 
 export const dynamic = "force-dynamic";
 
@@ -18,8 +20,29 @@ export default async function AdminDashboard() {
   // Money comes from the ledger, so the three streams are separable and the
   // cards reconcile with the Payments log. (registrations.total_cents can't do
   // this — it silently bundles in-checkout donations and membership dues.)
-  const { moneyTotals } = await import("@/lib/ledger");
-  const money = await moneyTotals();
+  // Everything event-shaped is seen through the event lens (spec/19): the
+  // current event by default, or a past one picked in the switcher.
+  const lens = await getLens();
+  const attribution = await loadAttribution(db);
+  const { listPayments } = await import("@/lib/ledger");
+  const lensPays = (await listPayments()).filter((p) => inLens(paymentEventId(attribution, p), lens));
+  const bucket = (k: string) => ({
+    collected: lensPays.filter((p) => p.kind === k && p.status === "paid").reduce((n, p) => n + p.amountCents, 0),
+    count: lensPays.filter((p) => p.kind === k && p.status === "paid").length,
+  });
+  const money = {
+    registration: bucket("registration"),
+    donation: bucket("donation"),
+    membership: bucket("membership"),
+    totalCollected: lensPays.filter((p) => p.status === "paid").reduce((n, p) => n + p.amountCents, 0),
+    totalOutstanding: lensPays
+      .filter((p) => p.status === "pending" || p.status === "pending_verification")
+      .reduce((n, p) => n + p.amountCents, 0),
+  };
+  const lensRegs = lens
+    ? await db.select().from(schema.registrations).where(eq(schema.registrations.eventId, lens.event.id))
+    : await db.select().from(schema.registrations);
+  const lensRegIds = new Set(lensRegs.map((r) => r.id));
 
   // Roster counts. All three statuses are reported so the numbers always add up
   // to the Members page row count — previously `inactive` members were invisible.
@@ -32,31 +55,26 @@ export default async function AdminDashboard() {
   const awaitingMembers = memberCount("pending_payment");
   const inactiveMembers = memberCount("inactive");
 
-  const [paidRegs] = await db
-    .select({ n: sql<number>`count(*)` })
-    .from(schema.registrations)
-    .where(eq(schema.registrations.status, "paid"));
-  const [pendingZelle] = await db
-    .select({ n: sql<number>`count(*)`, amount: sql<number>`coalesce(sum(total_cents),0)` })
-    .from(schema.registrations)
-    .where(eq(schema.registrations.status, "pending_zelle_verification"));
+  const paidRegs = { n: lensRegs.filter((r) => r.status === "paid").length };
+  const zelleWaiting = lensRegs.filter((r) => r.status === "pending_zelle_verification");
+  const pendingZelle = { n: zelleWaiting.length, amount: zelleWaiting.reduce((n, r) => n + r.totalCents, 0) };
   // Only tickets on registrations that were actually paid — cancelled holds keep
   // their ticket rows, which used to inflate this number on every sweep.
   const [tickets] = await db
     .select({ n: sql<number>`count(*)` })
     .from(schema.tickets)
     .innerJoin(schema.registrations, eq(schema.tickets.registrationId, schema.registrations.id))
-    .where(eq(schema.registrations.status, "paid"));
-  const [donations] = await db
-    .select({ n: sql<number>`count(*)` })
-    .from(schema.donations)
-    .where(eq(schema.donations.status, "paid"));
+    .where(
+      lens
+        ? and(eq(schema.registrations.status, "paid"), eq(schema.registrations.eventId, lens.event.id))
+        : eq(schema.registrations.status, "paid")
+    );
+  const donations = {
+    n: (await db.select().from(schema.donations)).filter((d) => d.status === "paid" && inLens(donationEventId(attribution, d.id), lens)).length,
+  };
 
-  const recent = await db
-    .select()
-    .from(schema.registrations)
-    .orderBy(desc(schema.registrations.createdAt))
-    .limit(8);
+  const recent = [...lensRegs].sort((a, b) => +b.createdAt - +a.createdAt).slice(0, 8);
+  void lensRegIds;
 
   // ── system health (fail-safe visibility) ──────────────────────
   const { getConfig } = await import("@/lib/system-config");
@@ -133,9 +151,10 @@ export default async function AdminDashboard() {
   return (
     <div>
       <h1 className="font-[family-name:var(--font-display)] text-3xl font-black mb-1">Dashboard</h1>
-      <p className="mb-6 text-sm" style={{ color: "var(--ink-soft)" }}>
-        Active event: <strong>{active?.name ?? "none"}</strong>
+      <p className="mb-4 text-sm" style={{ color: "var(--ink-soft)" }}>
+        Current event: <strong>{active?.name ?? "none"}</strong>
       </p>
+      <EventLens note="Money, registrations and donations below are for this event. Members are all years." />
 
       {/* ── system health ── */}
       <div className="festive-card p-4 mb-6" style={healthWarnings.length > 0 ? { borderColor: "var(--marigold)" } : undefined}>
@@ -201,7 +220,7 @@ export default async function AdminDashboard() {
         {stat(
           "Active members",
           String(activeMembers),
-          `${formatCents(money.membership.collected)} dues collected · ${awaitingMembers} awaiting${inactiveMembers > 0 ? ` · ${inactiveMembers} inactive` : ""}`,
+          `${formatCents(money.membership.collected)} dues this event · ${awaitingMembers} awaiting${inactiveMembers > 0 ? ` · ${inactiveMembers} inactive` : ""}`,
           "/admin/members"
         )}
         {stat("Donations", String(donations.n), `${formatCents(money.donation.collected)} received`, "/admin/donations")}

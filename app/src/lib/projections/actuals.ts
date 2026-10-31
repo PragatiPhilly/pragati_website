@@ -52,7 +52,7 @@ export const EMPTY_ACTUALS: HeadActuals = {
 };
 
 /** Age bands that mean "child" for the projection's kids segment. */
-const KID_BANDS = new Set(["child_5_12", "child_under_5", "youth_5_18", "under_5"]);
+const KID_BANDS = new Set(["child_5_12", "child_5_18", "child_5_11", "child_12_17", "child_under_5", "youth_5_18", "under_5"]);
 
 export async function getActuals(): Promise<HeadActuals> {
   const out: HeadActuals = { ...EMPTY_ACTUALS, attendance: {}, asOf: new Date().toISOString() };

@@ -41,6 +41,8 @@ const KIND_BY_BAND: Record<string, PersonKind> = {
   student: "student",
   child_5_18: "youth",
   child_5_12: "youth",
+  child_5_11: "youth",
+  child_12_17: "youth",
   child_under_5: "under5",
   concert: "concert",
 };

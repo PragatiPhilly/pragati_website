@@ -35,6 +35,8 @@ export type BuilderEvent = {
   foodIsAChoice: boolean;
   /** Admin → Food line: a youth this age or older may pick an adult plate */
   adultMealMinAge: number;
+  /** the event prices children 5–11 and 12–17 differently, so a child's age sets the price */
+  splitYouth: boolean;
 };
 
 const DESK_PLATE_WORD: Record<Plate, string> = {
@@ -365,7 +367,7 @@ export default function PartyBuilder({
                 </label>
                 {(r.kind === "youth" || r.kind === "under5") && (
                   <label className="desk-field">
-                    How old are they? (optional)
+                    {r.kind === "youth" && event.splitYouth ? "How old are they? (needed — 5–11 and 12–17 are priced differently)" : "How old are they? (optional)"}
                     <input
                       value={r.age}
                       inputMode="numeric"

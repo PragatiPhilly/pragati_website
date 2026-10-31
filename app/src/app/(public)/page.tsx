@@ -161,6 +161,18 @@ export default async function HomePage() {
   const featured =
     active && active.status === 'published' ? active : upcoming[0];
   const others = upcoming.filter((e) => e.id !== featured?.id).slice(0, 4);
+  // The most recent event that is over — shown as a small "past event" card
+  // once the next event is the featured one (spec/19).
+  const lastPast = events
+    .filter((e) => e.endsAt <= now && e.id !== featured?.id)
+    .sort((a, b) => +b.endsAt - +a.endsAt)[0];
+  const nyDay = (d: Date) => d.toLocaleDateString('en-CA', { timeZone: 'America/New_York' });
+  const dateRange = (e: { startsAt: Date; endsAt: Date }) =>
+    nyDay(e.startsAt) === nyDay(e.endsAt) ||
+    // an evening event that runs past midnight is still a one-day event
+    +e.endsAt - +e.startsAt < 18 * 3600 * 1000
+      ? e.startsAt.toLocaleDateString('en-US', { timeZone: 'America/New_York', weekday: 'short', month: 'short', day: 'numeric' })
+      : `${e.startsAt.toLocaleDateString('en-US', { timeZone: 'America/New_York', month: 'short', day: 'numeric' })}–${e.endsAt.toLocaleDateString('en-US', { timeZone: 'America/New_York', day: 'numeric' })}`;
   // The site's look (Settings → Website theme; auto = the active event's).
   const theme = await getSiteTheme();
   const isKali = theme === 'kali';
@@ -1029,17 +1041,7 @@ export default async function HomePage() {
                       textShadow: '0 1px 10px rgba(0,0,0,0.55)',
                     }}
                   >
-                    {featured.startsAt.toLocaleDateString('en-US', {
-                      timeZone: 'America/New_York',
-                      month: 'short',
-                      day: 'numeric',
-                    })}
-                    –
-                    {featured.endsAt.toLocaleDateString('en-US', {
-                      timeZone: 'America/New_York',
-                      day: 'numeric',
-                    })}{' '}
-                    · {featured.venueName}
+                    {dateRange(featured)} · {featured.venueName}
                   </p>
                 </div>
               </Link>
@@ -1089,6 +1091,41 @@ export default async function HomePage() {
               </Link>
             </Reveal>
           ))}
+          {lastPast && (
+            <Reveal delay={0.08 * (others.length + 1)}>
+              <Link
+                href={`/events/${lastPast.slug}`}
+                className="event-card h-full block"
+                style={{ filter: 'saturate(0.55)' }}
+              >
+                <div
+                  className={`img ${lastPast.theme === 'kali' ? 'img-kali' : lastPast.theme === 'saraswati' ? 'img-saraswati' : CARD_GRADIENTS[0]}`}
+                />
+                <div className="overlay" />
+                <div className="arrow-circle">↗</div>
+                <div className="relative z-[2] p-5 w-full">
+                  <span className="chip">Past event · thank you</span>
+                  <h3
+                    className="font-[family-name:var(--font-display)] text-xl font-bold"
+                    style={{ color: '#FBF6EC' }}
+                  >
+                    {lastPast.nameBengali && (
+                      <span
+                        className="font-[family-name:var(--font-bangla)] block text-sm font-normal"
+                        style={{ color: 'var(--marigold-pale)' }}
+                      >
+                        {lastPast.nameBengali}
+                      </span>
+                    )}
+                    {lastPast.name}
+                  </h3>
+                  <p className="mt-1 text-xs" style={{ color: 'rgba(251,246,236,0.8)' }}>
+                    {dateRange(lastPast)} · {lastPast.venueName}
+                  </p>
+                </div>
+              </Link>
+            </Reveal>
+          )}
           {/* coming-soon tablets for pujos not yet published */}
           {[
             {

@@ -43,8 +43,8 @@ export default async function NewWalkInPage({
   const has = (bands: string[]) => live.some((t) => bands.includes(t.ageBand));
   const kinds: Record<PersonKind, boolean> = {
     adult: has(["adult", "all"]),
-    youth: has(["child_5_18", "child_5_12", "all"]),
-    under5: has(["child_under_5"]) || has(["child_5_18", "child_5_12", "all"]),
+    youth: has(["child_5_18", "child_5_12", "child_5_11", "child_12_17", "all"]),
+    under5: has(["child_under_5"]) || has(["child_5_18", "child_5_12", "child_5_11", "child_12_17", "all"]),
     student: has(["student"]),
     concert: has(["concert"]),
   };
@@ -107,6 +107,7 @@ export default async function NewWalkInPage({
     kinds,
     foodIsAChoice,
     adultMealMinAge: Number(await getConfig<number>("adult_meal_min_age")) || 12,
+    splitYouth: live.some((t) => t.ageBand === "child_5_11" || t.ageBand === "child_12_17"),
   };
 
   return (

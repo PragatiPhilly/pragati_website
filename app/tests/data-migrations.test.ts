@@ -24,6 +24,7 @@ const PHONE_JOB = "2026-08-backfill-phone-placeholders";
 const LEDGER_JOB = "2026-08-backfill-payments-ledger";
 const REPAIR_JOB = "2026-08-repair-swept-then-paid";
 const DON_JOB = "2026-08-backfill-in-checkout-donations";
+const KALI_JOB = "2026-11-setup-kali-pujo-2026";
 
 beforeAll(async () => {
   const db = getDb();
@@ -35,6 +36,8 @@ beforeAll(async () => {
   CREATE TABLE IF NOT EXISTS donations (id text PRIMARY KEY, confirmation_number text NOT NULL, member_id text, donor_name text NOT NULL, donor_email text NOT NULL, donor_phone text, amount_cents integer NOT NULL, in_honor_or_memory text NOT NULL DEFAULT 'none', designation text, honoree_name text, honoree_notify_email text, message text, is_anonymous boolean NOT NULL DEFAULT false, payment_method text NOT NULL, status text NOT NULL DEFAULT 'pending_payment', square_order_id text, square_payment_id text, zelle_verified_by text, zelle_verified_at timestamptz, paid_at timestamptz, cancelled_at timestamptz, reservation_expires_at timestamptz, notes text, created_at timestamptz NOT NULL DEFAULT now(), updated_at timestamptz NOT NULL DEFAULT now());
   CREATE TABLE IF NOT EXISTS contact_messages (id text PRIMARY KEY, name text NOT NULL, email text NOT NULL, phone text, topic text NOT NULL DEFAULT 'general', message text NOT NULL, handled_at timestamptz, handled_by text, created_at timestamptz NOT NULL DEFAULT now());
   CREATE TABLE IF NOT EXISTS system_config (key text PRIMARY KEY, value jsonb, updated_at timestamptz NOT NULL DEFAULT now(), updated_by text);
+  CREATE TABLE IF NOT EXISTS events (id text PRIMARY KEY, slug text NOT NULL, name text NOT NULL, name_bengali text, theme text NOT NULL DEFAULT 'none', description text, starts_at timestamptz NOT NULL, ends_at timestamptz NOT NULL, venue_name text, venue_address text, venue_map_url text, poster_url text, days jsonb, status text NOT NULL DEFAULT 'draft', publish_at timestamptz, is_member_only boolean NOT NULL DEFAULT false, created_by text, created_at timestamptz NOT NULL DEFAULT now(), updated_at timestamptz NOT NULL DEFAULT now());
+  CREATE TABLE IF NOT EXISTS ticket_types (id text PRIMARY KEY, event_id text NOT NULL, name text NOT NULL, description text, pricing_model text NOT NULL DEFAULT 'per_person', price_member_cents integer NOT NULL, price_nonmember_cents integer NOT NULL, age_band text NOT NULL DEFAULT 'all', day_keys jsonb, with_food boolean NOT NULL DEFAULT true, check_in_start text, capacity integer, sold_count integer NOT NULL DEFAULT 0, requires_food_selection boolean NOT NULL DEFAULT true, sale_starts_at timestamptz, sale_ends_at timestamptz, display_order integer NOT NULL DEFAULT 0, archived_at timestamptz, online_closed_at timestamptz, created_at timestamptz NOT NULL DEFAULT now(), updated_at timestamptz NOT NULL DEFAULT now());
   `);
   // Columns the app adds lazily at boot (see lib/payments/ensure.ts) — applied
   // here too so the test database matches a real one.
@@ -78,7 +81,7 @@ beforeAll(async () => {
 describe("self-applying data migrations", () => {
   it("applies every pending job on the first run", async () => {
     const ran = await runPendingDataMigrations();
-    expect(ran.map((r) => r.key).sort()).toEqual([LEDGER_JOB, PHONE_JOB, REPAIR_JOB, DON_JOB].sort());
+    expect(ran.map((r) => r.key).sort()).toEqual([LEDGER_JOB, PHONE_JOB, REPAIR_JOB, DON_JOB, KALI_JOB].sort());
     // the recorded detail is what shows up in the admin health panel, so it has
     // to reflect what actually happened
     expect(ran.find((r) => r.key === PHONE_JOB)!.result).toContain("filled 2 blank phone field(s)");
@@ -114,7 +117,7 @@ describe("self-applying data migrations", () => {
   it("records each job as done so the state is inspectable", async () => {
     const status = await dataMigrationStatus();
     expect(status.every((s) => s.status === "done")).toBe(true);
-    expect(status.map((s) => s.key).sort()).toEqual([LEDGER_JOB, PHONE_JOB, REPAIR_JOB, DON_JOB].sort());
+    expect(status.map((s) => s.key).sort()).toEqual([LEDGER_JOB, PHONE_JOB, REPAIR_JOB, DON_JOB, KALI_JOB].sort());
   });
 
   it("is safe when several instances boot at once — only one wins the claim", async () => {

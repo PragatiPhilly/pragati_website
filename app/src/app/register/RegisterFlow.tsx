@@ -17,6 +17,7 @@ import { submitRegistration, validatePromoAction } from "./actions";
 import { formatCents, cardProcessingFeeCents } from "@/lib/pricing";
 import { matchConcertSelection, onlineClosedMessage, sameDaySet } from "@/lib/event-days";
 import { fmtClock } from "@/lib/ticket-labels";
+import { passesForBand, youthBandFor } from "@/lib/bands";
 import { DEFAULT_ADULT_MEAL_MIN_AGE, PLATE_LABEL, plateChoices, plateOf, prefOf, type FoodPref } from "@/lib/food";
 import { isEmail, buyerStepError } from "@/lib/validation";
 import JourneyScene from "@/components/register/JourneyScene";
@@ -200,6 +201,8 @@ function shortPassName(name: string): string {
 const PASS_GROUPS: { keys: string[]; label: string }[] = [
   { keys: ["adult"], label: "Adult" },
   { keys: ["child_5_18", "child_5_12"], label: "Youth 5–18" },
+  { keys: ["child_12_17"], label: "Youth 12–17" },
+  { keys: ["child_5_11"], label: "Children 5–11" },
   { keys: ["student"], label: "Student" },
   { keys: ["child_under_5"], label: "Under 5" },
   { keys: ["concert"], label: "Concert" },
@@ -222,7 +225,7 @@ function OrderLines({ lines, promoApplied, promoCode, promoDiscount, membershipC
               </p>
               <p className="text-xs truncate" style={{ color: "var(--ink-soft)" }}>
                 {l.person
-                  ? `${l.label}${l.person.concertOnly ? " · concert" : l.person.isStudent ? (l.person.withFood ? " · student · food" : " · student") : l.person.isKid ? `${(l.person.age ?? 6) < 5 ? " · under 5 · free" : " · youth"} · ${plateOf(l.person.foodPref) ? PLATE_LABEL[plateOf(l.person.foodPref)!].long.toLowerCase() : "meal incl."}` : l.person.withFood ? " · with food" : " · no food"}`
+                  ? `${l.label}${l.person.concertOnly ? " · concert" : l.person.isStudent ? (l.person.withFood ? " · student · food" : " · student") : l.person.isKid ? `${(l.person.age ?? 6) < 5 ? " · under 5 · free" : l.person.age !== undefined && l.person.age < 12 ? " · child" : " · youth"} · ${plateOf(l.person.foodPref) ? PLATE_LABEL[plateOf(l.person.foodPref)!].long.toLowerCase() : "meal incl."}` : l.person.withFood ? " · with food" : " · no food"}`
                   : `Add-on ${l.label}`}
                 {l.memberPricing && " · member"}
               </p>
@@ -387,6 +390,8 @@ const BAND_LABEL: Record<string, string> = {
   student: "student",
   child_5_18: "youth (5–18)",
   child_5_12: "youth",
+  child_5_11: "child (5–11)",
+  child_12_17: "youth (12–17)",
   child_under_5: "under-5",
 };
 const picksFood = (band: string) => band === "adult" || band === "student";
@@ -394,15 +399,14 @@ const picksFood = (band: string) => band === "adult" || band === "student";
 function personBand(p: { isStudent: boolean; isKid: boolean; age?: number }): string {
   // A "kid" aged 18+ is an adult — never let an adult ride on youth pricing.
   const kid = p.isKid && (p.age === undefined || p.age < 18);
-  return p.isStudent ? "student" : kid ? ((p.age ?? 6) < 5 ? "child_under_5" : "child_5_18") : "adult";
+  return p.isStudent ? "student" : kid ? ((p.age ?? 6) < 5 ? "child_under_5" : youthBandFor(p.age)) : "adult";
 }
 
-/** Day passes (not concert/add-on) that serve a given band. */
+/** Day passes (not concert/add-on) that serve a given band — same rule as the
+ *  server (lib/bands.ts): a child uses 5–11 / 12–17 passes when the event has
+ *  them, else the single youth price. */
 function bandDayPasses(tts: FlowTT[], band: string): FlowTT[] {
-  return tts.filter((t) => {
-    if (t.ageBand === "concert" || t.ageBand === "addon") return false;
-    return t.ageBand === band || t.ageBand === "all" || (band === "child_5_18" && t.ageBand === "child_5_12");
-  });
+  return passesForBand(tts, band);
 }
 
 /** Does a real pass cover exactly these days + this food choice for the band? */
@@ -1669,7 +1673,7 @@ export default function RegisterFlow({
                       </p>
                       <p className="text-sm mt-0.5" style={{ color: "var(--ink-soft)" }}>
                         {l.person
-                          ? `${l.label} · ${l.person.concertOnly ? `concert · no meal${l.note ? ` · ${l.note}` : ""}` : l.person.isStudent ? (l.person.withFood ? `student · food: ${l.person.foodPref.replace("_", "-")}` : "student · no food") : l.person.isKid ? `${(l.person.age ?? 6) < 5 ? "under 5 · free" : "youth"} · ${plateOf(l.person.foodPref) ? PLATE_LABEL[plateOf(l.person.foodPref)!].long.toLowerCase() : "meal included"}` : l.person.withFood ? `food: ${l.person.foodPref.replace("_", "-")}` : "no food"}`
+                          ? `${l.label} · ${l.person.concertOnly ? `concert · no meal${l.note ? ` · ${l.note}` : ""}` : l.person.isStudent ? (l.person.withFood ? `student · food: ${l.person.foodPref.replace("_", "-")}` : "student · no food") : l.person.isKid ? `${(l.person.age ?? 6) < 5 ? "under 5 · free" : l.person.age !== undefined && l.person.age < 12 ? "child" : "youth"} · ${plateOf(l.person.foodPref) ? PLATE_LABEL[plateOf(l.person.foodPref)!].long.toLowerCase() : "meal included"}` : l.person.withFood ? `food: ${l.person.foodPref.replace("_", "-")}` : "no food"}`
                           : "Add-on pass"}
                         {l.memberPricing && (
                           <span className="ml-1.5 font-semibold" style={{ color: "var(--leaf-deep)" }}>

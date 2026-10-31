@@ -10,7 +10,9 @@ import Link from "next/link";
 import { eq } from "drizzle-orm";
 import { getDb, schema } from "@/db/client";
 import { requireSectionAccess } from "@/lib/auth/access";
-import { getActiveEvent, type EventDay } from "@/lib/queries/events";
+import { type EventDay } from "@/lib/queries/events";
+import EventLens from "@/components/admin/EventLens";
+import { getLens } from "@/lib/seasons";
 import { getConfig } from "@/lib/system-config";
 import { ensureFoodlineSchema, windowStats } from "@/lib/foodline/party";
 import { nyYmd } from "@/lib/checkin/daily";
@@ -26,7 +28,8 @@ export default async function FoodPage({ searchParams }: { searchParams: Promise
   const user = await requireSectionAccess("foodline");
   const isAdmin = user.role === "admin" || user.role === "super_admin";
   const { w } = await searchParams;
-  const event = await getActiveEvent();
+  // the event picked in the switcher (spec/19) — the current one by default
+  const event = (await getLens())?.event ?? null;
   if (!event) return <p style={{ color: "var(--ink-soft)" }}>No active event.</p>;
   await ensureFoodlineSchema();
 
@@ -76,6 +79,7 @@ export default async function FoodPage({ searchParams }: { searchParams: Promise
   return (
     <div className="max-w-4xl">
       <AutoRefresh seconds={15} />
+      <EventLens />
       <h1 className="font-[family-name:var(--font-display)] text-3xl font-black mb-1">Food line</h1>
       <p className="text-sm mb-4" style={{ color: "var(--ink-soft)" }}>
         {event.name} · live plates for each meal — refreshes every 15 seconds. Volunteers serve from the{" "}

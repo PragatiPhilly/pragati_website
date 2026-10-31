@@ -70,7 +70,7 @@ export type CouponTicket = {
   age: number | null;
 };
 
-const KID_BANDS = new Set(["child_5_18", "child_5_12", "child_under_5"]);
+const KID_BANDS = new Set(["child_5_18", "child_5_12", "child_5_11", "child_12_17", "child_under_5"]);
 
 export function whoIs(t: Pick<CouponTicket, "ageBand" | "foodPref" | "age">): Who {
   // The plate decides when one was chosen: a teen (12–17) may pick an adult

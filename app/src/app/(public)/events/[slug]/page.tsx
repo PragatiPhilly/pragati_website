@@ -1,4 +1,5 @@
 import Link from 'next/link';
+import { eventDateLine } from '@/lib/event-dates';
 import { notFound } from 'next/navigation';
 import { getEventBySlug, type EventDay } from '@/lib/queries/events';
 import { getEventImage } from '@/lib/media/queries';
@@ -26,6 +27,7 @@ type Ticket = NonNullable<
 function coverageLabel(dayKeys: unknown, days: EventDay[]): string {
   const keys = Array.isArray(dayKeys) ? (dayKeys as string[]) : [];
   if (keys.length === 0) return 'Any one day';
+  if (days.length === 1) return days[0].label;
   if (keys.length >= days.length) return `All ${days.length} days`;
   return keys
     .map((k) => days.find((d) => d.key === k)?.label.split(',')[0] ?? k)
@@ -300,6 +302,8 @@ export default async function EventDetailPage({
   const youth = event.ticketTypes.filter(
     (t) => t.ageBand === 'child_5_18' || t.ageBand === 'child_5_12',
   );
+  const teen = event.ticketTypes.filter((t) => t.ageBand === 'child_12_17');
+  const child = event.ticketTypes.filter((t) => t.ageBand === 'child_5_11');
   const under = event.ticketTypes.filter((t) => t.ageBand === 'child_under_5');
   const student = event.ticketTypes.filter((t) => t.ageBand === 'student');
   const concert = event.ticketTypes.filter((t) => t.ageBand === 'concert');
@@ -308,6 +312,8 @@ export default async function EventDetailPage({
     'adult',
     'child_5_18',
     'child_5_12',
+    'child_5_11',
+    'child_12_17',
     'child_under_5',
     'student',
     'concert',
@@ -334,18 +340,7 @@ export default async function EventDetailPage({
           className="text-xs uppercase tracking-[0.2em] font-semibold mb-3"
           style={{ color: 'var(--accent)' }}
         >
-          {new Date(event.startsAt).toLocaleDateString('en-US', {
-            timeZone: 'America/New_York',
-            month: 'long',
-            day: 'numeric',
-          })}{' '}
-          –{' '}
-          {new Date(event.endsAt).toLocaleDateString('en-US', {
-            timeZone: 'America/New_York',
-            month: 'long',
-            day: 'numeric',
-            year: 'numeric',
-          })}
+          {eventDateLine(event.startsAt, event.endsAt)}
         </p>
         <h1 className="font-[family-name:var(--font-display)] text-4xl md:text-6xl font-black">
           {event.name}
@@ -520,8 +515,20 @@ export default async function EventDetailPage({
           )}
 
           {youth.length > 0 && (
-            <TicketGroup title="Youth" sub="5–18 · kid meal included">
+            <TicketGroup title="Youth" sub="5–17 · meal included">
               <SimpleRows passes={youth} />
+            </TicketGroup>
+          )}
+
+          {teen.length > 0 && (
+            <TicketGroup title="Youth 12–17" sub="meal included · adult or kid's meal, same price">
+              <SimpleRows passes={teen} />
+            </TicketGroup>
+          )}
+
+          {child.length > 0 && (
+            <TicketGroup title="Children 5–11" sub="kid's meal included">
+              <SimpleRows passes={child} />
             </TicketGroup>
           )}
 

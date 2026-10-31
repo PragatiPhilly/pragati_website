@@ -3,6 +3,8 @@ import { getDb, schema } from "@/db/client";
 import { formatCents } from "@/lib/pricing";
 import StatusBadge from "@/components/admin/StatusBadge";
 import { requireSectionAccess } from "@/lib/auth/access";
+import EventLens from "@/components/admin/EventLens";
+import { donationEventId, getLens, inLens, loadAttribution } from "@/lib/seasons";
 import { getDonationMode, DONATION_COPY, pujoDesignationLabel } from "@/lib/donation-mode";
 
 export const dynamic = "force-dynamic";
@@ -10,7 +12,13 @@ export const dynamic = "force-dynamic";
 export default async function AdminDonationsPage() {
   await requireSectionAccess("donations");
   const db = getDb();
-  const dons = await db.select().from(schema.donations).orderBy(desc(schema.donations.createdAt)).limit(200);
+  // One event at a time (spec/19) — gifts given with a booking follow that
+  // booking's event; standalone gifts belong to the event current when given.
+  const lens = await getLens();
+  const attribution = await loadAttribution(db);
+  const dons = (await db.select().from(schema.donations).orderBy(desc(schema.donations.createdAt)))
+    .filter((d) => inLens(donationEventId(attribution, d.id), lens))
+    .slice(0, 200);
   const mode = await getDonationMode();
 
   return (
@@ -18,6 +26,7 @@ export default async function AdminDonationsPage() {
       <h1 className="font-[family-name:var(--font-display)] text-3xl font-black mb-6">
         {mode === "pujo" ? DONATION_COPY.pujo.navLabel : "Donations"}
       </h1>
+      <EventLens />
       <div className="festive-card overflow-x-auto">
         <table className="w-full text-sm">
           <thead>

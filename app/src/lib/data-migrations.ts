@@ -438,7 +438,69 @@ const JOBS: Job[] = [
     describe: "Give gifts added during ticket checkout a row on the Donations page",
     run: backfillInCheckoutDonations,
   },
+  {
+    key: "2026-11-setup-kali-pujo-2026",
+    describe: "Create Kali Pujo 2026 (Nov 14, West Bradford Elementary) as a draft event with its passes",
+    run: setupKaliPujo2026,
+  },
 ];
+
+
+// ── Kali Pujo 2026 (spec/19) ────────────────────────────────────
+
+/**
+ * Set up Kali Pujo 2026 as a DRAFT event, exactly as the EC sent it, so it is
+ * waiting in Admin → Events on deploy. Nothing goes live here: it is not
+ * published and not current — the "Close Durga Pujo 2026 & start Kali Pujo
+ * 2026" button on Admin → Events does that, when the committee is ready.
+ * Idempotent: does nothing if an event with this slug already exists (so an
+ * admin who created it by hand is never overwritten).
+ */
+export async function setupKaliPujo2026(): Promise<string> {
+  const db = getDb();
+  await ensureExtraColumns();
+  const slug = "kali-pujo-2026";
+  const [exists] = await db.select({ id: schema.events.id }).from(schema.events).where(eq(schema.events.slug, slug));
+  if (exists) return "already exists — left as it is";
+  const address = "1475 Broad Run Rd, Downingtown, PA 19335";
+  const [ev] = await db
+    .insert(schema.events)
+    .values({
+      slug,
+      name: "Kali Pujo 2026",
+      nameBengali: "কালী পূজা ২০২৬",
+      theme: "kali",
+      description: "Kali Pujo night — puja, bhog and dinner, together as a community.",
+      // Sat Nov 14, 5:00 PM – 11:30 PM Eastern (EST, UTC−5). Editable in Admin → Events.
+      startsAt: new Date("2026-11-14T22:00:00Z"),
+      endsAt: new Date("2026-11-15T04:30:00Z"),
+      venueName: "West Bradford Elementary School",
+      venueAddress: address,
+      venueMapUrl: `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(`West Bradford Elementary School, ${address}`)}`,
+      days: [{ key: "sat", date: "2026-11-14", label: "Saturday, Nov 14" }],
+      status: "draft",
+    })
+    .returning();
+  const day = ["sat"];
+  await db.insert(schema.ticketTypes).values([
+    { eventId: ev.id, name: "Adult", ageBand: "adult", dayKeys: day, withFood: true, priceMemberCents: 5000, priceNonmemberCents: 5500, displayOrder: 1 },
+    { eventId: ev.id, name: "Youth (12–17)", ageBand: "child_12_17", dayKeys: day, withFood: true, priceMemberCents: 2500, priceNonmemberCents: 2500, displayOrder: 2 },
+    { eventId: ev.id, name: "Child (5–11)", ageBand: "child_5_11", dayKeys: day, withFood: true, priceMemberCents: 1500, priceNonmemberCents: 1500, displayOrder: 3 },
+    { eventId: ev.id, name: "Under 5 : Free", ageBand: "child_under_5", dayKeys: day, withFood: true, priceMemberCents: 0, priceNonmemberCents: 0, displayOrder: 4 },
+  ]);
+  // The dinner window for the food line — closed until someone opens it on the night.
+  try {
+    const { ensureScanTables } = await import("@/lib/scans/ensure");
+    await ensureScanTables();
+    await db
+      .insert(schema.scanSessions)
+      .values({ eventId: ev.id, kind: "dinner", dayKey: "sat", label: "Saturday · Dinner", status: "closed" })
+      .onConflictDoNothing();
+  } catch {
+    /* the window can be added in Scan setup */
+  }
+  return `created ${slug} as a draft with 4 passes`;
+}
 
 // ── the runner ──────────────────────────────────────────────────
 

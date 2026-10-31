@@ -1,4 +1,5 @@
 import Link from 'next/link';
+import { eventDateLine } from '@/lib/event-dates';
 import {
   listPublishedEvents,
   getEventBySlug,
@@ -151,12 +152,7 @@ export default async function EventsPage() {
                 className="mt-2 font-semibold"
                 style={{ color: 'var(--terracotta)' }}
               >
-                {fmt(featured.startsAt, { month: 'long', day: 'numeric' })} –{' '}
-                {fmt(featured.endsAt, {
-                  month: 'long',
-                  day: 'numeric',
-                  year: 'numeric',
-                })}
+                {eventDateLine(featured.startsAt, featured.endsAt)}
               </p>
               {featured.description && (
                 <p

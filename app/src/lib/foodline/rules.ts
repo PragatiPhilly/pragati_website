@@ -28,7 +28,7 @@ export type TicketLite = {
   attendeeAge: number | null;
 };
 
-const KID_BANDS = new Set(["child_5_18", "child_5_12", "child_under_5"]);
+const KID_BANDS = new Set(["child_5_18", "child_5_12", "child_5_11", "child_12_17", "child_under_5"]);
 
 /** Days a ticket covers (same rule as lib/checkin/daily.ts coveredDays). */
 export function ticketCovers(t: Pick<TicketLite, "dayKey">, pass: Pick<PassLite, "dayKeys">, eventDayKeys: string[]): string[] {

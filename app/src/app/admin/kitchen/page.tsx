@@ -7,7 +7,9 @@
  * walk-ins let in before they had fully paid; unpaid online bookings are shown
  * as "could still come", never mixed in.
  */
-import { getActiveEvent, type EventDay } from "@/lib/queries/events";
+import { type EventDay } from "@/lib/queries/events";
+import EventLens from "@/components/admin/EventLens";
+import { getLens } from "@/lib/seasons";
 import { requireSectionAccess } from "@/lib/auth/access";
 import { mealReport } from "@/lib/reports/meals";
 import { todayCounts, type EventDayLite } from "@/lib/checkin/daily";
@@ -17,7 +19,8 @@ export const dynamic = "force-dynamic";
 
 export default async function KitchenPage() {
   await requireSectionAccess("kitchen");
-  const event = await getActiveEvent();
+  // the event picked in the switcher (spec/19) — the current one by default
+  const event = (await getLens())?.event ?? null;
   if (!event) return <p style={{ color: "var(--ink-soft)" }}>No active event.</p>;
 
   const evDays = (event.days as EventDay[] | null) ?? [];
@@ -31,6 +34,7 @@ export default async function KitchenPage() {
   return (
     <div>
       <AutoRefresh seconds={60} />
+      <EventLens />
       <h1 className="font-[family-name:var(--font-display)] text-3xl font-black mb-1">Kitchen report</h1>
       <p className="text-sm mb-6" style={{ color: "var(--ink-soft)" }}>
         {event.name} · plates per meal for everyone who has paid, plus walk-ins let in before fully paying. Same rules as the food

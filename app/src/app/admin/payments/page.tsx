@@ -3,6 +3,8 @@ import { requireSectionAccess } from "@/lib/auth/access";
 import { formatCents } from "@/lib/pricing";
 import { listPayments } from "@/lib/ledger";
 import { openFindings, lastReconciliation } from "@/lib/payments/reconcile";
+import EventLens from "@/components/admin/EventLens";
+import { getLens, inLens, loadAttribution, paymentEventId } from "@/lib/seasons";
 
 export const dynamic = "force-dynamic";
 export const metadata = { title: "Payments" };
@@ -68,7 +70,13 @@ export default async function AdminPaymentsPage({
 }) {
   await requireSectionAccess("payments");
   const { status = "", kind = "" } = await searchParams;
+  // One event at a time (spec/19): ticket money by its booking's event; dues,
+  // standalone gifts and unmatched card payments by the event they were filed
+  // under when that event was closed (unfiled = the current event).
+  const lens = await getLens();
+  const attribution = await loadAttribution();
   const all = (await listPayments())
+    .filter((p) => inLens(paymentEventId(attribution, p), lens))
     .sort((a, b) => b.createdAt.getTime() - a.createdAt.getTime())
     .slice(0, 500);
   const rows = all.filter((p) => (!status || p.status === status) && (!kind || p.kind === kind));
@@ -109,6 +117,7 @@ export default async function AdminPaymentsPage({
         Every movement of money — tickets, donations and membership dues — in one place. One checkout can appear as
         several rows if it included a donation or dues, so each stream totals on its own.
       </p>
+      <EventLens note="Ticket money follows its booking; dues and donations belong to the event that was current when they came in." />
 
       {/* One line, then get out of the way — the deciding happens on its own page. */}
       <Link
