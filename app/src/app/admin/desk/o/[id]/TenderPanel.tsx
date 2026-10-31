@@ -32,6 +32,7 @@ export default function TenderPanel({
   shiftId,
   staff,
   cardFeeDefault,
+  cardFeeRate = 0,
   noCashBox,
   defaultStation,
 }: {
@@ -40,6 +41,8 @@ export default function TenderPanel({
   shiftId: string | null;
   staff: { userId: string; label: string }[];
   cardFeeDefault: boolean;
+  /** Admin → Settings card fee as a fraction; 0 = the fee is switched off */
+  cardFeeRate?: number;
   /** No cash box started yet. We ask for one HERE, where the money is, rather
    *  than blocking the whole desk before anybody has done anything. */
   noCashBox?: boolean;
@@ -68,7 +71,7 @@ export default function TenderPanel({
   const [pending, start] = useTransition();
 
   const amountCents = parseAmountToCents(amount) ?? 0;
-  const feeCents = method === "square" && withCardFee ? Math.round(amountCents * 0.03) : 0;
+  const feeCents = method === "square" && withCardFee && cardFeeRate > 0 ? Math.round(amountCents * cardFeeRate) : 0;
   const cashCents = parseAmountToCents(cashTendered) ?? 0;
   const change = method === "cash" && cashCents > amountCents ? cashCents - amountCents : 0;
 
@@ -255,10 +258,10 @@ export default function TenderPanel({
         </label>
       )}
 
-      {method === "square" && (
+      {method === "square" && cardFeeRate > 0 && (
         <label className="flex items-center gap-2 text-sm">
           <input type="checkbox" checked={withCardFee} onChange={(e) => setWithCardFee(e.target.checked)} />
-          Add the 3% card fee ({money(feeCents)}) — charged on top of what they owe
+          Add the {+(cardFeeRate * 100).toFixed(2)}% card fee ({money(feeCents)}) — charged on top of what they owe
         </label>
       )}
 

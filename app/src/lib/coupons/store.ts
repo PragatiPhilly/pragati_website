@@ -51,7 +51,7 @@ export type DeskFamily = {
   earlier: string[];
 };
 
-const FOOD_LABEL: Record<string, string> = { veg: "Veg", non_veg: "Non-veg", kid: "Kid meal", none: "No food" };
+const FOOD_LABEL: Record<string, string> = { veg: "Veg", non_veg: "Non-veg", kid: "Kid meal", kid_veg: "Kid veg", kid_non_veg: "Kid non-veg", none: "No food" };
 
 export async function loadCouponDesk(eventId: string, eventDays: string[], since: Date): Promise<DeskFamily[]> {
   await ensureCouponSchema();

@@ -4,17 +4,16 @@
  * Signed-in admins additionally get one-tap check-in right here.
  */
 import Link from "next/link";
-import { notFound } from "next/navigation";
-import { and, eq, inArray } from "drizzle-orm";
+import { cookies } from "next/headers";
+import { notFound, redirect } from "next/navigation";
+import { and, eq } from "drizzle-orm";
 import { getDb, schema } from "@/db/client";
 import { getSession } from "@/lib/auth/session";
 import { ensureScanTables } from "@/lib/scans/ensure";
-import { getConfig } from "@/lib/system-config";
 import { dayLabel, fmtClock, foodLabel } from "@/lib/ticket-labels";
 import { dailyState, daysLabel, type EventDayLite } from "@/lib/checkin/daily";
 import { isTicketVoided } from "@/lib/refunds";
 import ScanCheckInButton from "./ScanCheckInButton";
-import ServeMealButtons from "./ServeMealButtons";
 
 export const dynamic = "force-dynamic";
 export const metadata = { title: "Ticket" };
@@ -30,6 +29,21 @@ export default async function TicketPage({ params }: { params: Promise<{ code: s
 
   const session = await getSession();
   const isAdmin = session && ["admin", "super_admin", "volunteer"].includes(session.role);
+
+  // A staff phone set up as a FOOD LINE station (Scan desk → a meal chip) that
+  // scans with the camera app lands straight on this family's plates — the
+  // whole booking, not just this one pass (spec/18). Nothing is given until
+  // the volunteer taps, so landing there is never an action by itself.
+  if (isAdmin) {
+    const station = decodeURIComponent((await cookies()).get("pragati_station")?.value ?? "");
+    if (station.startsWith("food:")) {
+      const sid = station.slice(5);
+      await ensureScanTables();
+      const [win] = await db.select().from(schema.scanSessions).where(eq(schema.scanSessions.id, sid));
+      if (win && win.status === "open" && win.eventId === reg.eventId)
+        redirect(`/admin/checkin?w=${encodeURIComponent(sid)}&q=${encodeURIComponent(code)}`);
+    }
+  }
   // A pass cancelled after a refund behaves like an unpaid one: it never admits.
   const cancelled = await isTicketVoided(ticket.id);
   const paid = reg.status === "paid" && !cancelled;
@@ -43,46 +57,16 @@ export default async function TicketPage({ params }: { params: Promise<{ code: s
     ? day.inAt.toLocaleTimeString("en-US", { timeZone: "America/New_York", hour: "numeric", minute: "2-digit" })
     : "";
 
-  // Open food windows for this event (staff serve straight from this page —
-  // the fallback path for phones without an in-page scanner).
-  let openMealSessions: { id: string; label: string; servedAt: string | null }[] = [];
-  let foodColors = { veg: "#3E7C3A", non_veg: "#B3402A", kid: "#2B6CB0" };
-  if (isAdmin && paid) {
+  // Open food windows for this event — staff jump to the whole booking's
+  // plates at the food line from here (the camera-app path on iPhones).
+  let openMealSessions: { id: string; label: string }[] = [];
+  if (isAdmin && !cancelled) {
     await ensureScanTables();
     const open = await db
       .select()
       .from(schema.scanSessions)
       .where(and(eq(schema.scanSessions.eventId, reg.eventId), eq(schema.scanSessions.status, "open")));
-    if (open.length > 0) {
-      const scans = await db
-        .select()
-        .from(schema.ticketScans)
-        .where(
-          and(
-            eq(schema.ticketScans.ticketId, ticket.id),
-            inArray(
-              schema.ticketScans.sessionId,
-              open.map((s) => s.id)
-            )
-          )
-        );
-      const scanBySession = new Map(scans.map((sc) => [sc.sessionId, sc]));
-      openMealSessions = open
-        .filter((s) => s.dayKey === "all" || ticket.dayKey === "all" || ticket.dayKey === s.dayKey)
-        .map((s) => ({
-          id: s.id,
-          label: s.label,
-          servedAt:
-            scanBySession
-              .get(s.id)
-              ?.scannedAt.toLocaleTimeString("en-US", { timeZone: "America/New_York", hour: "numeric", minute: "2-digit" }) ?? null,
-        }));
-      foodColors = {
-        veg: await getConfig<string>("food_color_veg"),
-        non_veg: await getConfig<string>("food_color_non_veg"),
-        kid: await getConfig<string>("food_color_kid"),
-      };
-    }
+    openMealSessions = open.map((s) => ({ id: s.id, label: s.label }));
   }
 
   const status = cancelled
@@ -187,8 +171,21 @@ export default async function TicketPage({ params }: { params: Promise<{ code: s
             </p>
           )}
 
-          {isAdmin && paid && openMealSessions.length > 0 && (
-            <ServeMealButtons ticketId={ticket.id} sessions={openMealSessions} colors={foodColors} />
+          {isAdmin && (
+            <div className="mt-6 grid gap-2.5">
+              <Link href={`/admin/checkin?q=${encodeURIComponent(reg.confirmationNumber)}`} className="btn-secondary w-full justify-center !py-3">
+                🎟 Whole booking at the gate — check in the family →
+              </Link>
+              {openMealSessions.map((m) => (
+                <Link
+                  key={m.id}
+                  href={`/admin/checkin?w=${encodeURIComponent(m.id)}&q=${encodeURIComponent(code)}`}
+                  className="btn-primary w-full justify-center !py-3.5 text-base"
+                >
+                  {`🍛 Food line · ${m.label} — whole booking's plates →`}
+                </Link>
+              ))}
+            </div>
           )}
 
           {isAdmin && checkedIn && (

@@ -13,7 +13,7 @@ import {
 type State = {
   event: { id: string; name: string; days: { key: string; label: string; date: string }[] };
   sessions: ScanSessionInfo[];
-  colors: { veg: string; non_veg: string; kid: string };
+  colors: { veg: string; non_veg: string; kid: string; kid_veg: string };
 };
 
 const MEALS: { kind: MealKind; label: string; icon: string }[] = [
@@ -22,7 +22,14 @@ const MEALS: { kind: MealKind; label: string; icon: string }[] = [
   { kind: "dinner", label: "Dinner", icon: "🌙" },
 ];
 
-const FOOD_LABEL: Record<string, string> = { veg: "Veg", non_veg: "Non-veg", kid: "Kid", none: "No food" };
+const FOOD_LABEL: Record<string, string> = {
+  veg: "Adult veg",
+  non_veg: "Adult non-veg",
+  kid: "Kid non-veg (and older kid plates)",
+  kid_veg: "Kid veg",
+  kid_non_veg: "Kid non-veg",
+  none: "No food",
+};
 
 export default function ScanSetup({
   state,
@@ -172,10 +179,10 @@ export default function ScanSetup({
         <p className="font-bold mb-1">🎨 Food color codes</p>
         <p className="text-xs mb-4" style={{ color: "var(--ink-soft)" }}>
           The scan desk flashes these colors full-width on a successful food scan, so servers can tell
-          veg / non-veg / kid&apos;s plates apart at a glance.
+          adult / kid and veg / non-veg plates apart at a glance. The food line and the Food line page use the same colours.
         </p>
         <div className="flex gap-6 flex-wrap items-end">
-          {(["veg", "non_veg", "kid"] as const).map((k) => (
+          {(["non_veg", "veg", "kid", "kid_veg"] as const).map((k) => (
             <label key={k} className="grid gap-1.5 text-sm font-medium">
               {FOOD_LABEL[k]}
               <span className="flex items-center gap-2">

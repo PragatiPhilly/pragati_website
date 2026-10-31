@@ -117,15 +117,17 @@ export async function setSessionStatusAction(sessionId: string, status: "open" |
   });
   revalidatePath("/admin/scans");
   revalidatePath("/admin/checkin");
+  revalidatePath("/admin/food");
 }
 
-export async function saveFoodColorsAction(colors: { veg: string; non_veg: string; kid: string }) {
+export async function saveFoodColorsAction(colors: { veg: string; non_veg: string; kid: string; kid_veg?: string }) {
   const s = await requireAdmin();
   const ok = /^#[0-9a-fA-F]{6}$/;
-  for (const v of Object.values(colors)) if (!ok.test(v)) throw new Error("Invalid color");
+  for (const v of Object.values(colors)) if (v !== undefined && !ok.test(v)) throw new Error("Invalid color");
   await setConfig("food_color_veg", colors.veg, s.userId);
   await setConfig("food_color_non_veg", colors.non_veg, s.userId);
   await setConfig("food_color_kid", colors.kid, s.userId);
+  if (colors.kid_veg) await setConfig("food_color_kid_veg", colors.kid_veg, s.userId);
   revalidatePath("/admin/scans");
   revalidatePath("/admin/checkin");
 }
@@ -167,7 +169,11 @@ export async function serveTicketAction(sessionId: string, ticketId: string): Pr
     .select()
     .from(schema.registrations)
     .where(eq(schema.registrations.id, ticket.registrationId));
-  if (!reg || reg.status !== "paid") return { kind: "invalid", reason: "Ticket is not paid — not valid." };
+  // Same rule as the gate: paid, or a walk-in a named person let in owing money.
+  const { regAdmits } = await import("@/lib/checkin/daily");
+  if (!reg || !regAdmits(reg)) return { kind: "invalid", reason: "Ticket is not paid — not valid." };
+  const { isTicketVoided } = await import("@/lib/refunds");
+  if (await isTicketVoided(ticket.id)) return { kind: "invalid", reason: "This pass was cancelled and refunded." };
   if (reg.eventId !== sess.eventId) return { kind: "invalid", reason: "Ticket is for a different event." };
 
   // day coverage: an 'all'-days pass works every day; a single-day pass only on its day
@@ -314,6 +320,7 @@ export async function getScanState() {
     veg: await getConfig<string>("food_color_veg"),
     non_veg: await getConfig<string>("food_color_non_veg"),
     kid: await getConfig<string>("food_color_kid"),
+    kid_veg: (await getConfig<string>("food_color_kid_veg")) || "#7B4FA8",
   };
 
   return {

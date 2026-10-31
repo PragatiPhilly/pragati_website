@@ -89,6 +89,9 @@ async function activeMember(email: string, expires: Date, source = "account") {
 
 beforeAll(async () => {
   await createTestSchema();
+  // These scenarios exercise the card-fee arithmetic, so run with the fee ON
+  // (it is a setting, off by default since Kali Pujo 2026 — see card-fee.test.ts).
+  await getDb().insert(schema.systemConfig).values({ key: "card_fee_enabled", value: "yes" }).onConflictDoNothing();
   await getDb().insert(schema.users).values({ id: "u-vol", email: "vol@pragati.test", passwordHash: "x", role: "super_admin" });
   actor = await requireDesk();
 });

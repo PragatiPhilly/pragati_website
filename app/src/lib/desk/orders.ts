@@ -127,6 +127,7 @@ export async function createDeskOrder(
     eventDayCount: dayCount,
     isMemberPurchase: !!input.isMemberPurchase,
     discountMode,
+    adultMealMinAge: Number(await getConfig<number>("adult_meal_min_age")) || undefined,
   });
   if (priced.problems.length > 0) {
     throw new DeskError(priced.problems.map((p) => p.why).join(" "));

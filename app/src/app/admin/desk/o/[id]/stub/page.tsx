@@ -22,6 +22,8 @@ const FOOD_WORDS: Record<string, string> = {
   veg: "veg meal",
   non_veg: "non-veg meal",
   kid: "kid's meal",
+  kid_veg: "kid's meal · veg",
+  kid_non_veg: "kid's meal · non-veg",
   none: "no meal",
 };
 

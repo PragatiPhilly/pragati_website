@@ -141,7 +141,7 @@ export function summaryEmail(s: DaySummary): { subject: string; text: string; ht
   const dayName = (s.day.label ?? s.day.key).split(",")[0];
   const subject = `Pujo ${dayName} summary — ${s.attendance.inside} in, ${formatCents(s.money.totalCents)} taken`;
   const plateLine = (d: DayReport | null) =>
-    d ? d.meals.map((m) => `${m.meal}: ${m.total} (${m.adultNonVeg} non-veg · ${m.adultVeg} veg · ${m.kid} kid)`).join("; ") : "—";
+    d ? d.meals.map((m) => `${m.meal}: ${m.total} (${m.adultNonVeg} non-veg · ${m.adultVeg} veg · ${m.kid} kid [${m.kidNonVeg} non-veg · ${m.kidVeg} veg])`).join("; ") : "—";
   const lines = [
     `${s.eventName} — ${s.day.label ?? s.day.key}`,
     ``,

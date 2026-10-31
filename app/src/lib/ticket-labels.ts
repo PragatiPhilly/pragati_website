@@ -3,6 +3,7 @@
  * (Find my tickets, print, the QR page). Display only — nothing here changes
  * what a ticket is or how it scans.
  */
+import { foodPrefLabel } from './food';
 
 /** "18:00" → "6:00 PM" (event-local clock time as stored on the ticket type). */
 export function fmtClock(hhmm: string | null | undefined): string | null {
@@ -14,16 +15,7 @@ export function fmtClock(hhmm: string | null | undefined): string | null {
 
 /** Stored food preference → what a guest reads. */
 export function foodLabel(pref: string | null | undefined): string {
-  switch (pref) {
-    case 'veg':
-      return 'Veg meal';
-    case 'non_veg':
-      return 'Non-veg meal';
-    case 'kid':
-      return "Kid's meal";
-    default:
-      return 'No meal';
-  }
+  return foodPrefLabel(pref);
 }
 
 /** "sat" → "Saturday, Oct 10" using the event's own day labels. */

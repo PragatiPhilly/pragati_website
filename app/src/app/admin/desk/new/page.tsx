@@ -7,6 +7,7 @@ import { getActiveEvent } from "@/lib/queries/events";
 import { ensureDeskSchema } from "@/lib/desk/ensure";
 import PartyBuilder, { type BuilderEvent } from "./PartyBuilder";
 import type { PersonKind } from "@/lib/desk/constants";
+import { getConfig } from "@/lib/system-config";
 
 export const dynamic = "force-dynamic";
 export const metadata = { title: "New walk-in" };
@@ -105,6 +106,7 @@ export default async function NewWalkInPage({
     days: ((event?.days as { key: string; label: string }[] | null) ?? []).map((d) => ({ key: d.key, label: d.label })),
     kinds,
     foodIsAChoice,
+    adultMealMinAge: Number(await getConfig<number>("adult_meal_min_age")) || 12,
   };
 
   return (

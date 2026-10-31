@@ -4,6 +4,7 @@
  * member_discount_mode (per_adult | whole_family) decides which attendees
  * get member pricing on a member purchase. Spec: README + 03-data-model.md.
  */
+import type { FoodPref } from "@/lib/food";
 
 export type AttendeeInput = {
   firstName: string;
@@ -12,7 +13,7 @@ export type AttendeeInput = {
   age?: number;
   isMemberFlagged: boolean; // family_members.is_member (adults, Mode A)
   ticketTypeId: string;
-  foodPref: "veg" | "non_veg" | "kid" | "none";
+  foodPref: FoodPref;
   /** For multi-day bundle passes: the bundle total is split across its day
    *  tickets, so each day-line carries its share here instead of the ticket's
    *  own price. The members-only check still uses the ticket's base price. */
@@ -92,11 +93,14 @@ export function formatCents(cents: number): string {
   return `$${(cents / 100).toFixed(2)}`;
 }
 
-/** Card (Square) surcharge — 3% of the amount, shown at checkout and added to
- *  the charged total. Card payments only; Zelle / offline pay no fee. */
+/** Card (Square) surcharge — `rate` of the amount, shown at checkout and added
+ *  to the charged total. Card payments only; Zelle / offline pay no fee.
+ *  The live rate is a setting (lib/payments/card-fee.ts → cardFeeRate(); 0 =
+ *  off); CARD_FEE_RATE is only the historical default. */
 export const CARD_FEE_RATE = 0.03;
-export function cardProcessingFeeCents(amountCents: number): number {
-  return Math.max(0, Math.round(amountCents * CARD_FEE_RATE));
+export function cardProcessingFeeCents(amountCents: number, rate: number = CARD_FEE_RATE): number {
+  if (!(rate > 0)) return 0;
+  return Math.max(0, Math.round(amountCents * rate));
 }
 
 export function ageOn(dateOfBirth: string | Date, onDate: Date): number {

@@ -19,6 +19,7 @@ import { resolveTicketType, type CheckoutAttendee, type StudentInfo } from "@/li
 import { DeskError } from "@/lib/desk/guards";
 import { GUARDIAN_REQUIRED_UNDER, type PersonKind } from "@/lib/desk/constants";
 import type { schema } from "@/db/client";
+import { coerceFoodPref, DEFAULT_ADULT_MEAL_MIN_AGE, type FoodPref } from "@/lib/food";
 
 export type TicketType = typeof schema.ticketTypes.$inferSelect;
 
@@ -32,7 +33,7 @@ export type DeskPerson = {
   age?: number;
   days: string[];
   withFood: boolean;
-  foodPref: "veg" | "non_veg" | "kid" | "none";
+  foodPref: FoodPref;
   /** ref of another person in this party, or an existing ticket id (amendments). */
   guardianRef?: string | null;
   guardianTicketId?: string | null;
@@ -58,7 +59,7 @@ export type PricedPass = {
   attendeeFirstName: string;
   attendeeLastName?: string;
   attendeeAge?: number;
-  foodPref: "veg" | "non_veg" | "kid" | "none";
+  foodPref: FoodPref;
   dayKey: string;
   priceCents: number;
   /** What the price list says this pass costs, before any desk price. */
@@ -110,9 +111,19 @@ export function needsGuardian(p: DeskPerson): boolean {
 }
 
 /** Map a desk person onto the attendee shape the shared pricing rules expect. */
-function toCheckoutAttendee(p: DeskPerson): CheckoutAttendee {
+function toCheckoutAttendee(p: DeskPerson, adultMealMinAge = DEFAULT_ADULT_MEAL_MIN_AGE): CheckoutAttendee {
   const kind = effectiveKind(p);
   const isKid = kind === "youth" || kind === "under5";
+  // Plates (spec/18): a child picks kid veg/non-veg; a teen may pick an adult
+  // plate; an under-5 always eats. The desk still lets a youth have no meal.
+  const food: FoodPref =
+    kind === "concert"
+      ? "none"
+      : isKid
+        ? coerceFoodPref(p.withFood ? p.foodPref : "none", kind === "under5" ? "under5" : "youth", p.age, adultMealMinAge, true)
+        : p.withFood
+          ? coerceFoodPref(p.foodPref, kind === "student" ? "student" : "adult", p.age, adultMealMinAge)
+          : "none";
   return {
     firstName: p.firstName,
     lastName: p.lastName || undefined,
@@ -122,7 +133,7 @@ function toCheckoutAttendee(p: DeskPerson): CheckoutAttendee {
     isMemberFlagged: !!p.isMemberFlagged,
     days: p.days,
     withFood: kind === "concert" ? false : p.withFood,
-    foodPref: kind === "concert" ? "none" : isKid ? "kid" : p.withFood ? p.foodPref : "none",
+    foodPref: food,
     concertOnly: kind === "concert",
     isStudent: kind === "student",
     student: p.student,
@@ -143,6 +154,8 @@ export function priceParty(
     eventDayCount: number;
     isMemberPurchase: boolean;
     discountMode: "per_adult" | "whole_family";
+    /** Admin → Food line "adult meal from age" (default 12) */
+    adultMealMinAge?: number;
   }
 ): PricedParty {
   const live = types.filter((t) => !t.archivedAt);
@@ -165,7 +178,7 @@ export function priceParty(
 
   for (const p of people) {
     const kind = effectiveKind(p);
-    const a = toCheckoutAttendee(p);
+    const a = toCheckoutAttendee(p, opts.adultMealMinAge);
     const base: Omit<AttendeeInput, "ticketTypeId"> = {
       firstName: a.firstName,
       lastName: a.lastName,

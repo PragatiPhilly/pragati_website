@@ -16,12 +16,15 @@ export default function DonateForm({
   mode = "generic",
   copy,
   designations = [],
+  cardFeeRate = 0,
 }: {
   squareEnabled?: boolean;
   zelleEnabled?: boolean;
   mode?: "generic" | "pujo";
   copy?: Copy;
   designations?: { value: string; label: string }[];
+  /** card processing fee as a fraction (0 = off) — Admin → Settings */
+  cardFeeRate?: number;
 }) {
   const c: Copy = copy ?? {
     pageBengali: "আপনার আশীর্বাদে",
@@ -37,7 +40,7 @@ export default function DonateForm({
   const [customAmount, setCustomAmount] = useState("");
   const dollars = amount === "custom" ? Number(customAmount) || 0 : Number(amount) || 0;
   const amountCents = Math.max(0, Math.round(dollars * 100));
-  const feeCents = cardProcessingFeeCents(amountCents);
+  const feeCents = cardProcessingFeeCents(amountCents, cardFeeRate);
 
   return (
     <div className="mx-auto max-w-2xl px-5 py-16">
@@ -140,7 +143,7 @@ export default function DonateForm({
             )}
           </div>
           <input type="hidden" name="paymentMethod" value={method} />
-          {method === "square" && amountCents > 0 && (
+          {method === "square" && amountCents > 0 && feeCents > 0 && (
             <p className="text-sm mt-3">
               Processing fee <strong style={{ color: "var(--sindoor)" }}>{formatCents(feeCents)}</strong> · Total{" "}
               <strong>{formatCents(amountCents + feeCents)}</strong>

@@ -12,6 +12,7 @@
  *   - Students get the adult coupons.
  *   - Veg is not a separate colour — each coupon carries a "veg" count.
  */
+import { isKidPref, isVegPref } from "@/lib/food";
 
 export type Who = "Adult" | "Kid";
 export type Meal = "Lunch" | "Dinner";
@@ -72,10 +73,12 @@ export type CouponTicket = {
 const KID_BANDS = new Set(["child_5_18", "child_5_12", "child_under_5"]);
 
 export function whoIs(t: Pick<CouponTicket, "ageBand" | "foodPref" | "age">): Who {
-  if (KID_BANDS.has(t.ageBand)) return "Kid";
+  // The plate decides when one was chosen: a teen (12–17) may pick an adult
+  // plate on a youth pass, and eats — and is counted — as an adult.
+  if (KID_BANDS.has(t.ageBand)) return t.foodPref === "veg" || t.foodPref === "non_veg" ? "Adult" : "Kid";
+  if (isKidPref(t.foodPref)) return "Kid";
   if (t.ageBand === "adult" || t.ageBand === "student") return "Adult";
   // concert / "all" passes carry no age in the band — use the person.
-  if (t.foodPref === "kid") return "Kid";
   if (t.age !== null && t.age < 18) return "Kid";
   return "Adult";
 }
@@ -95,9 +98,16 @@ export function couponsForTicket(t: CouponTicket, eventDays: string[]): { key: s
     // A concert-only kid still eats dinner that night; a concert-only adult does not.
     return who === "Kid" ? days.map((d) => ({ key: couponKey("Kid", d, "Dinner"), veg: false })) : [];
   }
-  if (!t.passWithFood) return [];
-  if (!t.foodPref || t.foodPref === "none") return [];
-  const veg = t.foodPref === "veg";
+  // Children's passes always include food, and an under-5 ALWAYS gets a kid
+  // plate — the "Under 5 : Free" pass is often set up without food (spec/18).
+  const childBand = KID_BANDS.has(t.ageBand);
+  const under5 = t.ageBand === "child_under_5" || (childBand && t.age !== null && t.age < 5);
+  const hasPref = !!t.foodPref && t.foodPref !== "none";
+  if (!under5) {
+    if (!hasPref) return [];
+    if (!t.passWithFood && !childBand) return [];
+  }
+  const veg = isVegPref(t.foodPref);
   return days.flatMap((d) => mealsFor(d).map((m) => ({ key: couponKey(who, d, m), veg })));
 }
 

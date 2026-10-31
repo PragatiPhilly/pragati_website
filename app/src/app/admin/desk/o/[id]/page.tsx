@@ -40,6 +40,8 @@ const FOOD_WORDS: Record<string, string> = {
   veg: "veg meal",
   non_veg: "non-veg meal",
   kid: "kid's meal",
+  kid_veg: "kid's meal · veg",
+  kid_non_veg: "kid's meal · non-veg",
   none: "no meal",
 };
 
@@ -59,6 +61,8 @@ export default async function DeskOrderPage({ params }: { params: Promise<{ id: 
   const followups = await followupsForOrder(id);
   const invariant = checkInvariant(s);
   const cardFeeDefault = (await getConfig<string>("desk_card_fee_default")) !== "no";
+  const { cardFeeRate: readCardFeeRate } = await import("@/lib/payments/card-fee");
+  const cardFeeRate = await readCardFeeRate();
   const defaultStation = (await getConfig<string>("desk_station_default")) || "desk-1";
 
   // Names for the "who took this / who is holding it" columns.
@@ -302,6 +306,7 @@ export default async function DeskOrderPage({ params }: { params: Promise<{ id: 
             shiftId={shift?.id ?? null}
             staff={staff.map((u) => ({ userId: u.id, label: u.email }))}
             cardFeeDefault={cardFeeDefault}
+              cardFeeRate={cardFeeRate}
             noCashBox={!shift}
             defaultStation={defaultStation}
           />
@@ -322,6 +327,7 @@ export default async function DeskOrderPage({ params }: { params: Promise<{ id: 
               shiftId={shift?.id ?? null}
               staff={staff.map((u) => ({ userId: u.id, label: u.email }))}
               cardFeeDefault={cardFeeDefault}
+              cardFeeRate={cardFeeRate}
               noCashBox={!shift}
               defaultStation={defaultStation}
             />

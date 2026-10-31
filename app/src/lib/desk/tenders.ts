@@ -164,7 +164,8 @@ export async function addTender(input: AddTenderInput, actor: DeskActor): Promis
   }
 
   if (input.method === "square") {
-    feeCents = input.withCardFee ? cardProcessingFeeCents(amountCents) : 0;
+    const { cardFeeRate } = await import("@/lib/payments/card-fee");
+    feeCents = input.withCardFee ? cardProcessingFeeCents(amountCents, await cardFeeRate()) : 0;
     const { createSquarePaymentLink } = await import("@/lib/payments/square");
     const link = await createSquarePaymentLink({
       referenceId: s.reg.id,

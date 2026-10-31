@@ -86,7 +86,8 @@ export default function QrScanner({ onScan }: { onScan: (value: string) => void 
     return (
       <p className="text-xs rounded-xl px-4 py-3 mb-4" style={{ background: "var(--accent-soft)", color: "var(--ink-soft)" }}>
         📷 This browser can&apos;t scan in-page — just point the phone&apos;s <strong>camera app</strong> at any ticket QR:
-        it opens the ticket page with a check-in button.
+        it opens the ticket page with a check-in button. At the food line, tap the meal chip above first — then the camera app takes
+        you straight to that family&apos;s plates.
       </p>
     );
   }

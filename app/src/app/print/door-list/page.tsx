@@ -19,7 +19,7 @@ import { voidedTicketIds } from "@/lib/refunds";
 export const dynamic = "force-dynamic";
 export const metadata = { title: "Door list" };
 
-const FOOD: Record<string, string> = { veg: "Veg", non_veg: "Non-veg", kid: "Kid meal", none: "No food" };
+const FOOD: Record<string, string> = { veg: "Veg", non_veg: "Non-veg", kid: "Kid meal", kid_veg: "Kid veg", kid_non_veg: "Kid non-veg", none: "No food" };
 
 export default async function DoorListPage({ searchParams }: { searchParams: Promise<{ day?: string }> }) {
   await requireSectionAccess("checkin");

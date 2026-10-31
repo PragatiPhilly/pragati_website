@@ -9,7 +9,8 @@ import { todayCounts, type EventDayLite } from "@/lib/checkin/daily";
 
 export const dynamic = "force-dynamic";
 
-export default async function CheckinPage() {
+export default async function CheckinPage({ searchParams }: { searchParams: Promise<{ w?: string; q?: string }> }) {
+  const sp = await searchParams;
   await requireSectionAccess("checkin");
   const db = getDb();
   const [total] = await db.select({ n: sql<number>`count(*)` }).from(schema.tickets);
@@ -27,7 +28,7 @@ export default async function CheckinPage() {
 
   const state = await getScanState();
   const openSessions = (state?.sessions ?? []).filter((s) => s.status === "open");
-  const colors = state?.colors ?? { veg: "#3E7C3A", non_veg: "#B3402A", kid: "#2B6CB0" };
+  const colors = state?.colors ?? { veg: "#3E7C3A", non_veg: "#B3402A", kid: "#2B6CB0", kid_veg: "#7B4FA8" };
 
   return (
     <div className="max-w-2xl">
@@ -69,7 +70,13 @@ export default async function CheckinPage() {
           🖨 Printable door list
         </a>
       </div>
-      <CheckinForm openSessions={openSessions} colors={colors} isAdmin={isAdmin} />
+      <CheckinForm
+        openSessions={openSessions}
+        colors={colors}
+        isAdmin={isAdmin}
+        initialMode={sp.w}
+        initialQuery={sp.q}
+      />
     </div>
   );
 }

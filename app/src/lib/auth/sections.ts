@@ -12,7 +12,7 @@
  */
 export type SectionKey =
   | "dashboard" | "payments" | "reconciliation" | "zelle" | "registrations" | "donations" | "members" | "events"
-  | "checkin" | "scans" | "kitchen" | "coupons" | "live" | "announce" | "desk" | "desk_money" | "media" | "magazines" | "messages" | "emails"
+  | "checkin" | "scans" | "kitchen" | "foodline" | "coupons" | "live" | "announce" | "desk" | "desk_money" | "media" | "magazines" | "messages" | "emails"
   | "email_preview" | "roles" | "audit" | "settings" | "projections" | "pujo_schedule";
 
 /**
@@ -69,6 +69,9 @@ export const SECTIONS: Section[] = [
   { key: "desk", label: "Walk-in desk", href: "/admin/desk", icon: "🧾", group: "eventday" },
   { key: "scans", label: "Scan setup", href: "/admin/scans", icon: "📲", group: "eventday" },
   { key: "kitchen", label: "Kitchen", href: "/admin/kitchen", icon: "🍛", group: "eventday" },
+  // Live plates per meal window: booked / given / left by plate type, families
+  // still owed, plates without a pass (spec/18).
+  { key: "foodline", label: "Food line", href: "/admin/food", icon: "🍽", group: "eventday" },
   // Which food coupons each family is owed, and who has already collected them.
   { key: "coupons", label: "Coupon desk", href: "/admin/coupons", icon: "🎫", group: "eventday" },
 

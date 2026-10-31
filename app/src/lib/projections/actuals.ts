@@ -118,7 +118,7 @@ export async function getActuals(): Promise<HeadActuals> {
       for (const t of rows) {
         const key = t.dayKey ?? "all";
         const bucket = (out.attendance[key] ??= { withFood: 0, withoutFood: 0, kids: 0 });
-        const isKid = KID_BANDS.has(t.ageBand ?? "") || t.foodPref === "kid";
+        const isKid = KID_BANDS.has(t.ageBand ?? "") || t.foodPref === "kid" || t.foodPref === "kid_veg" || t.foodPref === "kid_non_veg";
         const eats = t.foodPref !== "none" && t.foodPref !== null && t.withFood !== false;
         if (isKid) bucket.kids++;
         else if (eats) bucket.withFood++;

@@ -104,7 +104,8 @@ export const fmtDate = (d: Date | string) =>
 
 export async function membershipPrice(): Promise<{ priceCents: number; cardFeeCents: number }> {
   const priceCents = Number(await getConfig<number>("membership_annual_price_cents"));
-  return { priceCents, cardFeeCents: cardProcessingFeeCents(priceCents) };
+  const { cardFeeRate } = await import("@/lib/payments/card-fee");
+  return { priceCents, cardFeeCents: cardProcessingFeeCents(priceCents, await cardFeeRate()) };
 }
 
 async function ensureAll() {

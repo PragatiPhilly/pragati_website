@@ -54,6 +54,10 @@ export const systemConfigDefaults: Record<string, unknown> = {
     "Online registration is briefly paused — please check back in a little while.",
   payments_square_enabled: "yes", // no = hide/refuse card payments (e.g. Square outage)
   payments_zelle_enabled: "no", // yes = also offer Zelle (card is always available); off by default
+  // Card processing fee passed on to the buyer (lib/payments/card-fee.ts).
+  // Off since Kali Pujo 2026 (EC decision) — turn on again in Settings, no code change.
+  card_fee_enabled: "no",
+  card_fee_percent: 3,
 
   // ── Zelle alert frequency: at most one treasurer alert email per this many
   //    minutes; claims arriving in between are batched into one digest.
@@ -76,7 +80,12 @@ export const systemConfigDefaults: Record<string, unknown> = {
   // ── food-scan color codes (shown full-screen at the serving line)
   food_color_veg: "#3E7C3A", // green
   food_color_non_veg: "#B3402A", // red-brown
-  food_color_kid: "#2B6CB0", // blue
+  food_color_kid: "#2B6CB0", // blue — kid non-veg (and older "kid" plates)
+  food_color_kid_veg: "#7B4FA8", // purple — kid veg
+
+  // ── plates (Admin → Food line). See spec/18-food-line-and-party-scan.md
+  adult_meal_min_age: 12, // a youth this age or older may pick an adult plate (same price)
+  food_require_gate_checkin: "no", // "yes" = the food line refuses people not checked in at the gate today
 
   magazine_purchase_note:
     "Magazines are sold at the Pujo event counter — not available online.",

@@ -872,6 +872,23 @@ export const couponHandouts = pgTable("coupon_handouts", {
   givenByName: text("given_by_name"),
 });
 
+// ── meal_extras ────────────────────────────────────────────────
+// Plates given at the food line WITHOUT a pass — volunteers, performers, the
+// purohit, committee guests, a plate paid for at the counter. Logged with a
+// reason so a window's total adds up with no paper coupons (spec/18).
+// Created lazily by lib/foodline/party.ts.
+export const mealExtras = pgTable("meal_extras", {
+  id: id(),
+  sessionId: text("session_id").notNull(),
+  plate: text("plate").notNull(), // adult_non_veg | adult_veg | kid_non_veg | kid_veg | kid
+  qty: integer("qty").notNull().default(1),
+  reason: text("reason").notNull(),
+  note: text("note"),
+  createdBy: text("created_by"),
+  createdByName: text("created_by_name"),
+  createdAt: createdAt(),
+});
+
 // ── ticket_day_checkins ────────────────────────────────────────
 // One row per ticket per event DAY it was let in. A 3-day pass checks in once
 // on each day it covers. tickets.checked_in_at still records the latest

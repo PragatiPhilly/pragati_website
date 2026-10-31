@@ -35,7 +35,12 @@ export default async function KitchenPage() {
       <p className="text-sm mb-6" style={{ color: "var(--ink-soft)" }}>
         {event.name} · plates per meal for everyone who has paid, plus walk-ins let in before fully paying. Same rules as the food
         coupons: Friday dinner only; Saturday and Sunday lunch + dinner; concert-only kids get dinner, concert-only adults and no-food
-        passes don&apos;t. Updates every minute.
+        passes don&apos;t; under-5s always get a kid plate; a teen who picked an adult plate counts as adult. Updates every minute. For
+        what has actually been served, see{" "}
+        <a href="/admin/food" className="underline underline-offset-4 font-semibold">
+          Food line
+        </a>
+        .
       </p>
 
       {today && (
@@ -79,17 +84,25 @@ export default async function KitchenPage() {
                       </span>
                     </p>
                   </div>
-                  <div className="mt-1.5 grid grid-cols-3 gap-2 text-center text-xs">
+                  <div className="mt-1.5 grid grid-cols-2 gap-2 text-center text-xs">
                     <div className="rounded-lg py-1.5" style={{ background: "rgba(179,64,42,0.08)" }}>
-                      <p className="text-lg font-black">{m.adultNonVeg}</p>🐟 non-veg
+                      <p className="text-lg font-black">{m.adultNonVeg}</p>🐟 adult non-veg
                     </div>
                     <div className="rounded-lg py-1.5" style={{ background: "rgba(62,124,58,0.10)" }}>
-                      <p className="text-lg font-black">{m.adultVeg}</p>🥬 veg
+                      <p className="text-lg font-black">{m.adultVeg}</p>🥬 adult veg
                     </div>
                     <div className="rounded-lg py-1.5" style={{ background: "rgba(43,108,176,0.10)" }}>
-                      <p className="text-lg font-black">{m.kid}</p>🍚 kid
+                      <p className="text-lg font-black">{m.kidNonVeg}</p>🍗 kid non-veg
+                    </div>
+                    <div className="rounded-lg py-1.5" style={{ background: "rgba(123,79,168,0.10)" }}>
+                      <p className="text-lg font-black">{m.kidVeg}</p>🍚 kid veg
                     </div>
                   </div>
+                  {m.kidUnknown > 0 && (
+                    <p className="text-xs mt-1.5" style={{ color: "var(--ink-soft)" }}>
+                      + {m.kidUnknown} kid plate{m.kidUnknown === 1 ? "" : "s"} where veg / non-veg wasn&apos;t asked (older bookings, concert-only kids)
+                    </p>
+                  )}
                 </div>
               ))}
               <div className="pt-3 border-t text-xs grid gap-1" style={{ borderColor: "var(--line)", color: "var(--ink-soft)" }}>
@@ -98,7 +111,7 @@ export default async function KitchenPage() {
                 </p>
                 {d.concertOnly > 0 && <p>🎶 {d.concertOnly} concert-only (adults: no meal)</p>}
                 {d.noFood > 0 && <p>🚫 {d.noFood} on a no-food pass</p>}
-                {d.under5 > 0 && <p>👶 {d.under5} under 5</p>}
+                {d.under5 > 0 && <p>👶 {d.under5} under 5 (free pass · kid plate)</p>}
                 {d.pendingPlates > 0 && (
                   <p style={{ color: "#8a5a00" }}>⏳ up to {d.pendingPlates} more plates if unpaid bookings pay</p>
                 )}

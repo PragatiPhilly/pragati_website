@@ -8,10 +8,12 @@ export const dynamic = "force-dynamic";
 const GROUPS: { title: string; note?: string; keys: { key: string; label: string; type?: "number" | "text" | "toggle" }[] }[] = [
   {
     title: "Payments — methods",
-    note: "Card (Square) is always available to buyers. Turn Zelle on only when you also want to accept bank transfers — it's off by default. Super-admin only.",
+    note: "Card (Square) is always available to buyers. Turn Zelle on only when you also want to accept bank transfers — it's off by default. The card processing fee is off (EC decision, Kali Pujo 2026); switch it back on here any time — tickets, donations, membership dues and the walk-in desk all follow. Super-admin only.",
     keys: [
       { key: "payments_square_enabled", label: "Accept card payments (Square)", type: "toggle" },
       { key: "payments_zelle_enabled", label: "Accept Zelle payments", type: "toggle" },
+      { key: "card_fee_enabled", label: "Add a card processing fee on card payments (online and at the walk-in desk)", type: "toggle" },
+      { key: "card_fee_percent", label: "Card processing fee (%) — used only when the switch above is on", type: "number" },
     ],
   },
   {

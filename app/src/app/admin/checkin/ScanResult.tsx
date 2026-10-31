@@ -20,6 +20,9 @@
 import { useEffect, useRef } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 
+/** The rest of the booking at the gate (spec/18). */
+export type VerdictParty = { conf: string; outside: { ticketId: string; name: string; isKid: boolean }[]; plates?: string };
+
 export type ScanVerdict =
   | {
       tone: "ok";
@@ -35,12 +38,16 @@ export type ScanVerdict =
        *  the adult a child is attached to. Shown as their own bar, and they
        *  hold the screen longer than a plain success. */
       notes?: string[];
+      /** others on the booking still outside — the screen waits for a decision */
+      party?: VerdictParty;
     }
-  | { tone: "dup"; name: string; line1: string; line2?: string }
+  | { tone: "dup"; name: string; line1: string; line2?: string; party?: VerdictParty }
+  /** this pass was already in, but others on the booking are still outside */
+  | { tone: "partial"; name: string; line1: string; line2?: string; party?: VerdictParty }
   | { tone: "bad"; name: string; line1: string; line2?: string };
 
 /** Short tone + haptic — the gate often can't look at the screen at all. */
-function feedback(tone: "ok" | "dup" | "bad") {
+function feedback(tone: "ok" | "dup" | "bad" | "partial") {
   try {
     if (typeof navigator !== "undefined" && navigator.vibrate) {
       navigator.vibrate(tone === "ok" ? 60 : [90, 70, 90]);
@@ -69,7 +76,19 @@ function feedback(tone: "ok" | "dup" | "bad") {
   }
 }
 
-export default function ScanResult({ verdict, onDismiss }: { verdict: ScanVerdict | null; onDismiss: () => void }) {
+export default function ScanResult({
+  verdict,
+  onDismiss,
+  busy = false,
+  onCheckInOthers,
+  onPick,
+}: {
+  verdict: ScanVerdict | null;
+  onDismiss: () => void;
+  busy?: boolean;
+  onCheckInOthers?: (ticketIds: string[], names: string[]) => void;
+  onPick?: (conf: string) => void;
+}) {
   const key = verdict ? `${verdict.tone}-${verdict.name}-${verdict.line1 ?? ""}` : "none";
   const played = useRef("");
 
@@ -79,8 +98,8 @@ export default function ScanResult({ verdict, onDismiss }: { verdict: ScanVerdic
       played.current = key;
       feedback(verdict.tone);
     }
-    // successes clear themselves; problems wait for a human
-    if (verdict.tone === "ok") {
+    // successes clear themselves; problems — and a family still outside — wait for a human
+    if (verdict.tone === "ok" && !(verdict.party?.outside.length ?? 0)) {
       const holdLonger = verdict.needsId || (verdict.notes?.length ?? 0) > 0;
       const t = setTimeout(onDismiss, holdLonger ? 6000 : 3200);
       return () => clearTimeout(t);
@@ -90,7 +109,17 @@ export default function ScanResult({ verdict, onDismiss }: { verdict: ScanVerdic
   if (!verdict) return null;
 
   const bg =
-    verdict.tone === "ok" ? (verdict.foodWord ? verdict.color : "#1E6B2A") : verdict.tone === "dup" ? "#8F1D1D" : "#414750";
+    verdict.tone === "ok"
+      ? verdict.foodWord
+        ? verdict.color
+        : "#1E6B2A"
+      : verdict.tone === "dup"
+        ? "#8F1D1D"
+        : verdict.tone === "partial"
+          ? "#9A5B00"
+          : "#414750";
+  const party = verdict.tone !== "bad" ? verdict.party : undefined;
+  const outside = party?.outside ?? [];
 
   return (
     <AnimatePresence>
@@ -100,9 +129,9 @@ export default function ScanResult({ verdict, onDismiss }: { verdict: ScanVerdic
         animate={{ opacity: 1, scale: 1 }}
         exit={{ opacity: 0 }}
         transition={{ duration: 0.16, ease: "easeOut" }}
-        className="fixed inset-0 z-[100] flex flex-col items-center justify-center px-6 text-center cursor-pointer select-none"
+        className="fixed inset-0 z-[100] flex flex-col items-center justify-center px-6 text-center cursor-pointer select-none overflow-y-auto"
         style={{ background: bg, color: "#fff" }}
-        onClick={onDismiss}
+        onClick={outside.length > 0 ? undefined : onDismiss}
         role="status"
         aria-live="assertive"
       >
@@ -114,7 +143,7 @@ export default function ScanResult({ verdict, onDismiss }: { verdict: ScanVerdic
           className="leading-none"
           style={{ fontSize: "clamp(56px,16vw,120px)" }}
         >
-          {verdict.tone === "ok" ? "✓" : verdict.tone === "dup" ? "⛔" : "✕"}
+          {verdict.tone === "ok" ? "✓" : verdict.tone === "dup" ? "⛔" : verdict.tone === "partial" ? "↻" : "✕"}
         </motion.div>
 
         {/* food word dominates a meal scan */}
@@ -173,8 +202,43 @@ export default function ScanResult({ verdict, onDismiss }: { verdict: ScanVerdic
           </div>
         )}
 
+        {/* the rest of the family — one tap to let them all in */}
+        {outside.length > 0 && onCheckInOthers && (
+          <div
+            className="mt-6 w-full max-w-md rounded-2xl p-4 text-left cursor-default"
+            style={{ background: "rgba(0,0,0,0.22)" }}
+            onClick={(e) => e.stopPropagation()}
+          >
+            <p className="font-black" style={{ fontSize: "clamp(17px,4.6vw,24px)" }}>
+              Still outside on this booking:
+            </p>
+            <p className="mt-1 font-semibold" style={{ fontSize: "clamp(15px,4vw,20px)" }}>
+              {outside.map((o) => `${o.name}${o.isKid ? " 🧒" : ""}`).join(", ")}
+            </p>
+            {party?.plates && <p className="mt-1 text-sm opacity-85">Food today: {party.plates}</p>}
+            <button
+              className="mt-3 w-full rounded-xl py-4 font-black disabled:opacity-60"
+              style={{ background: "#fff", color: "#1E6B2A", fontSize: "clamp(18px,5.4vw,26px)" }}
+              disabled={busy}
+              onClick={() => onCheckInOthers(outside.map((o) => o.ticketId), outside.map((o) => o.name))}
+            >
+              {busy ? "…" : outside.length === 1 ? `✓ CHECK IN ${outside[0].name.split(" ")[0].toUpperCase()}` : `✓ CHECK IN ALL ${outside.length}`}
+            </button>
+            <div className="mt-2 grid grid-cols-2 gap-2">
+              {onPick && party && (
+                <button className="rounded-xl py-3 font-bold" style={{ background: "rgba(255,255,255,0.2)" }} onClick={() => onPick(party.conf)}>
+                  Only some — pick
+                </button>
+              )}
+              <button className="rounded-xl py-3 font-bold" style={{ background: "rgba(255,255,255,0.2)" }} onClick={onDismiss}>
+                {verdict.tone === "ok" ? "Just this one" : "Not now"}
+              </button>
+            </div>
+          </div>
+        )}
+
         <p className="absolute bottom-8 text-xs uppercase tracking-[0.2em] opacity-70">
-          {verdict.tone === "ok" ? "Tap to scan the next person" : "Tap to dismiss"}
+          {outside.length > 0 ? "" : verdict.tone === "ok" ? "Tap to scan the next person" : "Tap to dismiss"}
         </p>
       </motion.div>
     </AnimatePresence>

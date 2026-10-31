@@ -13,7 +13,18 @@ import { eq } from "drizzle-orm";
 import { getDb, schema } from "@/db/client";
 import { couponDef, couponsForTicket, mealsFor, standingOf, ticketDays, whoIs, type CouponTicket, type Meal } from "@/lib/coupons/rules";
 
-export type MealRow = { meal: Meal; adultNonVeg: number; adultVeg: number; kid: number; total: number };
+/** `kid` = ALL kid plates; split into kidNonVeg / kidVeg / kidUnknown (older
+ *  bookings and concert-only kids, where veg/non-veg was never asked). */
+export type MealRow = {
+  meal: Meal;
+  adultNonVeg: number;
+  adultVeg: number;
+  kid: number;
+  kidNonVeg: number;
+  kidVeg: number;
+  kidUnknown: number;
+  total: number;
+};
 export type DayReport = {
   key: string;
   label: string;
@@ -47,7 +58,7 @@ export async function mealReport(eventId: string, days: Day[]): Promise<DayRepor
   const out: DayReport[] = days.map((d) => ({
     key: d.key,
     label: d.label,
-    meals: mealsFor(d.key).map((meal) => ({ meal, adultNonVeg: 0, adultVeg: 0, kid: 0, total: 0 })),
+    meals: mealsFor(d.key).map((meal) => ({ meal, adultNonVeg: 0, adultVeg: 0, kid: 0, kidNonVeg: 0, kidVeg: 0, kidUnknown: 0, total: 0 })),
     people: 0,
     adults: 0,
     kids: 0,
@@ -84,16 +95,21 @@ export async function mealReport(eventId: string, days: Day[]): Promise<DayRepor
       d.people++;
       if (whoIs(ct) === "Kid") d.kids++;
       else d.adults++;
+      const u5 = tt.ageBand === "child_under_5" || (t.attendeeAge !== null && t.attendeeAge < 5);
       if (tt.ageBand === "concert") d.concertOnly++;
-      else if (!tt.withFood || !t.foodPref || t.foodPref === "none") d.noFood++;
-      if (tt.ageBand === "child_under_5" || (t.attendeeAge !== null && t.attendeeAge < 5)) d.under5++;
+      else if (!u5 && (plates.length === 0 || !t.foodPref || t.foodPref === "none")) d.noFood++;
+      if (u5) d.under5++;
     }
     for (const p of plates) {
       const def = couponDef(p.key);
       const row = byKey.get(def.day)?.meals.find((m) => m.meal === def.meal);
       if (!row) continue;
-      if (def.who === "Kid") row.kid++;
-      else if (p.veg) row.adultVeg++;
+      if (def.who === "Kid") {
+        row.kid++;
+        if (t.foodPref === "kid_veg") row.kidVeg++;
+        else if (t.foodPref === "kid_non_veg") row.kidNonVeg++;
+        else row.kidUnknown++;
+      } else if (p.veg) row.adultVeg++;
       else row.adultNonVeg++;
       row.total++;
     }

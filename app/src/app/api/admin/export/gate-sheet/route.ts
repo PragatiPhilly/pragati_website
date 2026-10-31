@@ -48,6 +48,8 @@ export async function GET() {
     veg: await getConfig<string>("food_color_veg"),
     non_veg: await getConfig<string>("food_color_non_veg"),
     kid: await getConfig<string>("food_color_kid"),
+    kid_non_veg: await getConfig<string>("food_color_kid"),
+    kid_veg: (await getConfig<string>("food_color_kid_veg")) || "#7B4FA8",
   };
 
   const rows = tickets
@@ -110,7 +112,7 @@ let marks={};try{marks=JSON.parse(localStorage.getItem(K)||"{}")}catch(e){}
 const save=()=>{try{localStorage.setItem(K,JSON.stringify(marks))}catch(e){}};
 document.getElementById("sub").textContent=D.event+" — "+D.rows.length+" paid attendees";
 document.getElementById("gen").textContent=D.generated+" ET";
-const FOOD={veg:"VEG",non_veg:"NON-VEG",kid:"KID",none:"no food"};
+const FOOD={veg:"VEG",non_veg:"NON-VEG",kid:"KID",kid_veg:"KID VEG",kid_non_veg:"KID NON-VEG",none:"no food"};
 const list=document.getElementById("list");
 function render(f){
   f=(f||"").toLowerCase();const dg=f.replace(/\\D/g,"");

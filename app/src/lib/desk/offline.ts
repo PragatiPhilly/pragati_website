@@ -18,6 +18,7 @@ import { deskOrderSummary } from "./summary";
 import { currentShift } from "./shifts";
 import { DeskError, type DeskActor } from "./guards";
 import type { DeskPerson } from "./party";
+import type { FoodPref } from "@/lib/food";
 import type { PersonKind } from "./constants";
 
 export type OfflineEntry = {
@@ -26,7 +27,7 @@ export type OfflineEntry = {
   buyerName: string;
   buyerPhone?: string;
   buyerEmail?: string;
-  people: { name: string; ticketTypeId: string; age?: number; foodPref: "veg" | "non_veg" | "kid" | "none" }[];
+  people: { name: string; ticketTypeId: string; age?: number; foodPref: FoodPref }[];
   payment: "cash" | "zelle_org" | "unpaid";
   amountCents: number; // what was actually handed over
   note?: string;
@@ -61,7 +62,10 @@ export async function importOfflineEntry(entry: OfflineEntry, actor: DeskActor):
     const kind = KIND_BY_BAND[tt.ageBand] ?? "adult";
     const [first, ...rest] = (p.name || "Guest").trim().split(/\s+/);
     const days = Array.isArray(tt.dayKeys) && (tt.dayKeys as string[]).length ? (tt.dayKeys as string[]) : eventDays;
-    const foodPref = !tt.withFood || kind === "concert" ? "none" : kind === "youth" || kind === "under5" ? "kid" : p.foodPref === "veg" ? "veg" : "non_veg";
+    // The notebook sends kid_veg / kid_non_veg for a child (older notebooks: "kid").
+    const kidPref: FoodPref = p.foodPref === "kid_veg" || p.foodPref === "veg" ? "kid_veg" : p.foodPref === "kid" ? "kid" : "kid_non_veg";
+    const foodPref: FoodPref =
+      kind === "concert" ? "none" : kind === "youth" || kind === "under5" ? (kind === "under5" || tt.withFood ? kidPref : "none") : !tt.withFood ? "none" : p.foodPref === "veg" ? "veg" : "non_veg";
     return { ref: `p${i}`, firstName: first, lastName: rest.join(" ") || undefined, kind, age: p.age, days, withFood: tt.withFood && kind !== "concert", foodPref };
   });
   // A child goes with the first adult in the same family.

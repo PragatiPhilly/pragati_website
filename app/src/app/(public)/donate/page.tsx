@@ -12,6 +12,7 @@ export default async function DonatePage() {
   const squareEnabled = (await getConfig<string>("payments_square_enabled")) !== "no";
   const zelleEnabled = (await getConfig<string>("payments_zelle_enabled")) === "yes";
   const mode = await getDonationMode();
+  const { cardFeeRate } = await import("@/lib/payments/card-fee");
   return (
     <DonateForm
       squareEnabled={squareEnabled}
@@ -19,6 +20,7 @@ export default async function DonatePage() {
       mode={mode}
       copy={DONATION_COPY[mode]}
       designations={PUJO_DESIGNATIONS}
+      cardFeeRate={await cardFeeRate()}
     />
   );
 }

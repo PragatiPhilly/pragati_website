@@ -10,7 +10,8 @@
  *     QR is served instantly and the screen flashes the food color code
  *     (veg / non-veg / kid); a re-scan inside the same window is flagged.
  */
-import { useCallback, useState, useTransition } from "react";
+import { useCallback, useEffect, useRef, useState, useTransition } from "react";
+import { useRouter } from "next/navigation";
 import {
   lookupTicketsAction,
   checkInTicketAction,
@@ -19,60 +20,62 @@ import {
   entryScanAction,
   type CheckinTicket,
 } from "./actions";
-import {
-  mealLookupAction,
-  serveTicketAction,
-  type MealLookupTicket,
-  type ScanSessionInfo,
-} from "../scans/actions";
+import type { ScanSessionInfo } from "../scans/actions";
 import QrScanner from "./QrScanner";
 import ScanResult, { type ScanVerdict } from "./ScanResult";
+import FoodLine, { type FoodLineHandle } from "./FoodLine";
+import { foodPrefLabel, type PlateColors } from "@/lib/food";
 
-type Colors = { veg: string; non_veg: string; kid: string };
+type Colors = PlateColors;
+
+/**
+ * "Station" — what THIS phone is doing (gate, or one meal window). Remembered in
+ * a cookie so a volunteer on an iPhone, who scans with the camera app, lands on
+ * the right screen: /t/<code> sends a signed-in staff phone whose station is a
+ * meal window straight to that family's plates here (spec/18). Giving still
+ * takes a tap, so landing there is never an action by itself.
+ */
+const STATION_COOKIE = "pragati_station";
+function setStation(v: string) {
+  try {
+    document.cookie = `${STATION_COOKIE}=${encodeURIComponent(v)}; path=/; max-age=${12 * 3600}; samesite=lax`;
+  } catch {
+    /* a convenience only */
+  }
+}
 
 type Banner = ScanVerdict;
-
-const FOOD_LABEL: Record<string, string> = {
-  veg: "🥬 VEG",
-  non_veg: "🐟 NON-VEG",
-  kid: "🍚 KID'S MEAL",
-  none: "no food",
-};
-
-/** Big single word for the food takeover — no emoji, readable at arm's length. */
-const FOOD_WORD: Record<string, string> = {
-  veg: "VEG",
-  non_veg: "NON-VEG",
-  kid: "KID'S MEAL",
-  none: "NO MEAL",
-};
 
 export default function CheckinForm({
   openSessions,
   colors,
   isAdmin,
+  initialMode,
+  initialQuery,
 }: {
   openSessions: ScanSessionInfo[];
   colors: Colors;
   isAdmin: boolean;
+  /** "entry" or an open meal window id (?w=) */
+  initialMode?: string;
+  /** look this up in the food line on arrival (?q=) */
+  initialQuery?: string;
 }) {
-  const [mode, setMode] = useState<string>("entry"); // "entry" | session id
+  const router = useRouter();
+  const startMode = initialMode && openSessions.some((s) => s.id === initialMode) ? initialMode : "entry";
+  const [mode, setMode] = useState<string>(startMode); // "entry" | session id
   const [query, setQuery] = useState("");
   const [tickets, setTickets] = useState<CheckinTicket[] | null>(null);
-  const [mealTickets, setMealTickets] = useState<MealLookupTicket[] | null>(null);
   const [banner, setBanner] = useState<Banner | null>(null);
-  const [sessionCount, setSessionCount] = useState<number | null>(null);
   const [pending, startTransition] = useTransition();
+  const food = useRef<FoodLineHandle>(null);
 
   const session = openSessions.find((s) => s.id === mode) ?? null;
 
-  const foodColor = (food: string) =>
-    food === "veg" ? colors.veg : food === "non_veg" ? colors.non_veg : food === "kid" ? colors.kid : "var(--ink-soft)";
-
   const switchMode = (m: string) => {
     setMode(m);
+    setStation(m === "entry" ? "gate" : `food:${m}`);
     setTickets(null);
-    setMealTickets(null);
     setBanner(null);
     setQuery("");
   };
@@ -87,23 +90,35 @@ export default function CheckinForm({
     startTransition(async () => {
       const r = await entryScanAction(value);
       if (r.kind === "checked_in") {
+        const outside = r.party?.outside ?? [];
         setBanner({
           tone: "ok",
           color: "#1E6B2A",
           name: r.attendee,
-          line1: r.partyTotal > 1 ? `${r.partyIn} of ${r.partyTotal} in this party` : "Welcome in!",
+          line1:
+            outside.length > 0
+              ? `is in · ${outside.length} more on this booking still outside`
+              : r.partyTotal > 1
+                ? `${r.partyIn} of ${r.partyTotal} in — whole party is in`
+                : "Welcome in!",
           line2: `${r.passName} · ${r.day} · ${r.conf}`,
           needsId: r.isStudent,
           notes: r.notes,
           timed: r.isConcert,
+          party: r.party ? { conf: r.party.conf, outside, plates: r.party.plates } : undefined,
         });
         setTickets(null);
       } else if (r.kind === "duplicate") {
+        const outside = r.party?.outside ?? [];
         setBanner({
-          tone: "dup",
-          name: `ALREADY CHECKED IN`,
-          line1: `${r.attendee} — scanned at ${r.checkedInAt}`,
-          line2: `If they haven't entered, check photo ID against ${r.conf}.`,
+          tone: outside.length > 0 ? "partial" : "dup",
+          name: outside.length > 0 ? `${r.attendee.split(" ")[0]} IS ALREADY IN` : "ALREADY CHECKED IN",
+          line1:
+            outside.length > 0
+              ? `Scanned at ${r.checkedInAt} · ${outside.length} on this booking still outside`
+              : `${r.attendee} — scanned at ${r.checkedInAt}`,
+          line2: outside.length > 0 ? r.conf : `If they haven't entered, check photo ID against ${r.conf}.`,
+          party: r.party && outside.length > 0 ? { conf: r.party.conf, outside, plates: r.party.plates } : undefined,
         });
         setTickets(null);
       } else if (r.kind === "invalid") {
@@ -115,69 +130,30 @@ export default function CheckinForm({
       }
     });
 
-  // ── meal mode ─────────────────────────────────────────────────
-  const refreshMeal = (q: string) =>
+  /** "Check in all 3 others" from the verdict screen. */
+  const checkInOthers = (ids: string[], names: string[]) =>
     startTransition(async () => {
-      if (session) setMealTickets(await mealLookupAction(session.id, q));
+      await checkInAllAction(ids);
+      setBanner({
+        tone: "ok",
+        color: "#1E6B2A",
+        name: ids.length === 1 ? `${names[0]} is in too` : `${ids.length} more checked in`,
+        line1: "Whole party is in ✓",
+        line2: names.join(", "),
+      });
     });
 
-  const serve = (ticketId: string, refreshQ?: string) =>
-    startTransition(async () => {
-      if (!session) return;
-      const r = await serveTicketAction(session.id, ticketId);
-      if (r.kind === "served") {
-        setBanner({
-          tone: "ok",
-          color: foodColor(r.food),
-          foodWord: FOOD_WORD[r.food] ?? r.food.toUpperCase(),
-          name: r.attendee,
-          line1: `${r.sessionLabel} · ${r.count} served`,
-        });
-        setSessionCount(r.count);
-      } else if (r.kind === "duplicate") {
-        setBanner({
-          tone: "dup",
-          name: "ALREADY SERVED",
-          line1: `${r.attendee} — ${r.sessionLabel} at ${r.scannedAt}`,
-          line2: r.conf,
-        });
-      } else {
-        setBanner({ tone: "bad", name: "NOT VALID", line1: r.reason });
-      }
-      if (refreshQ) setMealTickets(await mealLookupAction(session.id, refreshQ));
-      else setMealTickets(null);
-    });
-
-  const mealScan = (value: string) =>
-    startTransition(async () => {
-      if (!session) return;
-      const results = await mealLookupAction(session.id, value);
-      if (results.length === 1) {
-        const t = results[0];
-        if (t.servedAt) {
-          setBanner({
-            tone: "dup",
-            name: "ALREADY SERVED",
-            line1: `${t.attendee} — ${session.label} at ${t.servedAt}`,
-            line2: t.conf,
-          });
-          setMealTickets(null);
-        } else if (!t.eligible) {
-          setBanner({ tone: "bad", name: "NOT VALID HERE", line1: t.reason ?? "" });
-          setMealTickets(null);
-        } else {
-          await serve(t.id);
-        }
-      } else {
-        setBanner(null);
-        setMealTickets(results);
-      }
-    });
+  /** "Pick who" — drop to the booking's list with a button per person. */
+  const pickFromParty = (conf: string) => {
+    setBanner(null);
+    setQuery(conf);
+    refreshEntry(conf);
+  };
 
   const handleScan = useCallback(
     (value: string) => {
       setQuery(value);
-      if (session) mealScan(value);
+      if (session) food.current?.lookup(value);
       else entryScan(value);
     },
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -186,9 +162,28 @@ export default function CheckinForm({
 
   const search = () => {
     setBanner(null);
-    if (session) refreshMeal(query.trim());
-    else refreshEntry(query.trim());
+    const q = query.trim();
+    if (session) food.current?.lookup(q);
+    // A pass code typed or sent by a handheld scanner (it "types" the code and
+    // presses Enter) is a scan, not a search — same as the camera.
+    else if (/PRAGATI-TKT-|\/t\//i.test(q)) entryScan(q);
+    else refreshEntry(q);
   };
+
+  // Arrived from /t/<code> on a station phone, or a link with ?q= / ?scan=.
+  const arrived = useRef(false);
+  useEffect(() => {
+    if (arrived.current) return;
+    arrived.current = true;
+    if (startMode !== "entry") setStation(`food:${startMode}`);
+    if (initialQuery) {
+      setQuery(initialQuery);
+      if (startMode !== "entry") food.current?.lookup(initialQuery);
+      else refreshEntry(initialQuery);
+    }
+    if (initialQuery) router.replace(startMode === "entry" ? "/admin/checkin" : `/admin/checkin?w=${startMode}`);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   // Only tickets valid TODAY go into "check in all" — a family's Sunday tickets
   // must not be burned on Saturday.
@@ -221,7 +216,7 @@ export default function CheckinForm({
             onClick={() => switchMode(s.id)}
           >
             🍛 {s.label}
-            <span className="ml-1.5 opacity-80">· {sessionCount !== null && mode === s.id ? sessionCount : s.total}</span>
+            <span className="ml-1.5 opacity-80">· {s.total}</span>
           </button>
         ))}
         {openSessions.length === 0 && isAdmin && (
@@ -232,7 +227,22 @@ export default function CheckinForm({
       </div>
 
       {/* ── the verdict, full-bleed (see ScanResult) ───────────── */}
-      <ScanResult verdict={banner} onDismiss={() => setBanner(null)} />
+      <ScanResult
+        verdict={banner}
+        onDismiss={() => setBanner(null)}
+        busy={pending}
+        onCheckInOthers={checkInOthers}
+        onPick={pickFromParty}
+      />
+
+      {session && (
+        <FoodLine ref={food} sessionId={session.id} sessionLabel={session.label} colors={colors} isAdmin={isAdmin} />
+      )}
+      {session && (
+        <div className="rounded-2xl px-4 py-3 mb-4 font-bold text-white text-center" style={{ background: "var(--leaf-deep)" }}>
+          🍛 This phone is serving <span className="underline underline-offset-4">{session.label}</span>. Scan any pass — the whole family shows.
+        </div>
+      )}
 
       <QrScanner onScan={handleScan} />
 
@@ -256,53 +266,6 @@ export default function CheckinForm({
       <p className="text-xs mt-2" style={{ color: "var(--ink-soft)" }}>
         No ticket, no phone, no email? Just search their <strong>name</strong> or <strong>phone number</strong>.
       </p>
-
-      {/* ── meal-mode list ─────────────────────────────────────── */}
-      {session && mealTickets !== null && (
-        <div className="mt-6 grid gap-3">
-          {mealTickets.length === 0 && (
-            <p className="rounded-xl px-4 py-3 text-sm font-medium" style={{ background: "var(--accent-soft)", color: "var(--sindoor)" }}>
-              Nothing found — check spelling, or try the buyer&apos;s phone number. (Only paid registrations appear.)
-            </p>
-          )}
-          {mealTickets.map((t) => (
-            <div key={t.id} className="festive-card p-4 flex items-center justify-between gap-3 flex-wrap">
-              <div className="flex items-center gap-3">
-                <span
-                  className="inline-block w-3.5 h-3.5 rounded-full shrink-0"
-                  style={{ background: foodColor(t.food) }}
-                  title={FOOD_LABEL[t.food]}
-                />
-                <div>
-                  <p className="font-semibold">
-                    {t.attendee} {t.isKid && "🧒"}
-                  </p>
-                  <p className="text-xs" style={{ color: "var(--ink-soft)" }}>
-                    {t.conf} · {t.day === "all" ? "all days" : t.day} · {FOOD_LABEL[t.food] ?? t.food}
-                  </p>
-                </div>
-              </div>
-              {t.servedAt ? (
-                <span className="text-sm font-bold" style={{ color: "#8f1d1d" }}>
-                  ⛔ served at {t.servedAt}
-                </span>
-              ) : !t.eligible ? (
-                <span className="text-xs font-semibold" style={{ color: "var(--ink-soft)" }}>
-                  {t.reason}
-                </span>
-              ) : (
-                <button
-                  className="btn-primary !py-2 !px-5 text-sm"
-                  disabled={pending}
-                  onClick={() => serve(t.id, query.trim())}
-                >
-                  Serve →
-                </button>
-              )}
-            </div>
-          ))}
-        </div>
-      )}
 
       {/* ── entry-mode list (unchanged behavior) ───────────────── */}
       {!session && tickets !== null && (
@@ -335,7 +298,7 @@ export default function CheckinForm({
                   {t.attendee} {t.isKid && "🧒"}
                 </p>
                 <p className="text-xs" style={{ color: "var(--ink-soft)" }}>
-                  {t.conf} · booked by {t.buyer} · {t.day === "all" ? "all days" : t.day} · food: {t.food ?? "—"}
+                  {t.conf} · booked by {t.buyer} · {t.day === "all" ? "all days" : t.day} · {foodPrefLabel(t.food)}
                 </p>
                 {t.notToday ? (
                   <p className="text-xs font-bold mt-1" style={{ color: "#8a5a00" }}>

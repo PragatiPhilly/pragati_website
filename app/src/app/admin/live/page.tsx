@@ -56,7 +56,7 @@ export default async function LivePage({ searchParams }: { searchParams: Promise
           <p key={m.meal} className="text-sm">
             <strong>{m.meal}: {m.total}</strong>{" "}
             <span style={{ color: "var(--ink-soft)" }}>
-              ({m.adultNonVeg} non-veg · {m.adultVeg} veg · {m.kid} kid)
+              ({m.adultNonVeg} non-veg · {m.adultVeg} veg · {m.kid} kid ({m.kidNonVeg} non-veg · {m.kidVeg} veg))
             </span>
           </p>
         ))}

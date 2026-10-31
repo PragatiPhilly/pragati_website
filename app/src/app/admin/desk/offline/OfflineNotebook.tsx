@@ -7,6 +7,7 @@
  */
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { importOfflineEntryAction } from "../online-actions";
+import type { FoodPref } from "@/lib/food";
 
 type Pass = { id: string; name: string; band: string; withFood: boolean; priceCents: number };
 type Person = { name: string; ticketTypeId: string; age: string; foodPref: "veg" | "non_veg" };
@@ -16,7 +17,7 @@ type Entry = {
   buyerName: string;
   buyerPhone?: string;
   buyerEmail?: string;
-  people: { name: string; ticketTypeId: string; age?: number; foodPref: "veg" | "non_veg" | "kid" | "none" }[];
+  people: { name: string; ticketTypeId: string; age?: number; foodPref: FoodPref }[];
   payment: "cash" | "zelle_org" | "unpaid";
   amountCents: number;
   note?: string;
@@ -128,7 +129,7 @@ export default function OfflineNotebook({ passes, takenBy, eventName }: { passes
           name: p.name.trim(),
           ticketTypeId: p.ticketTypeId,
           age: p.age ? Number(p.age) : undefined,
-          foodPref: !pass?.withFood || pass.band === "concert" ? "none" : kid ? "kid" : p.foodPref,
+          foodPref: !pass?.withFood || pass.band === "concert" ? "none" : kid ? (p.foodPref === "veg" ? "kid_veg" : "kid_non_veg") : p.foodPref,
         };
       }),
       payment,

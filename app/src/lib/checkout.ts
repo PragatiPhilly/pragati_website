@@ -17,6 +17,7 @@ import { getZelleInstructions, type ZelleInstructions } from "@/lib/payments/zel
 import { openPayments, settlePayments, voidPayments, attachSquareOrder, toLedgerMethod } from "@/lib/ledger";
 import { sendMail } from "@/lib/email";
 import * as T from "@/lib/email/templates";
+import { coerceFoodPref, foodPrefLabel, type FoodPref } from "@/lib/food";
 
 export type StudentInfo = { eduEmail: string; university: string; city: string; gradYear: string };
 
@@ -28,7 +29,7 @@ export type CheckoutAttendee = {
   isMemberFlagged?: boolean;
   days: string[]; // e.g. ['sat'] or ['fri','sat','sun'] — for concertOnly, the concert day(s)
   withFood: boolean;
-  foodPref: "veg" | "non_veg" | "kid" | "none";
+  foodPref: FoodPref;
   concertOnly?: boolean; // buys a concert pass per chosen day, no food, timed check-in
   isStudent?: boolean; // buys a student pass; requires studentInfo
   student?: StudentInfo; // edu email + school details, shown to admins + reminded in email
@@ -62,6 +63,12 @@ export type TicketMatch = {
    *  its total split across day tickets · perday = legacy single-day, ×N days */
   mode: "full" | "bundle" | "perday";
 };
+
+/** A $0 under-5 pass. It may borrow a youth pass type, so it never counts
+ *  towards that type's sold seats — taken and released symmetrically. */
+export function isFreeUnder5(t: { priceCents: number; attendeeAge: number | null }): boolean {
+  return t.priceCents === 0 && t.attendeeAge !== null && t.attendeeAge < 5;
+}
 
 /** Pick the right ticket type for an attendee given the event's types. */
 export function resolveTicketType(
@@ -143,7 +150,18 @@ export async function createCheckout(input: CheckoutInput): Promise<CheckoutResu
 
   const expanded: { attendee: AttendeeInput; day?: string; studentInfo?: StudentInfo | null }[] = [];
   const concertPasses = types.filter((t) => t.ageBand === "concert");
-  for (const a of input.attendees) {
+  // Plates (spec/18): the server has the last word on who may eat what. A child
+  // under the "adult meal" age sent an adult plate keeps the diet on a kid
+  // plate; an under-5 always gets a kid plate. Never refused, never repriced.
+  const adultMealMinAge = Number(await getConfig<number>("adult_meal_min_age")) || undefined;
+  const attendees = input.attendees.map((a) => {
+    if (a.concertOnly) return { ...a, foodPref: "none" as FoodPref };
+    const kid = a.isKid && (a.age === undefined || a.age < 18);
+    const band = a.isStudent ? "student" : kid ? (a.age !== undefined && a.age < 5 ? "under5" : "youth") : "adult";
+    const want = kid ? a.foodPref : a.withFood ? a.foodPref : "none";
+    return { ...a, foodPref: coerceFoodPref(want, band, a.age, adultMealMinAge) };
+  });
+  for (const a of attendees) {
     // Concert-only attendee: one QR per chosen concert night, never food.
     // A combined pass (e.g. "Concert: Saturday & Sunday") whose day set matches
     // the selection is priced ONCE as the combo — its total is split across the
@@ -185,10 +203,34 @@ export async function createCheckout(input: CheckoutInput): Promise<CheckoutResu
       }
       continue;
     }
-    // Under-5 with no dedicated pass → enters free; no ticket to issue.
+    // Under-5 with no dedicated pass → still FREE, but still gets a pass of
+    // their own (spec/18): the gate count and the plate count must include
+    // them. Same approach as the walk-in desk: a $0 pass on the nearest youth
+    // (or adult) pass, in the same day shape; the age on the ticket says why.
     const attKid = a.isKid && (a.age === undefined || a.age < 18);
     const attBand = a.isStudent ? "student" : attKid ? (a.age !== undefined && a.age < 5 ? "child_under_5" : "child_5_18") : "adult";
-    if (attBand === "child_under_5" && !types.some((t) => t.ageBand === "child_under_5")) continue;
+    if (attBand === "child_under_5" && !types.some((t) => t.ageBand === "child_under_5" || t.ageBand === "all")) {
+      const kidLike = (t: (typeof types)[number]) => t.ageBand === "child_5_18" || t.ageBand === "child_5_12";
+      const carrier =
+        types.find((t) => kidLike(t) && !t.onlineClosedAt) ??
+        types.find(kidLike) ??
+        types.find((t) => t.ageBand === "adult" && !t.onlineClosedAt) ??
+        types.find((t) => t.ageBand === "adult");
+      if (!carrier) continue; // an event with no passes at all — nothing to hang it on
+      const u5: Omit<AttendeeInput, "ticketTypeId"> = {
+        firstName: a.firstName,
+        lastName: a.lastName,
+        isKid: true,
+        age: a.age,
+        isMemberFlagged: a.isMemberFlagged ?? false,
+        foodPref: a.foodPref,
+      };
+      const carrierKeys = Array.isArray(carrier.dayKeys) ? (carrier.dayKeys as string[]) : null;
+      const wholeEvent = a.days.length >= dayCount && (!carrierKeys || sameDaySet(carrierKeys, a.days));
+      if (wholeEvent) expanded.push({ attendee: { ...u5, ticketTypeId: carrier.id, priceOverrideCents: 0 }, day: "all" });
+      else for (const day of a.days) expanded.push({ attendee: { ...u5, ticketTypeId: carrier.id, priceOverrideCents: 0 }, day });
+      continue;
+    }
 
     const { type, mode } = resolveTicketType(a, types, dayCount);
     const base: Omit<AttendeeInput, "ticketTypeId"> = {
@@ -248,8 +290,11 @@ export async function createCheckout(input: CheckoutInput): Promise<CheckoutResu
   // Events) while the walk-in desk keeps selling it — the desk never comes
   // through here. Checked on the pass each person actually resolved to, so a
   // stale browser tab cannot slip a closed pass through.
+  // A free under-5 pass only BORROWS a carrier type — it is not a sale of it,
+  // so it neither trips "closed online" nor uses up the carrier's capacity.
+  const sold = expanded.filter((e) => !(e.attendee.priceOverrideCents === 0 && e.attendee.age !== undefined && e.attendee.age < 5));
   if (input.source !== "admin") {
-    for (const ttId of new Set(expanded.map((e) => e.attendee.ticketTypeId))) {
+    for (const ttId of new Set(sold.map((e) => e.attendee.ticketTypeId))) {
       const t = types.find((x) => x.id === ttId);
       if (t?.onlineClosedAt) throw new Error(onlineClosedMessage(t.name));
     }
@@ -264,7 +309,7 @@ export async function createCheckout(input: CheckoutInput): Promise<CheckoutResu
   // reach the last seat, which an organiser can resolve — a paid customer being
   // told they never paid cannot be.
   const demand = new Map<string, number>();
-  for (const e of expanded) demand.set(e.attendee.ticketTypeId, (demand.get(e.attendee.ticketTypeId) ?? 0) + 1);
+  for (const e of sold) demand.set(e.attendee.ticketTypeId, (demand.get(e.attendee.ticketTypeId) ?? 0) + 1);
   for (const [ttId, want] of demand) {
     const t = types.find((x) => x.id === ttId);
     if (t && t.capacity !== null && t.soldCount + want > t.capacity) {
@@ -314,7 +359,8 @@ export async function createCheckout(input: CheckoutInput): Promise<CheckoutResu
   const zelleHoldHours = input.paymentMethod === "zelle" ? await getConfig<number>("zelle_reservation_hours") : 0;
   const reservationExpiresAt =
     input.paymentMethod === "zelle" ? new Date(now.getTime() + zelleHoldHours * 3600_000) : null;
-  const processingFeeCents = input.paymentMethod === "square" ? cardProcessingFeeCents(grandTotalCents) : 0;
+  const { cardFeeRate } = await import("@/lib/payments/card-fee");
+  const processingFeeCents = input.paymentMethod === "square" ? cardProcessingFeeCents(grandTotalCents, await cardFeeRate()) : 0;
   await ensureExtraColumns();
   await ensurePaymentIntegritySchema();
 
@@ -569,6 +615,7 @@ export async function markRegistrationPaid(
   // holding inventory hostage or needing an expiry timer to release it.
   const sold = await db.select().from(schema.tickets).where(eq(schema.tickets.registrationId, registrationId));
   for (const t of sold) {
+    if (isFreeUnder5(t)) continue; // borrows a carrier pass; not a seat sold (spec/18)
     await db
       .update(schema.ticketTypes)
       .set({ soldCount: sql`${schema.ticketTypes.soldCount} + 1` })
@@ -685,11 +732,11 @@ export async function sendTicketsEmail(registrationId: string, opts: { resend?: 
         t.dayKey && t.dayKey !== "all"
           ? (eventDays.find((d) => d.key === t.dayKey)?.label ?? t.dayKey.toUpperCase())
           : "All days";
-      const foodLabel =
-        t.foodPref === "veg" ? "Veg" : t.foodPref === "non_veg" ? "Non-veg" : t.foodPref === "kid" ? "Kid's meal" : "No meal";
+      const foodLabel = foodPrefLabel(t.foodPref);
       return {
         name: [t.attendeeFirstName, t.attendeeLastName].filter(Boolean).join(" "),
-        type: typeName(t.ticketTypeId),
+        // a free under-5 pass may ride on a youth pass type — say what it is
+        type: isFreeUnder5(t) && tt?.ageBand !== "child_under_5" ? "Under 5 · free pass" : typeName(t.ticketTypeId),
         meta: `${dayLabel} · ${foodLabel}`,
         price: t.priceCents,
         passUrl: `${base}/t/${t.qrCode}`,
@@ -765,6 +812,7 @@ export async function cancelRegistration(registrationId: string, reason: "cancel
   if (wasPaid) {
     const tix = await db.select().from(schema.tickets).where(eq(schema.tickets.registrationId, registrationId));
     for (const t of tix) {
+      if (isFreeUnder5(t)) continue; // never counted as sold — see markRegistrationPaid
       await db
         .update(schema.ticketTypes)
         .set({ soldCount: sql`${schema.ticketTypes.soldCount} - 1` })

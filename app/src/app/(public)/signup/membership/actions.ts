@@ -25,6 +25,8 @@ export async function startMembershipCardCheckout(): Promise<{ url?: string; err
   if (member.membershipStatus === "active") return { error: "Your membership is already active." };
 
   const price = Number(await getConfig<number>("membership_annual_price_cents"));
+  const { cardFeeRate } = await import("@/lib/payments/card-fee");
+  const feeRate = await cardFeeRate();
   const conf = `MEM-${member.id.slice(0, 6).toUpperCase()}`;
   const [user] = await db.select().from(schema.users).where(eq(schema.users.id, member.userId));
 
@@ -39,7 +41,7 @@ export async function startMembershipCardCheckout(): Promise<{ url?: string; err
       payerName: `${member.primaryFirstName} ${member.primaryLastName}`.trim(),
       payerEmail: user?.email ?? "",
       amountCents: price,
-      feeCents: cardProcessingFeeCents(price),
+      feeCents: cardProcessingFeeCents(price, feeRate),
       method: "square",
       reference: conf,
       note: "Annual dues — card checkout",
@@ -49,7 +51,7 @@ export async function startMembershipCardCheckout(): Promise<{ url?: string; err
   const link = await createSquarePaymentLink({
     referenceId: member.id,
     confirmationNumber: conf,
-    amountCents: price + cardProcessingFeeCents(price),
+    amountCents: price + cardProcessingFeeCents(price, feeRate),
     description: "Pragati Annual Membership",
     redirectPath: `/checkout/success?conf=${encodeURIComponent(conf)}&membership=1`,
   });

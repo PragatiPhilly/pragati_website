@@ -354,6 +354,7 @@ export async function quoteAction(input: {
       eventDayCount: Math.max(days, 1),
       isMemberPurchase: !!input.isMemberPurchase,
       discountMode,
+      adultMealMinAge: Number(await getConfig<number>("adult_meal_min_age")) || undefined,
     });
     const donation = Math.max(0, Math.round(input.donationCents ?? 0));
     return {

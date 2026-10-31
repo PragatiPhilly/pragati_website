@@ -34,6 +34,8 @@ export async function createDonation(input: DonationInput): Promise<DonationResu
   const { ensurePaymentIntegritySchema } = await import("@/lib/payments/ensure");
   await ensurePaymentIntegritySchema();
   const conf = await nextConfirmationNumber("DON");
+  const { cardFeeRate } = await import("@/lib/payments/card-fee");
+  const feeRate = await cardFeeRate();
   const [don] = await db
     .insert(schema.donations)
     .values({
@@ -67,7 +69,7 @@ export async function createDonation(input: DonationInput): Promise<DonationResu
       payerName: input.donorName,
       payerEmail: input.donorEmail,
       amountCents: input.amountCents,
-      feeCents: input.paymentMethod === "square" ? cardProcessingFeeCents(input.amountCents) : 0,
+      feeCents: input.paymentMethod === "square" ? cardProcessingFeeCents(input.amountCents, feeRate) : 0,
       method: toLedgerMethod(input.paymentMethod),
       reference: conf,
     },
@@ -79,7 +81,7 @@ export async function createDonation(input: DonationInput): Promise<DonationResu
     const link = await createSquarePaymentLink({
       referenceId: don.id,
       confirmationNumber: conf,
-      amountCents: input.amountCents + cardProcessingFeeCents(input.amountCents),
+      amountCents: input.amountCents + cardProcessingFeeCents(input.amountCents, feeRate),
       description: `${label} — ${conf}`,
     });
     await db

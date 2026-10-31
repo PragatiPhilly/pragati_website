@@ -23,6 +23,7 @@ import { useRouter } from "next/navigation";
 import { createOrderAction, guardianSearchAction, memberLookupAction, quoteAction } from "../actions";
 import { PERSON_KIND_LABEL, parseAmountToCents, type PersonKind } from "@/lib/desk/constants";
 import type { DeskPerson } from "@/lib/desk/party";
+import { plateChoices, plateOf, prefOf, type FoodPref, type Plate } from "@/lib/food";
 
 const money = (c: number) => `$${(c / 100).toFixed(2)}`;
 
@@ -32,6 +33,16 @@ export type BuilderEvent = {
   days: { key: string; label: string }[];
   kinds: Record<PersonKind, boolean>;
   foodIsAChoice: boolean;
+  /** Admin → Food line: a youth this age or older may pick an adult plate */
+  adultMealMinAge: number;
+};
+
+const DESK_PLATE_WORD: Record<Plate, string> = {
+  adult_veg: "Veg",
+  adult_non_veg: "Non-veg",
+  kid_veg: "Kid veg",
+  kid_non_veg: "Kid non-veg",
+  kid: "Kid plate",
 };
 
 type Row = {
@@ -42,7 +53,7 @@ type Row = {
   age: string;
   days: string[];
   withFood: boolean;
-  foodPref: "veg" | "non_veg" | "kid" | "none";
+  foodPref: FoodPref;
   guardianRef: string | null;
   guardianTicketId: string | null;
   guardianLabel: string | null;
@@ -60,7 +71,7 @@ const newRow = (kind: PersonKind, allDays: string[]): Row => ({
   age: "",
   days: [...allDays],
   withFood: kind !== "concert",
-  foodPref: kind === "youth" || kind === "under5" ? "kid" : kind === "concert" ? "none" : "non_veg",
+  foodPref: kind === "youth" || kind === "under5" ? "kid_non_veg" : kind === "concert" ? "none" : "non_veg",
   guardianRef: null,
   guardianTicketId: null,
   guardianLabel: null,
@@ -398,58 +409,36 @@ export default function PartyBuilder({
                 </div>
               )}
 
-              {/* Food used to be four identical buttons in one row: "Eating with
-                  us / No food / Veg / Non-veg". Two different questions wearing
-                  the same clothes — with two of the four lit, it read as a
-                  random pattern rather than a choice. It is one question at the
-                  desk ("veg, non-veg, or not eating?"), so it is one row of
-                  mutually exclusive answers here. A child's plate isn't a
-                  choice, so their row keeps the simple yes/no. */}
-              {r.kind !== "concert" && event.foodIsAChoice && (
+              {/* Food is ONE question at the desk — "what are they eating?" —
+                  so it is one row of mutually exclusive answers. Children pick
+                  kid veg / kid non-veg; a teen (Admin → Food line, default 12+)
+                  may also take an adult plate at the same price; an under-5
+                  always gets a plate (spec/18). */}
+              {r.kind !== "concert" && (
                 <div>
-                  <p className="desk-field mb-1">Are they eating with us?</p>
-                  <div className="kind-row items-center">
-                    {r.kind === "youth" || r.kind === "under5" ? (
-                      <>
-                        <button
-                          className="kind-btn"
-                          aria-pressed={r.withFood}
-                          onClick={() => update(r.ref, { withFood: true, foodPref: "kid" })}
-                        >
-                          Yes, a kid&rsquo;s plate
-                        </button>
-                        <button
-                          className="kind-btn"
-                          aria-pressed={!r.withFood}
-                          onClick={() => update(r.ref, { withFood: false, foodPref: "none" })}
-                        >
-                          Not eating
-                        </button>
-                      </>
-                    ) : (
-                      <>
-                        <button
-                          className="kind-btn"
-                          aria-pressed={r.withFood && r.foodPref === "veg"}
-                          onClick={() => update(r.ref, { withFood: true, foodPref: "veg" })}
-                        >
-                          Veg
-                        </button>
-                        <button
-                          className="kind-btn"
-                          aria-pressed={r.withFood && r.foodPref === "non_veg"}
-                          onClick={() => update(r.ref, { withFood: true, foodPref: "non_veg" })}
-                        >
-                          Non-veg
-                        </button>
-                        <button
-                          className="kind-btn"
-                          aria-pressed={!r.withFood}
-                          onClick={() => update(r.ref, { withFood: false, foodPref: "none" })}
-                        >
-                          Not eating
-                        </button>
-                      </>
+                  <p className="desk-field mb-1">What are they eating?</p>
+                  <div className="kind-row items-center flex-wrap">
+                    {(r.kind === "youth" || r.kind === "under5"
+                      ? plateChoices(r.kind === "under5" ? "under5" : "youth", r.age.trim() === "" ? undefined : Number(r.age), event.adultMealMinAge)
+                      : (["adult_veg", "adult_non_veg"] as Plate[])
+                    ).map((pl) => (
+                      <button
+                        key={pl}
+                        className="kind-btn"
+                        aria-pressed={r.withFood && plateOf(r.foodPref) === pl}
+                        onClick={() => update(r.ref, { withFood: true, foodPref: prefOf(pl) })}
+                      >
+                        {r.kind === "youth" && pl.startsWith("adult") ? `Adult ${DESK_PLATE_WORD[pl].toLowerCase()}` : DESK_PLATE_WORD[pl]}
+                      </button>
+                    ))}
+                    {r.kind !== "under5" && (event.foodIsAChoice || r.kind === "youth") && (
+                      <button
+                        className="kind-btn"
+                        aria-pressed={!r.withFood}
+                        onClick={() => update(r.ref, { withFood: false, foodPref: "none" })}
+                      >
+                        Not eating
+                      </button>
                     )}
                   </div>
                 </div>

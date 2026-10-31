@@ -845,7 +845,8 @@ describe("TG · children, guardians and amendments", () => {
     expect(child.priceCents).toBe(0);
     expect(child.guardianTicketId).toBeTruthy();
     expect(s.listPriceCents).toBe(10000);
-    // The web path still skips it — this difference is the desk's alone.
+    // The web path issues it too now (spec/18): every under-5 gets a free pass
+    // of their own, so the gate and plate counts include them.
     const web = await createCheckout({
       eventId,
       buyerName: "Web Under5",
@@ -864,7 +865,10 @@ describe("TG · children, guardians and amendments", () => {
       .from(schema.registrations)
       .where(eq(schema.registrations.confirmationNumber, web.confirmationNumber));
     const wt = await db.select().from(schema.tickets).where(eq(schema.tickets.registrationId, wreg.id));
-    expect(wt.length).toBe(1);
+    expect(wt.length).toBe(2);
+    const tiny = wt.find((t) => t.attendeeFirstName === "Tiny")!;
+    expect(tiny.priceCents).toBe(0);
+    expect(tiny.foodPref).toBe("kid"); // a plate, diet not guessed
   });
 
   it("TG-7 · a child is NEVER offered as another child's guardian, age recorded or not", async () => {

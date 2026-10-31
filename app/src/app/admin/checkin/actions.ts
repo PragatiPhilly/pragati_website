@@ -218,10 +218,76 @@ export type EntryScanResult =
       /** Walk-in desk extras: a balance still owed, and the adult a minor is
        *  attached to. Both are things the gate acts on, not decoration. */
       notes?: string[];
+      /** the rest of the booking (spec/18) — who else is on it, who is still outside */
+      party?: GateParty;
     }
-  | { kind: "duplicate"; attendee: string; conf: string; checkedInAt: string }
+  | { kind: "duplicate"; attendee: string; conf: string; checkedInAt: string; party?: GateParty }
   | { kind: "list" } // several matches (or none) — client falls back to the list UI
   | { kind: "invalid"; reason: string };
+
+export type GatePartyPerson = { ticketId: string; name: string; isKid: boolean; in: boolean; plate: string | null };
+export type GateParty = {
+  conf: string;
+  buyer: string;
+  /** everyone on this booking whose pass is good TODAY */
+  people: GatePartyPerson[];
+  /** today's passes on the booking not yet checked in */
+  outside: GatePartyPerson[];
+  /** "2 adult non-veg · 1 kid veg" — today's plates for the booking */
+  plates: string;
+  /** passes on the booking for other days (not shown) */
+  otherDays: number;
+};
+
+/**
+ * The whole booking as the gate sees it today (spec/18): one parent shows one
+ * QR, and the volunteer must see — and check in with one tap — everyone else.
+ * Never throws: a party summary is never worth blocking entry.
+ */
+async function gateParty(
+  db: ReturnType<typeof getDb>,
+  reg: typeof schema.registrations.$inferSelect,
+  days: EventDayLite[],
+  today: EventDayLite | null,
+  justIn?: string
+): Promise<GateParty | undefined> {
+  try {
+    const rows = await db
+      .select({ t: schema.tickets, tt: schema.ticketTypes })
+      .from(schema.tickets)
+      .innerJoin(schema.ticketTypes, eq(schema.ticketTypes.id, schema.tickets.ticketTypeId))
+      .where(eq(schema.tickets.registrationId, reg.id));
+    const voided = await voidedTicketIds();
+    const live = rows.filter((x) => x.tt.ageBand !== "addon" && !voided.has(x.t.id));
+    const todays = today ? live.filter((x) => coveredDays(x.t.dayKey, x.tt.dayKeys, days).includes(today.key)) : live;
+    const inMap = today ? await inTodayMap(todays.map((x) => x.t), today) : null;
+    const { plateForWindow } = await import("@/lib/foodline/rules");
+    const { addPlate, emptyPlateCounts, platesSentence } = await import("@/lib/food");
+    const plates = emptyPlateCounts();
+    const people: GatePartyPerson[] = todays.map(({ t, tt }) => {
+      const v = today ? plateForWindow(t, tt, { kind: "lunch", dayKey: today.key }, days.map((d) => d.key)) : { plate: null };
+      if (v.plate) addPlate(plates, v.plate);
+      return {
+        ticketId: t.id,
+        name: `${t.attendeeFirstName} ${t.attendeeLastName ?? ""}`.trim(),
+        isKid: (t.attendeeAge ?? 99) < 18 || tt.ageBand.startsWith("child"),
+        in: t.id === justIn || (inMap ? inMap.has(t.id) : !!t.checkedInAt),
+        plate: v.plate,
+      };
+    });
+    people.sort((a, b) => Number(a.isKid) - Number(b.isKid) || a.name.localeCompare(b.name));
+    return {
+      conf: reg.confirmationNumber,
+      buyer: reg.buyerName,
+      people,
+      outside: people.filter((p) => !p.in),
+      plates: platesSentence(plates),
+      otherDays: live.length - todays.length,
+    };
+  } catch {
+    return undefined;
+  }
+}
 
 /**
  * One-step gate scan: a QR that resolves to exactly one paid ticket is
@@ -274,7 +340,13 @@ export async function entryScanAction(rawQuery: string): Promise<EntryScanResult
     };
   }
   if (st.inAt) {
-    return { kind: "duplicate", attendee, conf: reg.confirmationNumber, checkedInAt: clock(st.inAt) };
+    return {
+      kind: "duplicate",
+      attendee,
+      conf: reg.confirmationNumber,
+      checkedInAt: clock(st.inAt),
+      party: await gateParty(db, reg, days, st.today),
+    };
   }
 
   await recordCheckin(ticket.id, st.today, staff.userId);
@@ -329,6 +401,7 @@ export async function entryScanAction(rawQuery: string): Promise<EntryScanResult
     isConcert: tt?.ageBand === "concert",
     day: dayLabel,
     notes: await gateNotes(db, reg, ticket),
+    party: await gateParty(db, reg, days, st.today, ticket.id),
   };
 }
 

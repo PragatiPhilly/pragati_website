@@ -30,6 +30,8 @@ export default async function MembershipPaymentPage() {
   ]);
   const squareEnabled = squareCfg !== "no";
   const zelleEnabled = zelleCfg === "yes";
+  const { cardFeeRate } = await import("@/lib/payments/card-fee");
+  const feeCents = cardProcessingFeeCents(Number(price), await cardFeeRate());
   const memo = `MEM ${session.name ?? session.email}`;
 
   // Already paid — show a warm confirmation instead of the payment options.
@@ -62,10 +64,12 @@ export default async function MembershipPaymentPage() {
           <p className="text-sm mb-3" style={{ color: "var(--ink-soft)" }}>
             Secure checkout via Square — your membership activates instantly.
           </p>
-          <p className="text-sm mb-4">
-            Processing fee <strong style={{ color: "var(--sindoor)" }}>{formatCents(cardProcessingFeeCents(price))}</strong> · Total{" "}
-            <strong>{formatCents(price + cardProcessingFeeCents(price))}</strong>
-          </p>
+          {feeCents > 0 && (
+            <p className="text-sm mb-4">
+              Processing fee <strong style={{ color: "var(--sindoor)" }}>{formatCents(feeCents)}</strong> · Total{" "}
+              <strong>{formatCents(price + feeCents)}</strong>
+            </p>
+          )}
           <MembershipPayButtons />
         </div>
       )}

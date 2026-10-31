@@ -68,6 +68,9 @@ let ticketTypeId = "";
 
 beforeAll(async () => {
   await createTestSchema();
+  // These scenarios exercise the card-fee arithmetic, so run with the fee ON
+  // (it is a setting, off by default since Kali Pujo 2026 — see card-fee.test.ts).
+  await getDb().insert(schema.systemConfig).values({ key: "card_fee_enabled", value: "yes" }).onConflictDoNothing();
   const db = getDb();
   const [event] = await db
     .insert(schema.events)

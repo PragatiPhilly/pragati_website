@@ -17,6 +17,7 @@ import { submitRegistration, validatePromoAction } from "./actions";
 import { formatCents, cardProcessingFeeCents } from "@/lib/pricing";
 import { matchConcertSelection, onlineClosedMessage, sameDaySet } from "@/lib/event-days";
 import { fmtClock } from "@/lib/ticket-labels";
+import { DEFAULT_ADULT_MEAL_MIN_AGE, PLATE_LABEL, plateChoices, plateOf, prefOf, type FoodPref } from "@/lib/food";
 import { isEmail, buyerStepError } from "@/lib/validation";
 import JourneyScene from "@/components/register/JourneyScene";
 import PhoneInput from "@/components/site/PhoneInput";
@@ -66,7 +67,7 @@ type Person = {
   isMemberFlagged: boolean;
   days: string[];
   withFood: boolean;
-  foodPref: "veg" | "non_veg" | "kid" | "none";
+  foodPref: FoodPref;
   concertOnly: boolean;
   isStudent: boolean;
   student?: { eduEmail: string; university: string; city: string; gradYear: string };
@@ -221,7 +222,7 @@ function OrderLines({ lines, promoApplied, promoCode, promoDiscount, membershipC
               </p>
               <p className="text-xs truncate" style={{ color: "var(--ink-soft)" }}>
                 {l.person
-                  ? `${l.label}${l.person.concertOnly ? " · concert" : l.person.isStudent ? (l.person.withFood ? " · student · food" : " · student") : l.person.isKid ? ((l.person.age ?? 6) < 5 ? " · under 5 · free" : " · youth · meal incl.") : l.person.withFood ? " · with food" : " · no food"}`
+                  ? `${l.label}${l.person.concertOnly ? " · concert" : l.person.isStudent ? (l.person.withFood ? " · student · food" : " · student") : l.person.isKid ? `${(l.person.age ?? 6) < 5 ? " · under 5 · free" : " · youth"} · ${plateOf(l.person.foodPref) ? PLATE_LABEL[plateOf(l.person.foodPref)!].long.toLowerCase() : "meal incl."}` : l.person.withFood ? " · with food" : " · no food"}`
                   : `Add-on ${l.label}`}
                 {l.memberPricing && " · member"}
               </p>
@@ -320,7 +321,7 @@ function TotalRow({ total, cardFee }: { total: number; cardFee: number }) {
           {formatCents(total)}
         </motion.span>
       </div>
-      {total > 0 && (
+      {total > 0 && cardFee > 0 && (
         <p className="text-[11px] mt-1.5" style={{ color: "var(--ink-soft)" }}>
           +{formatCents(cardFee)} card processing fee.
         </p>
@@ -453,6 +454,45 @@ function defaultSelection(passes: FlowTT[], eventDayKeys: string[]): { days: str
   return { days, withFood: passes.some((t) => Array.isArray(t.dayKeys) && sameDaySet(t.dayKeys as string[], days) && t.withFood) };
 }
 
+/**
+ * A child's plate. Under-12s (and under-5s, who are free) choose kid veg or kid
+ * non-veg; a teen of `minAdultAge`+ may also choose an adult plate at the same
+ * youth price. The server re-checks this (lib/food.ts coerceFoodPref).
+ */
+function KidPlatePicker({ person, minAdultAge, onPick }: { person: { isKid: boolean; age?: number; foodPref: FoodPref }; minAdultAge: number; onPick: (pref: FoodPref) => void }) {
+  const under5 = (person.age ?? 6) < 5;
+  const choices = plateChoices(under5 ? "under5" : "youth", person.age, minAdultAge);
+  const current = plateOf(person.foodPref);
+  const word: Record<string, string> = {
+    kid_non_veg: "🍗 Kid's meal · non-veg",
+    kid_veg: "🍚 Kid's meal · veg",
+    adult_non_veg: "🐟 Adult meal · non-veg",
+    adult_veg: "🥬 Adult meal · veg",
+  };
+  return (
+    <div className="flex flex-wrap gap-2.5">
+      {choices.map((pl) => (
+        <button
+          key={pl}
+          className="choice-chip !py-2.5 !px-4 text-sm"
+          data-selected={current === pl}
+          onClick={() => onPick(prefOf(pl))}
+          aria-label={PLATE_LABEL[pl].long}
+        >
+          {word[pl]}
+        </button>
+      ))}
+      <p className="text-xs w-full mt-0.5" style={{ color: "var(--ink-soft)" }}>
+        {under5
+          ? "Under 5 is free — they still get their own pass and a kid's plate."
+          : choices.length > 2
+            ? `Same price whichever meal — ${minAdultAge}+ can choose an adult plate.`
+            : "Kid's meal included."}
+      </p>
+    </div>
+  );
+}
+
 /** A person's pick resolves to a pass that is closed for online sale. */
 function ClosedNotice({
   reason,
@@ -500,6 +540,8 @@ export default function RegisterFlow({
   donateLineLabel = "Donation",
   donateLineLabelLong = "Donation to Pragati",
   donateTitle = "Add a little extra? 🙏",
+  adultMealMinAge = DEFAULT_ADULT_MEAL_MIN_AGE,
+  cardFeeRate = 0,
   donateIntro = "Pragati is a volunteer-run 501(c)(3) nonprofit. A small donation on top of your tickets helps keep the pujo, the bhog, and the culture thriving — and it's tax-deductible. Totally optional.",
 }: {
   event: FlowEvent;
@@ -516,6 +558,10 @@ export default function RegisterFlow({
   donateIntro?: string;
   donateLineLabel?: string;
   donateLineLabelLong?: string;
+  /** a youth this age or older may pick an adult plate (Admin → Food line) */
+  adultMealMinAge?: number;
+  /** card processing fee as a fraction (0 = off) — Admin → Settings */
+  cardFeeRate?: number;
 }) {
   const router = useRouter();
   const dayCount = Math.max(event.days.length, 1);
@@ -779,7 +825,7 @@ export default function RegisterFlow({
   const firstName = buyerName.trim().split(" ")[0] || "friend";
   const membershipCents = wantsMembership ? membershipPriceCents : 0;
   const total = Math.max(0, quote.subtotal - promo.discountCents) + membershipCents + donationCents;
-  const cardFee = cardProcessingFeeCents(total);
+  const cardFee = cardProcessingFeeCents(total, cardFeeRate);
   const cardTotal = total + cardFee;
 
   // Availability guards — a selection must resolve to a real, created pass.
@@ -860,7 +906,7 @@ export default function RegisterFlow({
       concertOnly: false,
       days: def.days,
       withFood: p.isKid ? true : def.withFood,
-      foodPref: p.isKid ? "kid" : def.withFood ? "non_veg" : "none",
+      foodPref: p.isKid ? "kid_non_veg" : def.withFood ? "non_veg" : "none",
     };
   };
   const togglePersonConcert = (id: string, on: boolean) =>
@@ -913,7 +959,7 @@ export default function RegisterFlow({
         isMemberFlagged: false,
         days: def.days,
         withFood: initialConcertDay ? false : def.withFood,
-        foodPref: initialConcertDay ? "none" : isKidP ? "kid" : def.withFood ? "non_veg" : "none",
+        foodPref: initialConcertDay ? "none" : isKidP ? "kid_non_veg" : def.withFood ? "non_veg" : "none",
         concertOnly: !!initialConcertDay,
         isStudent: isStudentP,
         student: isStudentP ? { ...draftStudent } : undefined,
@@ -947,7 +993,7 @@ export default function RegisterFlow({
           isMemberFlagged: f.isMember,
           days: def.days,
           withFood: initialConcertDay ? false : def.withFood,
-          foodPref: initialConcertDay ? "none" : isKid ? "kid" : def.withFood ? f.foodPref : "none",
+          foodPref: initialConcertDay ? "none" : isKid ? (f.foodPref === "veg" ? "kid_veg" : "kid_non_veg") : def.withFood ? (f.foodPref === "veg" ? "veg" : "non_veg") : "none",
           concertOnly: !!initialConcertDay,
           isStudent: false,
         },
@@ -989,7 +1035,7 @@ export default function RegisterFlow({
         isMemberFlagged: p.isMemberFlagged,
         days: p.days,
         withFood: p.concertOnly ? false : p.withFood,
-        foodPref: p.concertOnly ? "none" : p.isKid ? "kid" : p.withFood ? p.foodPref : "none",
+        foodPref: p.concertOnly ? "none" : p.isKid ? p.foodPref : p.withFood ? p.foodPref : "none",
         concertOnly: p.concertOnly,
         isStudent: p.isStudent,
         student: p.student,
@@ -1426,7 +1472,7 @@ export default function RegisterFlow({
           {step === "food" && (
             <Card k="food" direction={direction} onBack={stepIndex > 0 ? goBack : undefined}>
               <H big={dayOfMode}>Now, the important part — food. 🍛</H>
-              <Sub>Bhog is half the reason we all come. Kids get the kid&apos;s meal automatically.</Sub>
+              <Sub>Bhog is half the reason we all come. Every child&apos;s pass includes a meal — just pick which one.</Sub>
               <div className="grid gap-4">
                 {people.map((p) => {
                   const fa = p.concertOnly || p.isKid ? { withFood: true, noFood: true } : foodFor(p);
@@ -1437,7 +1483,11 @@ export default function RegisterFlow({
                           🎶 Concert ticket — no meal. {concertEntryText(p.days)}
                         </p>
                       ) : p.isKid ? (
-                        <p style={{ color: "var(--ink-soft)" }}>Kid&apos;s meal included 🍚</p>
+                        <KidPlatePicker
+                          person={p}
+                          minAdultAge={adultMealMinAge}
+                          onPick={(pref) => updatePerson(p.id, { withFood: true, foodPref: pref })}
+                        />
                       ) : (
                         <div className="flex flex-wrap gap-2.5">
                           {fa.withFood && (
@@ -1619,7 +1669,7 @@ export default function RegisterFlow({
                       </p>
                       <p className="text-sm mt-0.5" style={{ color: "var(--ink-soft)" }}>
                         {l.person
-                          ? `${l.label} · ${l.person.concertOnly ? `concert · no meal${l.note ? ` · ${l.note}` : ""}` : l.person.isStudent ? (l.person.withFood ? `student · food: ${l.person.foodPref.replace("_", "-")}` : "student · no food") : l.person.isKid ? ((l.person.age ?? 6) < 5 ? "under 5 · free" : "youth · meal included") : l.person.withFood ? `food: ${l.person.foodPref.replace("_", "-")}` : "no food"}`
+                          ? `${l.label} · ${l.person.concertOnly ? `concert · no meal${l.note ? ` · ${l.note}` : ""}` : l.person.isStudent ? (l.person.withFood ? `student · food: ${l.person.foodPref.replace("_", "-")}` : "student · no food") : l.person.isKid ? `${(l.person.age ?? 6) < 5 ? "under 5 · free" : "youth"} · ${plateOf(l.person.foodPref) ? PLATE_LABEL[plateOf(l.person.foodPref)!].long.toLowerCase() : "meal included"}` : l.person.withFood ? `food: ${l.person.foodPref.replace("_", "-")}` : "no food"}`
                           : "Add-on pass"}
                         {l.memberPricing && (
                           <span className="ml-1.5 font-semibold" style={{ color: "var(--leaf-deep)" }}>
@@ -1725,7 +1775,7 @@ export default function RegisterFlow({
                       <span className="block text-sm mt-0.5" style={{ color: "var(--ink-soft)" }}>
                         Instant — tickets emailed in seconds
                       </span>
-                      {total > 0 && (
+                      {total > 0 && cardFee > 0 && (
                         <span className="block text-sm mt-1">
                           Processing fee <strong style={{ color: "var(--sindoor)" }}>{formatCents(cardFee)}</strong> · Total{" "}
                           <strong>{formatCents(cardTotal)}</strong>

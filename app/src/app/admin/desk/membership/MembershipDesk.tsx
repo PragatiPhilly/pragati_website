@@ -386,10 +386,12 @@ function TakeDues({
         <p className="desk-note m-0">
           Opens Square’s secure payment page. Hand them the tablet, or let them scan the code with their phone.
         </p>
-        <label className="flex items-center gap-2 text-sm">
-          <input type="checkbox" checked={withFee} onChange={(e) => setWithFee(e.target.checked)} />
-          Add the card fee ({money(cardFeeCents)}) — total <strong>{money(priceCents + (withFee ? cardFeeCents : 0))}</strong>
-        </label>
+        {cardFeeCents > 0 && (
+          <label className="flex items-center gap-2 text-sm">
+            <input type="checkbox" checked={withFee} onChange={(e) => setWithFee(e.target.checked)} />
+            Add the card fee ({money(cardFeeCents)}) — total <strong>{money(priceCents + (withFee ? cardFeeCents : 0))}</strong>
+          </label>
+        )}
         <button type="button" className="big-action" disabled={pending} onClick={card}>
           {pending ? "Opening…" : `Open card payment — ${money(priceCents + (withFee ? cardFeeCents : 0))}`}
         </button>
