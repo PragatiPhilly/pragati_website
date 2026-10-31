@@ -298,7 +298,7 @@ export default function OfflineNotebook({ passes, takenBy, eventName }: { passes
               <span className="desk-note">
                 {" "}
                 · {e.people.length} {e.people.length === 1 ? "person" : "people"} · {e.payment === "unpaid" ? "not paid" : `${money(e.amountCents)} ${e.payment === "cash" ? "cash" : "Zelle"}`} ·{" "}
-                {new Date(e.createdAt).toLocaleTimeString("en-US", { hour: "numeric", minute: "2-digit" })}
+                {new Date(e.createdAt).toLocaleTimeString("en-US", { timeZone: "America/New_York", hour: "numeric", minute: "2-digit" })}
               </span>
               {e.sync?.message && <span className="desk-note block">{e.sync.message}</span>}
             </span>

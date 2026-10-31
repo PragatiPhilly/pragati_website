@@ -5,8 +5,7 @@
  * close windows live on event day, watch counts, and set the food color codes
  * shown at the serving line.
  */
-import { isNotNull, sql } from "drizzle-orm";
-import { getDb, schema } from "@/db/client";
+import { eventCounts } from "@/lib/checkin/daily";
 import { getScanState } from "./actions";
 import ScanSetup from "./ScanSetup";
 import { requireSectionAccess } from "@/lib/auth/access";
@@ -19,12 +18,8 @@ export default async function ScansPage() {
   const state = await getScanState();
   if (!state) return <p style={{ color: "var(--ink-soft)" }}>No active event — set one in Settings.</p>;
 
-  const db = getDb();
-  const [total] = await db.select({ n: sql<number>`count(*)` }).from(schema.tickets);
-  const [checked] = await db
-    .select({ n: sql<number>`count(*)` })
-    .from(schema.tickets)
-    .where(isNotNull(schema.tickets.checkedInAt));
+  // this event's passes only (Durga Pujo's 700+ used to show here)
+  const counts = await eventCounts(state.event.id);
 
   return (
     <div className="max-w-3xl">
@@ -35,7 +30,7 @@ export default async function ScansPage() {
       </p>
       <ScanSetup
         state={state}
-        entryStats={{ checked: Number(checked.n), total: Number(total.n) }}
+        entryStats={{ checked: counts.inside, total: counts.expected }}
       />
     </div>
   );

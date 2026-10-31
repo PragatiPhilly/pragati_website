@@ -22,6 +22,7 @@ import { DEFAULT_ADULT_MEAL_MIN_AGE, PLATE_LABEL, plateChoices, plateOf, prefOf,
 import { isEmail, buyerStepError } from "@/lib/validation";
 import JourneyScene from "@/components/register/JourneyScene";
 import PhoneInput from "@/components/site/PhoneInput";
+import { easternYmd } from "@/lib/tz";
 
 // ── types passed from the server ──
 export type FlowEvent = {
@@ -631,7 +632,7 @@ export default function RegisterFlow({
   // ── student passes (ageBand "student"): edu ID required, own price ──
   const hasStudent = useMemo(() => openTypes.some((t) => t.ageBand === "student"), [openTypes]);
   const todayKey = useMemo(() => {
-    const today = new Date().toISOString().slice(0, 10);
+    const today = easternYmd(); // the event's calendar day is Pennsylvania's, wherever the browser is
     return event.days.find((d) => d.date === today)?.key ?? event.days[0]?.key ?? "all";
   }, [event.days]);
 

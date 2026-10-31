@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { motion } from "framer-motion";
+import { endOfEasternDay } from "@/lib/tz";
 
 /**
  * Home hero announcement banner — admin-controlled (Admin → Settings).
@@ -25,7 +26,7 @@ type Props = {
 
 function useDaysLeft(deadline?: string): number | null {
   if (!deadline) return null;
-  const end = new Date(`${deadline}T23:59:59`);
+  const end = endOfEasternDay(deadline); // the deadline day ends at midnight in Pennsylvania
   if (Number.isNaN(end.getTime())) return null;
   const d = Math.ceil((end.getTime() - Date.now()) / 86_400_000);
   return d >= 0 ? d : null;

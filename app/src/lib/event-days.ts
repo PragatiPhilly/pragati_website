@@ -12,8 +12,16 @@ const MONTHS = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "
 /** Build the event day list from two date or datetime-local strings. */
 export function buildEventDays(start: string, end: string): EventDay[] {
   const days: EventDay[] = [];
+  // Both are Eastern wall-clock strings ("2026-11-14T19:00"). An evening that
+  // runs past midnight (ends before 6 AM) is still ONE event day.
   const s = (start || "").slice(0, 10);
-  const e = (end || "").slice(0, 10);
+  let e = (end || "").slice(0, 10);
+  const endClock = (end || "").slice(11, 16);
+  if (e > s && endClock && endClock < "06:00") {
+    const prev = new Date(`${e}T12:00:00Z`);
+    prev.setUTCDate(prev.getUTCDate() - 1);
+    e = prev.toISOString().slice(0, 10);
+  }
   if (!/^\d{4}-\d{2}-\d{2}$/.test(s) || !/^\d{4}-\d{2}-\d{2}$/.test(e)) return days;
   const cur = new Date(`${s}T12:00:00`);
   const stop = new Date(`${e}T12:00:00`);

@@ -15,6 +15,7 @@ import { ensureExtraColumns } from "@/lib/schema-ensure";
 import { ensureMembershipColumn } from "@/lib/membership-ensure";
 import { settlePayments, linkPaymentsToMember } from "@/lib/ledger";
 import { siteUrl } from "@/lib/site-url";
+import { easternYmd } from "@/lib/tz";
 
 const YEAR_MS = 365 * 86_400_000;
 
@@ -47,7 +48,7 @@ export async function activateMembershipPaid(
     .update(schema.members)
     .set({
       membershipStatus: "active",
-      membershipStartedAt: member.membershipStartedAt ?? now.toISOString().slice(0, 10),
+      membershipStartedAt: member.membershipStartedAt ?? easternYmd(now),
       membershipExpiresAt: expires,
       memberNumber,
       updatedAt: now,
@@ -148,7 +149,7 @@ export async function recordSelfDeclaredMember(input: {
       .update(schema.members)
       .set({
         membershipStatus: "active",
-        membershipStartedAt: member.membershipStartedAt ?? now.toISOString().slice(0, 10),
+        membershipStartedAt: member.membershipStartedAt ?? easternYmd(now),
         membershipExpiresAt: expires,
         memberNumber,
         // fill a missing phone but don't clobber an existing account's details
@@ -226,7 +227,7 @@ export async function enrollMemberFromPaidRegistration(
     .update(schema.members)
     .set({
       membershipStatus: "active",
-      membershipStartedAt: member.membershipStartedAt ?? now.toISOString().slice(0, 10),
+      membershipStartedAt: member.membershipStartedAt ?? easternYmd(now),
       membershipExpiresAt: expires,
       memberNumber,
       updatedAt: now,

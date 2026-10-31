@@ -84,16 +84,17 @@ export default function EventForm({ initial }: { initial: EventInput }) {
         <textarea className="input min-h-24" placeholder="Description (shown on the event page)" value={ev.description} onChange={(e) => set({ description: e.target.value })} />
         <div className="grid sm:grid-cols-2 gap-3">
           <label className="text-xs font-semibold" style={{ color: "var(--ink-soft)" }}>
-            Starts
+            Starts (Eastern time)
             <input type="datetime-local" className="input mt-1" value={ev.startsAt} onChange={(e) => set({ startsAt: e.target.value })} />
           </label>
           <label className="text-xs font-semibold" style={{ color: "var(--ink-soft)" }}>
-            Ends
+            Ends (Eastern time)
             <input type="datetime-local" className="input mt-1" value={ev.endsAt} onChange={(e) => set({ endsAt: e.target.value })} />
           </label>
         </div>
         <p className="text-xs" style={{ color: "var(--ink-soft)" }}>
-          Event days (for the day-picker in registration) are generated automatically from this date range.
+          All times are Pennsylvania (Eastern) time. Event days (for the day-picker in registration) are generated automatically
+          from this range — an evening that ends after midnight still counts as one day.
         </p>
         <div className="grid sm:grid-cols-3 gap-3">
           <input className="input" placeholder="Venue name" value={ev.venueName} onChange={(e) => set({ venueName: e.target.value })} />

@@ -7,6 +7,7 @@ import {
 } from '@/lib/queries/events';
 import { formatCents } from '@/lib/pricing';
 import Reveal from '@/components/site/Reveal';
+import { easternDay } from '@/lib/tz';
 
 export const dynamic = 'force-dynamic';
 export const metadata = { title: 'Events' };
@@ -41,7 +42,7 @@ function MiniCard({
             {fmt(e.startsAt, { month: 'short' })}
           </span>
           <span className="font-[family-name:var(--font-display)] text-xl font-black leading-none">
-            {new Date(e.startsAt).getDate()}
+            {easternDay(e.startsAt)}
           </span>
         </div>
         <div className="flex-1 min-w-0">

@@ -46,6 +46,21 @@ Elementary School, 1475 Broad Run Rd, Downingtown, PA 19335. Passes: Adult $55 /
 member $50 · Youth 12–17 $25 · Child 5–11 $15 · Under 5 free · dinner included.
 A "Saturday · Dinner" food window is created closed.
 
+## Eastern time everywhere (lib/tz.ts)
+The club is in Pennsylvania; the servers run in UTC. Every date/time an admin
+types or reads is America/New_York (EST/EDT switch automatically): the event
+form's Starts/Ends, promo end dates, membership start/expiry, "today" on the
+scan desk and registration form, receipt year, and all public date labels. An
+event ending before 6 AM the next morning is still one event day. The job
+`2026-11-fix-kali-pujo-2026-times` repairs the save made with the old form
+(7 PM stored as 7 PM UTC = 2 PM ET, plus a phantom Sunday): it sets the start
+to 7:00 PM ET and drops Sunday if no Sunday passes exist; it does nothing if
+the event is already right.
+
+Kitchen report follows the meal windows in Scan setup (Kali: Saturday · Dinner
+only). Scan desk / Scan setup counts and the Walk-in follow-up badge count only
+the current event.
+
 New age bands `child_5_11` and `child_12_17` (lib/bands.ts). A child uses the most
 specific band the event sells, else the single `child_5_18` price — so Durga-style
 events are unchanged. The walk-in desk asks for a child's age when the price

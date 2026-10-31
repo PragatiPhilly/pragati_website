@@ -30,6 +30,7 @@ import { ensureExtraColumns } from "@/lib/schema-ensure";
 import { ensurePaymentsTable } from "@/lib/ledger-ensure";
 import { hashPassword } from "@/lib/auth/password";
 import { DeskError, type DeskActor } from "./guards";
+import { easternYmd } from "@/lib/tz";
 
 /** Same calendar date next year (a leap day lands on Feb 28). */
 export function plusOneYear(d: Date): Date {
@@ -574,7 +575,7 @@ async function applyYear(paymentId: string, verifiedBy: string | null): Promise<
     .update(schema.members)
     .set({
       membershipStatus: "active",
-      membershipStartedAt: member.membershipStartedAt ?? now.toISOString().slice(0, 10),
+      membershipStartedAt: member.membershipStartedAt ?? easternYmd(now),
       membershipExpiresAt: expires,
       memberNumber,
       // An honour-system claim that has now actually paid is a real membership.

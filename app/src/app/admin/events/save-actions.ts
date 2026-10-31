@@ -6,6 +6,7 @@ import { getDb, schema } from "@/db/client";
 import { requireAdmin } from "@/lib/auth/session";
 import { buildEventDays } from "@/lib/event-days";
 import { ensureExtraColumns } from "@/lib/schema-ensure";
+import { easternWallToDate, endOfEasternDay } from "@/lib/tz";
 
 export type TicketTypeInput = {
   id?: string;
@@ -51,8 +52,11 @@ export async function saveEventAction(input: EventInput): Promise<{ ok: boolean;
   await ensureExtraColumns();
 
   if (!input.name.trim() || !input.slug.trim()) return { ok: false, error: "Name and slug are required." };
-  const startsAt = new Date(input.startsAt);
-  const endsAt = new Date(input.endsAt);
+  // The form's times are Pennsylvania wall-clock times (Eastern). The server
+  // runs in UTC, so new Date("2026-11-14T19:00") here would mean 7 PM UTC.
+  const startsAt = easternWallToDate(input.startsAt);
+  const endsAt = easternWallToDate(input.endsAt);
+  if (isNaN(+startsAt) || isNaN(+endsAt)) return { ok: false, error: "Set both a start and an end date & time." };
   if (!(startsAt < endsAt)) return { ok: false, error: "End must be after start." };
   if (input.ticketTypes.length === 0) return { ok: false, error: "Add at least one ticket type." };
 
@@ -147,7 +151,8 @@ export async function saveEventAction(input: EventInput): Promise<{ ok: boolean;
       discountType: p.discountType,
       discountValue: p.discountType === "fixed_amount_cents" ? Math.round(p.discountValue * 100) : Math.round(p.discountValue),
       maxUsesTotal: p.maxUsesTotal,
-      validUntil: p.validUntil ? new Date(p.validUntil) : null,
+      // a promo "valid until Nov 10" works all of Nov 10, Eastern time
+      validUntil: p.validUntil ? endOfEasternDay(p.validUntil.slice(0, 10)) : null,
     };
     if (p.id && existingPromos.some((e) => e.id === p.id)) {
       await db.update(schema.promoCodes).set(row).where(eq(schema.promoCodes.id, p.id));

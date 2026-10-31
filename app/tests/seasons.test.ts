@@ -175,3 +175,27 @@ describe("seasons — nothing moves, every tab can load a past event", () => {
     expect(s.donations.count).toBe(1);
   });
 });
+
+describe("Kali Pujo 2026 time fix (self-applying)", () => {
+  it("restores 7:00 PM Eastern and one day when the old form saved it as UTC; leaves a correct event alone", async () => {
+    const { fixKaliPujo2026Times } = await import("../src/lib/data-migrations");
+    const db = getDb();
+    await db
+      .update(schema.events)
+      .set({
+        startsAt: new Date("2026-11-14T19:00:00Z"),
+        endsAt: new Date("2026-11-15T04:30:00Z"),
+        days: [
+          { key: "sat", date: "2026-11-14", label: "Saturday, Nov 14" },
+          { key: "sun", date: "2026-11-15", label: "Sunday, Nov 15" },
+        ],
+      })
+      .where(eq(schema.events.id, kali));
+    expect(await fixKaliPujo2026Times()).toMatch(/fixed/);
+    const [ev] = await db.select().from(schema.events).where(eq(schema.events.id, kali));
+    expect(ev.startsAt.toISOString()).toBe("2026-11-15T00:00:00.000Z");
+    expect(ev.endsAt.toISOString()).toBe("2026-11-15T04:30:00.000Z");
+    expect((ev.days as { key: string }[]).map((d) => d.key)).toEqual(["sat"]);
+    expect(await fixKaliPujo2026Times()).toMatch(/already correct/);
+  });
+});

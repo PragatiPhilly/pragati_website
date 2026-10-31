@@ -1,27 +1,22 @@
-import { isNotNull, sql } from "drizzle-orm";
-import { getDb, schema } from "@/db/client";
 import { getSession } from "@/lib/auth/session";
 import { getScanState } from "../scans/actions";
 import CheckinForm from "./CheckinForm";
 import { requireSectionAccess } from "@/lib/auth/access";
 import { getActiveEvent } from "@/lib/queries/events";
-import { todayCounts, type EventDayLite } from "@/lib/checkin/daily";
+import { eventCounts, todayCounts, type EventDayLite } from "@/lib/checkin/daily";
 
 export const dynamic = "force-dynamic";
 
 export default async function CheckinPage({ searchParams }: { searchParams: Promise<{ w?: string; q?: string }> }) {
   const sp = await searchParams;
   await requireSectionAccess("checkin");
-  const db = getDb();
-  const [total] = await db.select({ n: sql<number>`count(*)` }).from(schema.tickets);
-  const [checked] = await db
-    .select({ n: sql<number>`count(*)` })
-    .from(schema.tickets)
-    .where(isNotNull(schema.tickets.checkedInAt));
-
-  // On an event day the counter is about TODAY: inside now vs expected today.
+  // Counts are for the CURRENT event only — on its own dates "in today vs
+  // expected today", otherwise "checked in vs passes issued" for the event.
   const active = await getActiveEvent();
   const today = active ? await todayCounts(active.id, (active.days as EventDayLite[] | null) ?? []) : null;
+  const overall = active && !today ? await eventCounts(active.id) : { inside: 0, expected: 0 };
+  const checked = { n: overall.inside };
+  const total = { n: overall.expected };
 
   const session = await getSession();
   const isAdmin = !!session && ["admin", "super_admin"].includes(session.role);
@@ -53,7 +48,7 @@ export default async function CheckinPage({ searchParams }: { searchParams: Prom
         <div className="text-2xl font-light" style={{ color: "var(--ink-soft)" }}>/</div>
         <div>
           <p className="font-[family-name:var(--font-display)] text-4xl font-black">{String(today ? today.expected : total.n)}</p>
-          <p className="text-xs uppercase tracking-wider" style={{ color: "var(--ink-soft)" }}>{today ? "expected today" : "tickets issued"}</p>
+          <p className="text-xs uppercase tracking-wider" style={{ color: "var(--ink-soft)" }}>{today ? "expected today" : `passes · ${active?.name ?? "current event"}`}</p>
         </div>
         <a
           href="/api/admin/export/gate-sheet"

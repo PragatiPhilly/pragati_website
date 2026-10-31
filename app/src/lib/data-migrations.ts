@@ -443,6 +443,11 @@ const JOBS: Job[] = [
     describe: "Create Kali Pujo 2026 (Nov 14, West Bradford Elementary) as a draft event with its passes",
     run: setupKaliPujo2026,
   },
+  {
+    key: "2026-11-fix-kali-pujo-2026-times",
+    describe: "Kali Pujo 2026: restore 7:00–11:30 PM Eastern on Sat Nov 14 (the old form saved it as UTC and added Sunday)",
+    run: fixKaliPujo2026Times,
+  },
 ];
 
 
@@ -500,6 +505,39 @@ export async function setupKaliPujo2026(): Promise<string> {
     /* the window can be added in Scan setup */
   }
   return `created ${slug} as a draft with 4 passes`;
+}
+
+/**
+ * Kali Pujo 2026 was saved through the old event form, which read times as UTC:
+ * "7:00 PM" was stored as 7 PM UTC (= 2 PM Eastern) and the 11:30 PM finish
+ * (04:30 UTC) made the form add Sunday as a second day. Put it back to what was
+ * typed — Sat Nov 14, 7:00–11:30 PM Eastern, one day. Only touches the event if
+ * it still has exactly those wrong values and nobody holds a Sunday pass, so a
+ * later correct edit from the (fixed) form is never overwritten.
+ */
+export async function fixKaliPujo2026Times(): Promise<string> {
+  const db = getDb();
+  const [ev] = await db.select().from(schema.events).where(eq(schema.events.slug, "kali-pujo-2026"));
+  if (!ev) return "no Kali Pujo 2026 event — nothing to fix";
+  const days = (ev.days as { key: string }[] | null) ?? [];
+  const wrongStart = ev.startsAt.toISOString() === "2026-11-14T19:00:00.000Z";
+  const hasSunday = days.some((d) => d.key === "sun");
+  if (!wrongStart && !hasSunday) return "times already correct — left as they are";
+  const sundayTickets = await db
+    .select({ id: schema.tickets.id })
+    .from(schema.tickets)
+    .innerJoin(schema.registrations, eq(schema.registrations.id, schema.tickets.registrationId))
+    .where(and(eq(schema.registrations.eventId, ev.id), eq(schema.tickets.dayKey, "sun")));
+  if (sundayTickets.length > 0) return `left alone — ${sundayTickets.length} Sunday pass(es) exist; fix in Admin → Events`;
+  await db
+    .update(schema.events)
+    .set({
+      startsAt: wrongStart ? new Date("2026-11-15T00:00:00Z") : ev.startsAt, // 7:00 PM EST
+      days: days.filter((d) => d.key !== "sun").length ? days.filter((d) => d.key !== "sun") : [{ key: "sat", date: "2026-11-14", label: "Saturday, Nov 14" }],
+      updatedAt: new Date(),
+    })
+    .where(eq(schema.events.id, ev.id));
+  return `fixed: ${wrongStart ? "start 7:00 PM Eastern; " : ""}${hasSunday ? "Sunday removed" : ""}`;
 }
 
 // ── the runner ──────────────────────────────────────────────────

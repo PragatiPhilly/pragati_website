@@ -168,3 +168,20 @@ export async function todayCounts(eventId: string, days: EventDayLite[]): Promis
   const inMap = await inTodayMap(todays, today);
   return { today, inside: todays.filter((t) => inMap.has(t.id)).length, expected: todays.length };
 }
+
+/** Checked in vs passes issued for one event, all days (used outside the event's own dates). */
+export async function eventCounts(eventId: string): Promise<{ inside: number; expected: number }> {
+  const db = getDb();
+  const regs = (await db.select().from(schema.registrations).where(eq(schema.registrations.eventId, eventId))).filter(regAdmits);
+  if (regs.length === 0) return { inside: 0, expected: 0 };
+  const regIds = new Set(regs.map((r) => r.id));
+  const rows = await db
+    .select({ t: schema.tickets, band: schema.ticketTypes.ageBand })
+    .from(schema.tickets)
+    .innerJoin(schema.ticketTypes, eq(schema.ticketTypes.id, schema.tickets.ticketTypeId))
+    .where(eq(schema.ticketTypes.eventId, eventId));
+  const { voidedTicketIds } = await import("@/lib/refunds");
+  const voided = await voidedTicketIds();
+  const live = rows.filter((x) => regIds.has(x.t.registrationId) && x.band !== "addon" && !voided.has(x.t.id));
+  return { inside: live.filter((x) => x.t.checkedInAt).length, expected: live.length };
+}

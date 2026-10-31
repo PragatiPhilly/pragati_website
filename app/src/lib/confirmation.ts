@@ -4,10 +4,11 @@
  */
 import { sql } from "drizzle-orm";
 import { getDb, schema } from "@/db/client";
+import { easternYear } from "@/lib/tz";
 
 export async function nextConfirmationNumber(prefix: "PRG" | "DON"): Promise<string> {
   const db = getDb();
-  const year = new Date().getFullYear();
+  const year = easternYear(); // New Year's Eve after 7 PM is still this year in Pennsylvania
   const key = `${prefix}-${year}`;
   const rows = await db
     .insert(schema.counters)

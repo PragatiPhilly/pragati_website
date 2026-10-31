@@ -3,13 +3,14 @@ import { notFound } from "next/navigation";
 import { getDb, schema } from "@/db/client";
 import EventForm from "../../EventForm";
 import { requireSectionAccess } from "@/lib/auth/access";
+import { dateToEasternWall, easternYmd } from "@/lib/tz";
 
 export const dynamic = "force-dynamic";
 export const metadata = { title: "Edit event" };
 
+/** The datetime-local boxes show Pennsylvania time (the server runs in UTC). */
 function toLocalInput(d: Date) {
-  const pad = (n: number) => String(n).padStart(2, "0");
-  return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`;
+  return dateToEasternWall(d);
 }
 
 export default async function EditEventPage({ params }: { params: Promise<{ id: string }> }) {
@@ -63,7 +64,7 @@ export default async function EditEventPage({ params }: { params: Promise<{ id: 
             discountType: p.discountType as "percent" | "fixed_amount_cents",
             discountValue: p.discountType === "fixed_amount_cents" ? p.discountValue / 100 : p.discountValue,
             maxUsesTotal: p.maxUsesTotal,
-            validUntil: p.validUntil ? p.validUntil.toISOString().slice(0, 10) : null,
+            validUntil: p.validUntil ? easternYmd(p.validUntil) : null,
           })),
         }}
       />

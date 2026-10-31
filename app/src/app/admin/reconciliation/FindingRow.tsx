@@ -78,7 +78,7 @@ export default function FindingRow({ f }: { f: FindingView }) {
           <p className="ref">{f.reference ?? "No confirmation number"}</p>
           <h3>{meta.title}</h3>
         </div>
-        <p className="when">flagged {new Date(f.createdAt).toLocaleDateString("en-US", { month: "short", day: "numeric" })}</p>
+        <p className="when">flagged {new Date(f.createdAt).toLocaleDateString("en-US", { timeZone: "America/New_York", month: "short", day: "numeric" })}</p>
       </div>
 
       <p className="means">{meta.means}</p>

@@ -7,6 +7,7 @@ import { requireSectionAccess } from "@/lib/auth/access";
 import { getConfig } from "@/lib/system-config";
 import { formatCents } from "@/lib/pricing";
 import { listPayments } from "@/lib/ledger";
+import { easternYmd } from "@/lib/tz";
 
 export const dynamic = "force-dynamic";
 
@@ -110,7 +111,7 @@ export default async function AdminMembersPage() {
                   </td>
                   <td className="px-4 py-3 text-xs" style={{ color: "var(--ink-soft)" }}>{m.membershipStartedAt ?? "—"}</td>
                   <td className="px-4 py-3 text-xs" style={{ color: "var(--ink-soft)" }}>
-                    {m.membershipExpiresAt ? new Date(m.membershipExpiresAt).toISOString().slice(0, 10) : "—"}
+                    {m.membershipExpiresAt ? easternYmd(m.membershipExpiresAt) : "—"}
                   </td>
                   <td className="px-4 py-3">
                     <MemberActions

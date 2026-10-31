@@ -154,15 +154,25 @@ export async function listFollowups(filter: FollowupFilter = {}): Promise<
   }
 }
 
+/**
+ * Open follow-ups worth a badge: the CURRENT event's (a missing email for last
+ * month's pujo is not worth interrupting anyone for), plus every money one —
+ * an uncleared cheque or money held by a person matters whatever the event.
+ */
 export async function countOpenFollowups(): Promise<number> {
   try {
     await ensureDeskSchema();
     const db = getDb();
-    const [row] = await db
-      .select({ n: sql<number>`count(*)` })
-      .from(schema.deskFollowups)
-      .where(eq(schema.deskFollowups.status, "open"));
-    return Number(row?.n ?? 0);
+    const open = await db.select().from(schema.deskFollowups).where(eq(schema.deskFollowups.status, "open"));
+    if (open.length === 0) return 0;
+    const { getConfig } = await import("@/lib/system-config");
+    const slug = await getConfig<string>("active_event_slug");
+    const [ev] = slug ? await db.select({ id: schema.events.id }).from(schema.events).where(eq(schema.events.slug, slug)) : [];
+    if (!ev) return open.length;
+    const regIds = new Set(
+      (await db.select({ id: schema.registrations.id }).from(schema.registrations).where(eq(schema.registrations.eventId, ev.id))).map((r) => r.id)
+    );
+    return open.filter((f) => f.paymentId || !f.registrationId || regIds.has(f.registrationId)).length;
   } catch {
     return 0;
   }

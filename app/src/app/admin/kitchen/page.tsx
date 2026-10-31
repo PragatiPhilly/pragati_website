@@ -37,10 +37,13 @@ export default async function KitchenPage() {
       <EventLens />
       <h1 className="font-[family-name:var(--font-display)] text-3xl font-black mb-1">Kitchen report</h1>
       <p className="text-sm mb-6" style={{ color: "var(--ink-soft)" }}>
-        {event.name} · plates per meal for everyone who has paid, plus walk-ins let in before fully paying. Same rules as the food
-        coupons: Friday dinner only; Saturday and Sunday lunch + dinner; concert-only kids get dinner, concert-only adults and no-food
-        passes don&apos;t; under-5s always get a kid plate; a teen who picked an adult plate counts as adult. Updates every minute. For
-        what has actually been served, see{" "}
+        {event.name} · plates for each meal set up in{" "}
+        <a href="/admin/scans" className="underline underline-offset-4 font-semibold">
+          Scan setup
+        </a>
+        , for everyone who has paid plus walk-ins let in before fully paying. Under-5s always get a kid plate; a teen who picked an adult
+        plate counts as adult; no-food passes and concert-only adults don&apos;t eat. Updates every minute. For what has actually been
+        served, see{" "}
         <a href="/admin/food" className="underline underline-offset-4 font-semibold">
           Food line
         </a>
@@ -128,7 +131,7 @@ export default async function KitchenPage() {
       <div className="festive-card mt-6 p-5 text-sm">
         <strong>Whole event: {grand} plates</strong>{" "}
         <span style={{ color: "var(--ink-soft)" }}>
-          — every meal added up (a 3-day pass counts once per meal it covers). Walk-ins added at the desk appear here as soon as they are
+          — every meal added up (a pass for several days counts once per meal it covers). Walk-ins added at the desk appear here as soon as they are
           paid or let in.
         </span>
       </div>
